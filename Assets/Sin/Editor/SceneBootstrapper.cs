@@ -56,9 +56,10 @@ public static class SceneBootstrapper
         var itemPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltItemVisual.prefab");
         var minerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/MinerVisual.prefab");
         var processorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/ProcessorVisual.prefab");
+        var corePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/CoreVisual.prefab");
         var ghostPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/MachineGhost.prefab");
         var stripPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltStripVisual.prefab");
-        if (itemPrefab == null || minerPrefab == null || processorPrefab == null || ghostPrefab == null || stripPrefab == null)
+        if (itemPrefab == null || minerPrefab == null || processorPrefab == null || corePrefab == null || ghostPrefab == null || stripPrefab == null)
         {
             Debug.LogWarning("[SceneBootstrapper] Prefab(s) not found — run Tools > Factory Prototype > Build Prefabs first.");
         }
@@ -69,6 +70,11 @@ public static class SceneBootstrapper
         SetRef(machineTool, "minerPrefab", minerPrefab);
         SetRef(machineTool, "processorPrefab", processorPrefab);
 
+        var coreSpawnerGO = EnsureEmpty("CoreSpawner", Vector3.zero);
+        var coreSpawner = EnsureComponentOn<CoreSpawner>(coreSpawnerGO);
+        SetRef(coreSpawner, "driver", driver);
+        SetRef(coreSpawner, "corePrefab", corePrefab);
+
         var minerDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Miner.asset");
         var smelterDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Smelter.asset");
         if (minerDef == null || smelterDef == null)
@@ -78,6 +84,7 @@ public static class SceneBootstrapper
 
         BuildPalette(router, machineTool, minerDef, smelterDef);
         BuildHud(driver);
+        BuildRecipePanel(driver);
         BuildGround();
         FrameCamera();
 
@@ -92,6 +99,7 @@ public static class SceneBootstrapper
         "Miner", "Smelter", "BeltNodeA", "BeltNodeB", "BeltNodeC",
         "BeltStrip_Segment0", "BeltStrip_Segment1", "BeltRenderer_Segment0", "BeltRenderer_Segment1",
         "DemoSceneSetup",
+        "FacingLabel", // 예전 실행에서 캔버스 루트에 잘못 붙였던 버전을 지우고 버튼 자식으로 다시 만든다.
     };
 
     private static void RemoveLegacyObjects()
@@ -180,11 +188,67 @@ public static class SceneBootstrapper
         var beltButton = EnsureButton(canvasGO.transform, "PaletteButton_Belt", "벨트", new Vector2(400, 40));
         WirePaletteButton(beltButton, router, machineTool, null);
 
+        var rotateButton = EnsureButton(canvasGO.transform, "RotateButton", "회전", new Vector2(-400, 40), rightAnchored: true);
+        var rotate = rotateButton.gameObject.GetComponent<RotatePlacementButton>() ?? rotateButton.gameObject.AddComponent<RotatePlacementButton>();
+        SetRef(rotate, "machineTool", machineTool);
+        SetRef(rotate, "button", rotateButton);
+
+        // 회전 버튼 위에 현재 출력 방향을 글자로 표시 — 3D 화살표 표식만으로는 배치 전
+        // 고스트 단계에서 화면 크기상 눈에 잘 안 띌 수 있어서 텍스트로도 이중 표시한다.
+        // 캔버스 절대 좌표가 아니라 회전 버튼의 자식으로 붙여서(anchor를 버튼 위쪽에 상대
+        // 지정), 화면 비율/스케일이 뭐가 됐든 항상 버튼 바로 위에 붙어 있게 한다.
+        var facingLabel = EnsureLabelAboveButton(rotateButton.transform, "FacingLabel");
+        SetRef(rotate, "facingLabel", facingLabel);
+
         var confirmButton = EnsureButton(canvasGO.transform, "ConfirmButton", "확정", new Vector2(-220, 40), rightAnchored: true);
         var confirm = confirmButton.gameObject.GetComponent<ConfirmPlacementButton>() ?? confirmButton.gameObject.AddComponent<ConfirmPlacementButton>();
         SetRef(confirm, "machineTool", machineTool);
         SetRef(confirm, "router", router);
         SetRef(confirm, "button", confirmButton);
+    }
+
+    private static void BuildRecipePanel(SimulationDriver driver)
+    {
+        var canvasGO = GameObject.Find("HUDCanvas");
+        if (canvasGO == null) return;
+
+        var panelGO = GameObject.Find("RecipeSelectionPanel");
+        if (panelGO == null)
+        {
+            panelGO = new GameObject("RecipeSelectionPanel", typeof(RectTransform), typeof(Image));
+            panelGO.transform.SetParent(canvasGO.transform, false);
+            var rt = panelGO.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(380f, 700f);
+            panelGO.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.1f, 0.92f);
+        }
+
+        var containerGO = GameObject.Find("RecipeButtonContainer");
+        if (containerGO == null)
+        {
+            containerGO = new GameObject("RecipeButtonContainer", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            containerGO.transform.SetParent(panelGO.transform, false);
+            var rt = containerGO.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(20f, 20f);
+            rt.offsetMax = new Vector2(-20f, -20f);
+
+            var layout = containerGO.GetComponent<VerticalLayoutGroup>();
+            layout.spacing = 10f;
+            layout.childControlWidth = true;
+            layout.childControlHeight = false;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+        }
+
+        var panelComponent = panelGO.GetComponent<RecipeSelectionPanel>() ?? panelGO.AddComponent<RecipeSelectionPanel>();
+        SetRef(panelComponent, "panelRoot", panelGO);
+        SetRef(panelComponent, "buttonContainer", containerGO.transform);
+        SetRef(panelComponent, "driver", driver);
     }
 
     private static void WirePaletteButton(Button button, BuildInputRouter router, MachineGhostTool machineTool, MachineDef machineDef)
@@ -266,6 +330,32 @@ public static class SceneBootstrapper
         var bridge = EnsureComponentOn<SimulationHudBridge>(bridgeGO);
         SetRef(bridge, "driver", driver);
         SetRef(bridge, "hud", hud);
+    }
+
+    // 버튼의 자식으로, 버튼 바로 위쪽에 상대 anchor로 붙는 라벨을 만든다(캔버스 절대 좌표를
+    // 안 쓰므로 CanvasScaler 비율이 뭐든 항상 버튼과 같이 움직인다).
+    private static Text EnsureLabelAboveButton(Transform buttonTransform, string name)
+    {
+        var existing = buttonTransform.Find(name);
+        if (existing != null) return existing.GetComponent<Text>();
+
+        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+        go.transform.SetParent(buttonTransform, false);
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 10f);
+        rt.sizeDelta = new Vector2(0f, 60f);
+
+        var text = go.GetComponent<Text>();
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = 24;
+        text.alignment = TextAnchor.MiddleCenter;
+        text.color = Color.white;
+        text.text = string.Empty;
+        return text;
     }
 
     private static Text EnsureText(Transform parent, string name, Vector2 anchoredPos)

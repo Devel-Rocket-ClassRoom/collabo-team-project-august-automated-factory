@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Factory.Data;
 
 namespace Factory.Simulation
 {
@@ -30,11 +31,11 @@ namespace Factory.Simulation
             }
         }
 
-        public void Tick(float deltaSeconds, List<BeltSegment> segments, List<MinerInstance> miners, List<ProcessorInstance> processors)
+        public void Tick(float deltaSeconds, List<BeltSegment> segments, List<ProcessorInstance> processors, GameDatabase database)
         {
             for (int i = 0; i < segments.Count; i++)
             {
-                LoadFromSource(segments[i], miners, processors);
+                LoadFromSource(segments[i], processors, database);
             }
 
             BuildDownstreamFirstOrder(segments);
@@ -69,33 +70,84 @@ namespace Factory.Simulation
             processingOrder.Add(segment);
         }
 
-        private static void LoadFromSource(BeltSegment segment, List<MinerInstance> miners, List<ProcessorInstance> processors)
+        private void LoadFromSource(BeltSegment segment, List<ProcessorInstance> processors, GameDatabase database)
         {
             bool headFree = segment.Items.Count == 0 || segment.Items[0].Position > segment.ItemSpacing;
             if (!headFree) return;
 
-            if (segment.SourceMinerId.HasValue)
+            if (!segment.SourceProcessorId.HasValue) return;
+            var processor = processors[segment.SourceProcessorId.Value];
+
+            if (processor.UniversalPorts)
             {
-                var miner = miners[segment.SourceMinerId.Value];
-                if (miner.BufferedOutput > 0)
-                {
-                    miner.BufferedOutput--;
-                    segment.Items.Insert(0, new BeltItem(miner.OutputResourceId, 0f));
-                }
+                LoadFromCore(segment, processor, processors, database);
                 return;
             }
 
-            if (segment.SourceProcessorId.HasValue)
+            var buffer = processor.OutputBuffer;
+            for (int resourceId = 0; resourceId < buffer.Length; resourceId++)
             {
-                var processor = processors[segment.SourceProcessorId.Value];
-                for (int resourceId = 0; resourceId < processor.OutputBuffer.Length; resourceId++)
-                {
-                    if (processor.OutputBuffer[resourceId] <= 0) continue;
-                    processor.OutputBuffer[resourceId]--;
-                    segment.Items.Insert(0, new BeltItem(resourceId, 0f));
-                    return;
-                }
+                if (buffer[resourceId] <= 0) continue;
+                buffer[resourceId]--;
+                segment.Items.Insert(0, new BeltItem(resourceId, 0f));
+                return;
             }
+        }
+
+        // 코어는 쌓아둔 걸 아무 벨트에나 무조건 흘려보내지 않는다 — 이 벨트 체인 끝에 실제로
+        // 레시피를 지정받은 기계가 있고, 그 레시피가 필요로 하는 자원일 때만 내준다("먼저
+        // 레시피를 지정해서 필요한 자원 정보를 전달받아야 준다"는 설계). 막다른 벨트나 아직
+        // 레시피 미지정인 기계로는 아무것도 내주지 않는다.
+        private void LoadFromCore(BeltSegment segment, ProcessorInstance core, List<ProcessorInstance> processors, GameDatabase database)
+        {
+            var target = FindTerminalTarget(segment, processors);
+            if (target == null) return; // 막다른 벨트 -> 요청하는 대상이 없음
+
+            if (target.UniversalPorts)
+            {
+                // 코어->코어(창고 재배치) 같은 특수 케이스는 레시피 개념이 없으니 있는 대로 내준다.
+                DispenseAny(segment, core.InputBuffer);
+                return;
+            }
+
+            if (target.RecipeId < 0) return; // 아직 레시피 미지정 -> 뭐가 필요한지 모르니 안 줌
+
+            var inputs = database.Recipes[target.RecipeId].Inputs;
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                int resourceId = inputs[i].ResourceId;
+                if (core.InputBuffer[resourceId] <= 0) continue;
+                core.InputBuffer[resourceId]--;
+                segment.Items.Insert(0, new BeltItem(resourceId, 0f));
+                return;
+            }
+        }
+
+        private static void DispenseAny(BeltSegment segment, int[] buffer)
+        {
+            for (int resourceId = 0; resourceId < buffer.Length; resourceId++)
+            {
+                if (buffer[resourceId] <= 0) continue;
+                buffer[resourceId]--;
+                segment.Items.Insert(0, new BeltItem(resourceId, 0f));
+                return;
+            }
+        }
+
+        // segment의 NextSegmentId를 따라가 최종 목적지(TargetProcessorId가 있는 세그먼트)를
+        // 찾는다. 도중에 목적지 없이 끊기면(막다른 벨트) null. 세그먼트 총 개수로 상한을 둬서
+        // (있어서는 안 되지만) 순환 연결에도 무한루프에 빠지지 않게 방어한다.
+        private ProcessorInstance FindTerminalTarget(BeltSegment segment, List<ProcessorInstance> processors)
+        {
+            var current = segment;
+            int guard = segmentsById.Count + 1;
+            while (current != null && guard-- > 0)
+            {
+                if (current.TargetProcessorId.HasValue) return processors[current.TargetProcessorId.Value];
+                if (!current.NextSegmentId.HasValue) return null;
+                segmentsById.TryGetValue(current.NextSegmentId.Value, out current);
+            }
+            return null;
         }
 
         private void AdvanceSegment(BeltSegment segment, float deltaSeconds, List<ProcessorInstance> processors)

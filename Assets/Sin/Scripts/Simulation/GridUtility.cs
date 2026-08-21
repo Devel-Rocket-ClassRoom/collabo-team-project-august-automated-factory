@@ -37,5 +37,27 @@ namespace Factory.Simulation
                 y,
                 (cell.y + 0.5f) * CellSize);
         }
+
+        // anchor(최소 모서리 칸) 기준 footprint(가로x세로, 칸 단위) 전체가 차지하는 칸 목록.
+        public static System.Collections.Generic.List<Vector2Int> GetFootprintCells(Vector2Int anchor, Vector2Int footprint)
+        {
+            var cells = new System.Collections.Generic.List<Vector2Int>(footprint.x * footprint.y);
+            for (int dx = 0; dx < footprint.x; dx++)
+            {
+                for (int dy = 0; dy < footprint.y; dy++)
+                {
+                    cells.Add(new Vector2Int(anchor.x + dx, anchor.y + dy));
+                }
+            }
+            return cells;
+        }
+
+        public static Vector3 GetFootprintCenter(Vector2Int anchor, Vector2Int footprint, float y = 0f)
+        {
+            return new Vector3(
+                anchor.x * CellSize + footprint.x * CellSize * 0.5f,
+                y,
+                anchor.y * CellSize + footprint.y * CellSize * 0.5f);
+        }
     }
 }

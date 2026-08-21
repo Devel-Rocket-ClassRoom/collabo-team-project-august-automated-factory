@@ -1,4 +1,5 @@
 using Factory.Simulation;
+using Factory.UI;
 using UnityEngine;
 
 namespace Factory.Buildings
@@ -36,7 +37,14 @@ namespace Factory.Buildings
                     break;
                 case MachineInstanceKind.Processor:
                     var processor = driver.World.Processors[instanceIndex];
-                    Debug.Log($"[MachineView] Processor recipe={processor.RecipeId} processing={processor.IsProcessing} progress={processor.Progress:0.00}");
+                    // 코어(UniversalPorts)는 레시피 개념이 없는 순수 저장소라 선택 UI를 안 연다.
+                    if (processor.UniversalPorts)
+                    {
+                        Debug.Log($"[MachineView] Core storage — buffer 합계는 InputBuffer 참고");
+                        break;
+                    }
+                    var category = driver.World.Database.Machines[processor.MachineId].Category;
+                    RecipeSelectionPanel.Instance?.Open(instanceIndex, category);
                     break;
             }
         }

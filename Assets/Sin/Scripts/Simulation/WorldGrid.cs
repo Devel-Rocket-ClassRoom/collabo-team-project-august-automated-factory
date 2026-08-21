@@ -64,6 +64,15 @@ namespace Factory.Simulation
             occupants[cell] = new CellOccupant(type, instanceIndex);
         }
 
+        // 코어처럼 여러 칸을 차지하는 건물용 — 같은 occupant를 footprint의 모든 칸에 등록한다.
+        public void RegisterBuildingFootprint(IReadOnlyList<Vector2Int> cells, CellOccupantType type, int instanceIndex)
+        {
+            for (int i = 0; i < cells.Count; i++)
+            {
+                RegisterBuilding(cells[i], type, instanceIndex);
+            }
+        }
+
         // 카메라 시야(월드 셀 기준 사각형)와 겹치는 청크만 반환 — 렌더 갱신 대상 산정용.
         public IEnumerable<Chunk> GetVisibleChunks(RectInt viewCellBounds)
         {

@@ -21,8 +21,9 @@ public static class DataSeeder
 
         var ironOre = CreateOrLoadResource("IronOre", "철광석");
         var ironPlate = CreateOrLoadResource("IronPlate", "철판");
-        var copperOre = CreateOrLoadResource("CopperOre", "구리광석");
-        var copperPlate = CreateOrLoadResource("CopperPlate", "구리판");
+        // 구리는 아직 캘 수단(구리 채굴기)이 없는데 레시피만 있으면, 제련로가 레시피를
+        // 자동 배정할 때(이름순 첫 번째) 구리 레시피를 집어서 영원히 대기만 하는 함정이
+        // 생긴다. 구리 채굴기를 실제로 추가할 때 다시 넣는다.
 
         var minerDef = CreateOrLoadMachine("Miner", "채굴기", MachineCategory.Miner);
         if (minerDef.minerOutput == null)
@@ -32,9 +33,9 @@ public static class DataSeeder
         }
 
         var smelterDef = CreateOrLoadMachine("Smelter", "제련로", MachineCategory.Smelter);
+        CreateOrLoadMachine("Core", "코어", MachineCategory.Storage);
 
         CreateOrLoadRecipe("SmeltIron", ironOre, 2, ironPlate, 1, 2f, MachineCategory.Smelter);
-        CreateOrLoadRecipe("SmeltCopper", copperOre, 2, copperPlate, 1, 2f, MachineCategory.Smelter);
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();

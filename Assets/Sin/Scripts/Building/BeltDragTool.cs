@@ -6,15 +6,26 @@ using UnityEngine;
 namespace Factory.Building
 {
     // 프레스+드래그로 벨트 경로를 그리고(코너는 BeltPathBuilder가 자동 처리), 릴리즈 시
-    // 실제 BeltSegment로 커밋한다. 경로의 시작/끝 칸이 이미 놓인 기계와 겹치면 그 기계에
-    // 자동으로 연결(SourceMinerId/SourceProcessorId/TargetProcessorId)하고, 이미 있는
-    // 벨트 칸과 겹치면 그 세그먼트의 NextSegmentId로 이어붙여 컨베이어를 연장할 수 있다.
+    // 실제 BeltSegment로 커밋한다. 채굴기/제련로는 고정된 입력면/출력면이 있어서(Facing),
+    // 벨트가 정확히 그 면에 닿아야만 연결된다 — 어느 쪽이든 드래그 방향대로 연결되던
+    // 예전 방식과 달리 모호함이 없다. 코어(UniversalPorts)와 기존 벨트는 예외적으로
+    // 어느 쪽에 닿아도 되고, 드래그 시작/끝 위치로 소스/타겟이 갈린다.
     public class BeltDragTool : MonoBehaviour, IBuildTool
     {
+        private enum EndpointRole
+        {
+            None,
+            Source,
+            Target,
+        }
+
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SimulationDriver driver;
         [SerializeField] private float previewThickness = 0.5f;
         [SerializeField] private float committedThickness = 0.6f;
+        // BeltItemVisual 프리팹의 반지름(지름 0.25의 절반)과 맞춰야 한다 — 벨트 위에 아이템이
+        // "위에 얹힌" 것처럼 보이려면 벨트 두께의 절반 + 이 반지름만큼 띄워야 한다.
+        [SerializeField] private float itemVisualRadius = 0.125f;
         [SerializeField] private Color previewColor = new Color(0.2f, 0.9f, 0.3f, 0.5f);
         [SerializeField] private Color committedColor = new Color(0.15f, 0.15f, 0.15f, 1f);
         [SerializeField] private GameObject itemVisualPrefab;
@@ -98,9 +109,7 @@ namespace Factory.Building
         }
 
         // 세그먼트 하나가 정확히 자기 칸 안(경계~반대쪽 경계)에 들어차도록 진입/이탈 지점을
-        // 계산한다. 예전엔 "이 칸 중심 -> 다음 칸 중심"으로 그려서 중심이 칸 경계에 걸쳐
-        // 있었다 — 그러면 벨트가 한 칸에 딱 맞지 않고 두 칸에 걸친 것처럼 보인다.
-        // 진입/이탈 방향이 다르면(코너) 꺾이는 지점(bend)을 반환해서 두 조각으로 나눠 그린다.
+        // 계산한다. 진입/이탈 방향이 다르면(코너) 꺾이는 지점(bend)을 반환해서 두 조각으로 나눠 그린다.
         private static void ComputeCellSpan(List<Vector2Int> path, int k, out Vector3 entry, out Vector3 exit, out Vector3? bend)
         {
             Vector3 center = GridUtility.CellToWorldCenter(path[k], 0.5f);
@@ -129,34 +138,100 @@ namespace Factory.Building
             previewStrips.Clear();
         }
 
+        // 기계 포트(고정 입력/출력면), 코어(4면 다 유효), 기존 벨트(방향대로) 각각의 규칙으로
+        // 이 endpoint가 소스/타겟/무효 중 뭔지 판정한다.
+        // machineCell: 점유된 칸(기계가 있는 칸). touchingCell: 드래그 경로상 그 바로 옆 칸.
+        // isStart: 이 endpoint가 드래그 시작 쪽인지 (코어/벨트처럼 방향 의존적인 경우에만 씀).
+        // isFixed: true면 포트 방향(Facing)만으로 확정된 값이라 절대 안 바뀐다(채굴기/제련로).
+        // false면 코어/벨트처럼 "어느 쪽에 이어붙이느냐"로만 정해지는 값이라, 반대쪽이 고정
+        // 역할을 가지고 있으면 그걸 보고 나중에 뒤집힐 수 있다(둘 다 같은 역할로 겹치는 것 방지).
+        private EndpointRole ResolveEndpointRole(CellOccupant occupant, Vector2Int machineCell, Vector2Int touchingCell, bool isStart, out bool isFixed)
+        {
+            switch (occupant.Type)
+            {
+                case CellOccupantType.Miner:
+                    // 채굴기는 입출력 포트가 없다 — 캔 자원은 벨트 없이 코어로 곧장 원격 전송된다
+                    // (MinerSystem 참고). 그래서 어느 면에 닿아도 벨트 연결 대상이 될 수 없다.
+                    isFixed = true;
+                    return EndpointRole.None;
+                case CellOccupantType.Processor:
+                {
+                    var processor = driver.World.Processors[occupant.InstanceIndex];
+                    if (processor.UniversalPorts)
+                    {
+                        isFixed = false;
+                        return isStart ? EndpointRole.Source : EndpointRole.Target;
+                    }
+                    isFixed = true;
+                    if (touchingCell == machineCell + processor.Facing) return EndpointRole.Source;
+                    if (touchingCell == machineCell - processor.Facing) return EndpointRole.Target;
+                    return EndpointRole.None;
+                }
+                case CellOccupantType.Belt:
+                    isFixed = false;
+                    return isStart ? EndpointRole.Source : EndpointRole.Target;
+                default:
+                    isFixed = false;
+                    return EndpointRole.None;
+            }
+        }
+
+        private static EndpointRole Opposite(EndpointRole role) => role == EndpointRole.Source ? EndpointRole.Target : EndpointRole.Source;
+
         private void Commit()
         {
             if (driver == null || driver.World == null || path.Count < 2) return;
 
             var grid = driver.World.Grid;
-            grid.TryGetOccupant(path[0], out var startOccupant);
-            grid.TryGetOccupant(path[path.Count - 1], out var endOccupant);
             bool startOccupied = grid.IsOccupied(path[0]);
             bool endOccupied = grid.IsOccupied(path[path.Count - 1]);
+            grid.TryGetOccupant(path[0], out var startOccupant);
+            grid.TryGetOccupant(path[path.Count - 1], out var endOccupant);
 
-            // 우리 기계는 고정된 입력/출력 면이 없다 (모바일에서 칸마다 특정 면을 정확히
-            // 짚게 하는 건 오조작을 유발함) — 그래서 방향은 순수하게 드래그 방향을 따른다:
-            // 시작 칸에 닿은 대상은 소스, 끝 칸에 닿은 대상은 타겟. "제련로에서 시작하면
-            // 무조건 입력일 것"이라고 임의로 뒤집지 않는다 — 제련로도 자기 산출물을 다른
-            // 곳으로 보내려고 거기서부터 드래그하는 정당한 경우가 있기 때문. 타입이 안 맞는
-            // 연결(예: 채굴기를 타겟으로)은 그냥 그 쪽 연결이 안 걸릴 뿐, 자동으로 뒤집지 않는다.
+            bool startFixed = false, endFixed = false;
+            var startRole = startOccupied ? ResolveEndpointRole(startOccupant, path[0], path[1], true, out startFixed) : EndpointRole.None;
+            var endRole = endOccupied ? ResolveEndpointRole(endOccupant, path[path.Count - 1], path[path.Count - 2], false, out endFixed) : EndpointRole.None;
 
-            // 시작/끝 칸이 기계나 "이미 있는 벨트"와 겹치면 그 칸 자체는 새 벨트 칸으로 만들지
-            // 않고(중복 점유 방지) 대신 그 대상에 연결한다. 그 외의 겹치는 칸은 그냥 막는다.
+            // 점유된 칸이 있는데 유효한 포트가 아니면(기계 옆면 등) 거부 — 잘못된 연결을
+            // 어설프게 만들지 않는다.
+            if (startOccupied && startRole == EndpointRole.None) return;
+            if (endOccupied && endRole == EndpointRole.None) return;
+
+            // 양쪽 다 같은 역할로 겹치면(둘 다 Source거나 둘 다 Target) 보통 코어처럼 순서
+            // 의존적인(고정 아님) 쪽이 반대쪽 고정 포트 방향과 어긋난 경우다 — 예: 제련로
+            // 입력면 쪽에서 시작해 코어로 드래그하면, 입력면은 Target인데 코어도 (isStart가
+            // 아니라는 이유만으로) Target으로 잡혀버림. 고정 포트가 아닌 쪽을 반대 역할로
+            // 바로잡는다. 둘 다 고정이거나 둘 다 유동인데 겹치면 진짜로 애매하니 거부한다.
+            if (startOccupied && endOccupied && startRole == endRole)
+            {
+                if (!startFixed && endFixed) startRole = Opposite(endRole);
+                else if (startFixed && !endFixed) endRole = Opposite(startRole);
+                else return;
+            }
+
+            // 소스가 끝 쪽으로 판정됐으면(예: 제련로 입력면에서 시작해 코어 쪽으로 드래그한
+            // 경우) 경로를 뒤집어서 소스가 항상 앞에 오게 한다 — 세그먼트 체인은 배열 순서를
+            // 그대로 흐름 순서로 쓰기 때문. 역할은 이미 위에서 확정했으니 다시 판정하지 않고
+            // 그대로 맞바꾼다(다시 판정하면 위에서 바로잡은 결과가 날아감).
+            if (startRole != EndpointRole.Source && endRole == EndpointRole.Source)
+            {
+                path.Reverse();
+                (startOccupied, endOccupied) = (endOccupied, startOccupied);
+                (startOccupant, endOccupant) = (endOccupant, startOccupant);
+                (startRole, endRole) = (endRole, startRole);
+            }
+
+            // 시작/끝 칸이 유효한 포트(기계)나 기존 벨트와 겹치면 그 칸 자체는 새 벨트 칸으로
+            // 만들지 않고 대신 그 대상에 연결한다.
             var beltCells = new List<Vector2Int>(path);
             if (endOccupied) beltCells.RemoveAt(beltCells.Count - 1);
             if (startOccupied) beltCells.RemoveAt(0);
 
             if (beltCells.Count == 0)
             {
-                // 새로 놓을 벨트 칸이 아예 없는 경우 (예: 기존 벨트 끝이 제련로 바로 옆칸이라
-                // 사이에 빈 칸이 없음) — 새 세그먼트 없이 기존 것끼리 바로 연결을 시도한다.
-                TryDirectLink(startOccupied, startOccupant, endOccupied, endOccupant);
+                // 새로 놓을 벨트 칸이 아예 없는 경우 (예: 기존 벨트 끝이 제련로 입력면 바로
+                // 옆칸이라 사이에 빈 칸이 없음) — 새 세그먼트 없이 기존 것끼리 바로 연결한다.
+                TryDirectLink(startOccupied, startOccupant, startRole, endOccupied, endOccupant, endRole);
                 return;
             }
 
@@ -171,13 +246,11 @@ namespace Factory.Building
                 createdSegments.Add(new BeltSegment { Id = driver.World.Segments.Count + i, Length = 1f });
             }
 
-            if (startOccupied)
+            if (startOccupied && startRole == EndpointRole.Source)
             {
                 switch (startOccupant.Type)
                 {
-                    case CellOccupantType.Miner:
-                        createdSegments[0].SourceMinerId = startOccupant.InstanceIndex;
-                        break;
+                    // Miner는 ResolveEndpointRole에서 항상 None이라 여기 Source로 들어올 수 없다.
                     case CellOccupantType.Processor:
                         createdSegments[0].SourceProcessorId = startOccupant.InstanceIndex;
                         break;
@@ -188,14 +261,17 @@ namespace Factory.Building
                 }
             }
 
-            if (endOccupied && endOccupant.Type == CellOccupantType.Processor)
+            if (endOccupied && endRole == EndpointRole.Target)
             {
-                createdSegments[createdSegments.Count - 1].TargetProcessorId = endOccupant.InstanceIndex;
-            }
-            else if (endOccupied && endOccupant.Type == CellOccupantType.Belt)
-            {
-                // 기존 벨트 시작 쪽에 이어붙이는 경우: 새 마지막 세그먼트가 그 세그먼트로 흘러들게 연결.
-                createdSegments[createdSegments.Count - 1].NextSegmentId = endOccupant.InstanceIndex;
+                if (endOccupant.Type == CellOccupantType.Processor)
+                {
+                    createdSegments[createdSegments.Count - 1].TargetProcessorId = endOccupant.InstanceIndex;
+                }
+                else if (endOccupant.Type == CellOccupantType.Belt)
+                {
+                    // 기존 벨트 시작 쪽에 이어붙이는 경우: 새 마지막 세그먼트가 그 세그먼트로 흘러들게 연결.
+                    createdSegments[createdSegments.Count - 1].NextSegmentId = endOccupant.InstanceIndex;
+                }
             }
 
             for (int i = 0; i < createdSegments.Count - 1; i++)
@@ -219,9 +295,10 @@ namespace Factory.Building
 
         // 새 벨트 칸 없이 기존 벨트를 기존 제련로/기존 벨트에 직접 연결한다 (둘이 바로 붙어있는 경우).
         // 채굴기는 최소 한 칸의 벨트가 있어야 산출물을 실을 수 있으므로 여기서는 다루지 않는다.
-        private void TryDirectLink(bool startOccupied, CellOccupant startOccupant, bool endOccupied, CellOccupant endOccupant)
+        private void TryDirectLink(bool startOccupied, CellOccupant startOccupant, EndpointRole startRole, bool endOccupied, CellOccupant endOccupant, EndpointRole endRole)
         {
-            if (!startOccupied || startOccupant.Type != CellOccupantType.Belt || !endOccupied) return;
+            if (!startOccupied || startOccupant.Type != CellOccupantType.Belt || startRole != EndpointRole.Source) return;
+            if (!endOccupied || endRole != EndpointRole.Target) return;
 
             var startSegment = driver.World.Segments[startOccupant.InstanceIndex];
             if (endOccupant.Type == CellOccupantType.Processor)
@@ -238,13 +315,18 @@ namespace Factory.Building
         {
             var root = new GameObject($"Belt_{segmentId}");
 
+            // 벨트 스트립 메쉬는 from/to 지점을 중심(Y)으로 삼아 두께만큼 위아래로 걸쳐 있다.
+            // 아이템 앵커까지 같은 Y를 쓰면 아이템 절반이 벨트 안에 파묻혀 버리니, 벨트 윗면
+            // 위로 아이템 반지름만큼 띄워서 "위에 얹혀 굴러가는" 것처럼 보이게 한다.
+            Vector3 itemHeightOffset = Vector3.up * (committedThickness * 0.2f + itemVisualRadius);
+
             var startAnchor = new GameObject("Start").transform;
             startAnchor.SetParent(root.transform);
-            startAnchor.position = from;
+            startAnchor.position = from + itemHeightOffset;
 
             var endAnchor = new GameObject("End").transform;
             endAnchor.SetParent(root.transform);
-            endAnchor.position = to;
+            endAnchor.position = to + itemHeightOffset;
 
             if (bend.HasValue)
             {

@@ -93,20 +93,15 @@ namespace Factory.Data
         public bool TryGetRecipeId(string key, out int id) => recipeIdByKey.TryGetValue(key, out id);
         public bool TryGetMachineId(string key, out int id) => machineIdByKey.TryGetValue(key, out id);
 
-        // 아직 레시피 선택 UI가 없어서, 배치된 제련로/조립기에는 해당 카테고리의 첫 레시피를
-        // 임시로 자동 배정한다 (진짜 레시피 선택 UI는 이후 과제).
-        public bool TryGetFirstRecipeForCategory(MachineCategory category, out int recipeId)
+        // 레시피 선택 UI에서 이 기계 카테고리로 고를 수 있는 레시피 목록을 보여줄 때 쓴다.
+        public List<int> GetRecipeIdsForCategory(MachineCategory category)
         {
+            var result = new List<int>();
             for (int i = 0; i < recipes.Length; i++)
             {
-                if (recipes[i].RequiredCategory == category)
-                {
-                    recipeId = i;
-                    return true;
-                }
+                if (recipes[i].RequiredCategory == category) result.Add(i);
             }
-            recipeId = -1;
-            return false;
+            return result;
         }
 
         public void MakeGlobal() => Instance = this;

@@ -13,7 +13,7 @@ namespace Factory.Simulation
         public float ItemSpacing = SimulationConstants.DefaultItemSpacing;
 
         // 체인의 첫 세그먼트에만 하나가 설정됨: 기계 산출물을 이 세그먼트로 실어 나른다.
-        public int? SourceMinerId;
+        // 채굴기는 원격 전송(코어로 직배송)이라 벨트 소스가 될 수 없다 — Processor만 있음.
         public int? SourceProcessorId;
 
         // 체인의 마지막 세그먼트(NextSegmentId == null)에만 설정됨: 도착한 아이템을 받는 기계.

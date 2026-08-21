@@ -17,6 +17,10 @@ namespace Factory.Simulation
         public List<ProcessorInstance> Processors { get; } = new List<ProcessorInstance>();
         public List<BeltSegment> Segments { get; } = new List<BeltSegment>();
 
+        // 채굴기가 원격 전송으로 곧장 넣어줄 코어의 인덱스(CoreSpawner가 설정). 아직 코어가
+        // 없으면 -1이고, 그동안 채굴한 산출물은 MinerInstance.BufferedOutput에 대기한다.
+        public int CoreProcessorIndex = -1;
+
         private readonly MinerSystem minerSystem = new MinerSystem();
         private readonly ProcessorSystem processorSystem = new ProcessorSystem();
         private readonly BeltSystem beltSystem = new BeltSystem();
@@ -48,9 +52,9 @@ namespace Factory.Simulation
 
         public void Tick(float deltaSeconds)
         {
-            minerSystem.Tick(deltaSeconds, Miners);
+            minerSystem.Tick(deltaSeconds, Miners, Processors, CoreProcessorIndex);
             processorSystem.Tick(deltaSeconds, Database, Processors);
-            beltSystem.Tick(deltaSeconds, Segments, Miners, Processors);
+            beltSystem.Tick(deltaSeconds, Segments, Processors, Database);
         }
     }
 }
