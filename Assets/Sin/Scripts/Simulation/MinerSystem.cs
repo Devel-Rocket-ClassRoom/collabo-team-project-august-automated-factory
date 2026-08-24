@@ -21,10 +21,9 @@ namespace Factory.Simulation
                 while (miner.Progress >= miner.MineIntervalSeconds)
                 {
                     miner.Progress -= miner.MineIntervalSeconds;
-                    if (miner.BufferedOutput < SimulationConstants.ResourceBufferCapacity)
-                    {
-                        miner.BufferedOutput++;
-                    }
+                    miner.BufferedOutput = System.Math.Min(
+                        miner.BufferedOutput + miner.YieldPerCycle,
+                        SimulationConstants.ResourceBufferCapacity);
                 }
 
                 if (core == null) continue;

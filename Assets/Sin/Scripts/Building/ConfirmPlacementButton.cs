@@ -21,10 +21,10 @@ namespace Factory.Building
         {
             if (!machineTool.Confirm()) return;
 
-            // 기계를 놓은 다음 자연스러운 다음 동작은 벨트로 연결하는 것이라, 모드를 자동으로
-            // 벨트로 넘겨준다 — 안 그러면 라우터가 계속 "기계 배치" 모드에 멈춰있어서, 다시
-            // "벨트" 버튼을 누르지 않는 한 드래그해도 아무 반응이 없다.
-            if (router != null) router.SetMode(BuildInputRouter.Mode.Belt);
+            // 벨트 버튼이 따로 있는데 기계를 놓자마자 벨트 모드로 자동 전환되면 오히려
+            // 헷갈린다는 피드백에 따라, 확정 후엔 아무 모드도 아닌 상태(None)로 돌아간다 —
+            // None이면 한 손가락 드래그가 카메라 팬으로 동작하니 놀고 있는 상태도 아니다.
+            if (router != null) router.SetMode(BuildInputRouter.Mode.None);
         }
     }
 }

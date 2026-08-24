@@ -16,6 +16,11 @@ namespace Factory.Simulation
         // 채굴기는 원격 전송(코어로 직배송)이라 벨트 소스가 될 수 없다 — Processor만 있음.
         public int? SourceProcessorId;
 
+        // 이 라인이 처음 실어 나른 자원으로 굳어진 값 — 한 번 정해지면 계속 그 자원만
+        // 싣는다("벨트 하나당 한 종류"). 안 그러면 소스가 여러 자원을 갖고 있을 때(코어처럼)
+        // 매번 아무거나 골라서 한 벨트에 섞어 올리게 된다(BeltSystem.LoadFromSource 참고).
+        public int? LockedSourceResourceId;
+
         // 체인의 마지막 세그먼트(NextSegmentId == null)에만 설정됨: 도착한 아이템을 받는 기계.
         public int? TargetProcessorId;
 

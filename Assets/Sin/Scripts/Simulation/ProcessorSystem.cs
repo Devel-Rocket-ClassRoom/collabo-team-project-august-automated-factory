@@ -57,7 +57,7 @@ namespace Factory.Simulation
                 int amount = outputs[i].Amount;
                 processor.OutputBuffer[resourceId] = System.Math.Min(
                     processor.OutputBuffer[resourceId] + amount,
-                    SimulationConstants.ResourceBufferCapacity);
+                    processor.Capacity);
             }
         }
     }

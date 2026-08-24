@@ -12,5 +12,8 @@ namespace Factory.Data
 
         public string displayName;
         public Sprite icon;
+
+        [Tooltip("에셋 없는 프로토타입이라 아이콘/모델 대신 벨트 위 아이템 색으로 자원을 구분한다.")]
+        public Color color = Color.white;
     }
 }

@@ -43,10 +43,31 @@ namespace Factory.Buildings
                         Debug.Log($"[MachineView] Core storage — buffer 합계는 InputBuffer 참고");
                         break;
                     }
+                    LogProcessorState(processor);
                     var category = driver.World.Database.Machines[processor.MachineId].Category;
                     RecipeSelectionPanel.Instance?.Open(instanceIndex, category);
                     break;
             }
+        }
+
+        // 벨트가 실제로 자원을 넣어주고 있는지, 레시피가 뭘 기다리는지 눈으로 바로 보이게
+        // 탭할 때마다 InputBuffer/OutputBuffer 전체를 찍는다 — 연결은 됐는데 왜 안 만들어지는지
+        // 알기 어려운 문제를 디버깅할 때 쓴다.
+        private void LogProcessorState(ProcessorInstance processor)
+        {
+            var db = driver.World.Database;
+            var inputParts = new System.Collections.Generic.List<string>();
+            var outputParts = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < db.Resources.Count; i++)
+            {
+                if (processor.InputBuffer[i] > 0) inputParts.Add($"{db.Resources[i].Key}={processor.InputBuffer[i]}");
+                if (processor.OutputBuffer[i] > 0) outputParts.Add($"{db.Resources[i].Key}={processor.OutputBuffer[i]}");
+            }
+
+            string recipeInfo = processor.RecipeId < 0 ? "(미지정)" : db.Recipes[processor.RecipeId].Key;
+            Debug.Log($"[MachineView] Processor idx={instanceIndex} recipe={recipeInfo} " +
+                $"input=[{string.Join(", ", inputParts)}] output=[{string.Join(", ", outputParts)}] " +
+                $"anchor={processor.Anchor} footprint={processor.Footprint} facing={processor.Facing}");
         }
     }
 }

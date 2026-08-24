@@ -189,6 +189,133 @@ public class BeltSystemTests
         Assert.Less(core.InputBuffer[oreId], 5, "레시피가 필요로 하는 자원은 실제로 빠져나가야 함");
     }
 
+    [Test]
+    public void CoreSource_TargetNeedsTwoResources_SingleLaneNeverMixesTypes()
+    {
+        // 사용자가 스크린샷으로 보고한 버그: 목적지가 서로 다른 두 자원을 필요로 하고 코어에
+        // 둘 다 쌓여 있으면, 벨트 하나가 매 틱 아무거나 골라서 섞어 올렸다. 이제는 그 라인이
+        // 처음 실어 나른 자원으로 끝까지 굳어져야 한다("벨트 하나당 한 종류").
+        var db = BuildDatabaseWithTwoInputRecipe(out int oreId, out int scrapId, out int recipeId);
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        core.InputBuffer[oreId] = 20;
+        core.InputBuffer[scrapId] = 20;
+        var target = new ProcessorInstance(db.ResourceCount) { RecipeId = recipeId }; // TestOre + TestScrap 둘 다 필요
+
+        var segment = new BeltSegment { Id = 0, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var segments = new List<BeltSegment> { segment };
+        var processors = new List<ProcessorInstance> { core, target };
+
+        var system = new BeltSystem();
+        system.Configure(segments);
+
+        // 첫 로드로 라인이 뭘로 굳어졌는지 확인.
+        system.Tick(0.1f, segments, processors, db);
+        Assert.IsTrue(segment.LockedSourceResourceId.HasValue, "첫 아이템이 실린 순간 라인이 굳어져야 함");
+        int lockedId = segment.LockedSourceResourceId.Value;
+
+        for (int i = 0; i < 100; i++) system.Tick(0.1f, segments, processors, db);
+
+        int otherId = lockedId == oreId ? scrapId : oreId;
+        Assert.AreEqual(20, core.InputBuffer[otherId], "굳어진 자원이 아닌 쪽은 이 라인에서 전혀 안 빠져나가야 함(섞이면 안 됨)");
+        Assert.Less(core.InputBuffer[lockedId], 20, "굳어진 자원은 계속 이 라인으로 빠져나가야 함");
+    }
+
+    [Test]
+    public void CoreSource_TwoSeparateLanesToSameTarget_LockToDifferentResources()
+    {
+        // 사용자가 두 번째 스크린샷으로 보고한 버그: 벨트 두 줄을 각각 따로 그어서 코어 ->
+        // 같은 조립기로 연결했더니, 둘 다 똑같이 "맨 앞 자원부터 시도"해서 결국 같은 자원
+        // 하나로 몰렸다. 이제는 라인마다 시도 순서가 어긋나서 서로 다른 자원으로 갈라져야 한다.
+        var db = BuildDatabaseWithTwoInputRecipe(out int oreId, out int scrapId, out int recipeId);
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        core.InputBuffer[oreId] = 20;
+        core.InputBuffer[scrapId] = 20;
+        var target = new ProcessorInstance(db.ResourceCount) { RecipeId = recipeId };
+
+        var segmentA = new BeltSegment { Id = 0, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var segmentB = new BeltSegment { Id = 1, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var segments = new List<BeltSegment> { segmentA, segmentB };
+        var processors = new List<ProcessorInstance> { core, target };
+
+        var system = new BeltSystem();
+        system.Configure(segments);
+
+        for (int i = 0; i < 50; i++) system.Tick(0.1f, segments, processors, db);
+
+        Assert.IsTrue(segmentA.LockedSourceResourceId.HasValue && segmentB.LockedSourceResourceId.HasValue,
+            "두 라인 다 뭔가로 굳어져 있어야 함");
+        Assert.AreNotEqual(segmentA.LockedSourceResourceId.Value, segmentB.LockedSourceResourceId.Value,
+            "같은 목적지로 가는 두 라인은 서로 다른 자원으로 갈라져야 함(둘 다 같은 자원으로 몰리면 안 됨)");
+    }
+
+    [Test]
+    public void CoreSource_SecondLaneAssignedScarceResource_WaitsIdleInsteadOfCarryingSiblingsResource()
+    {
+        // 실제로 재현된 버그: 코어에 아직 오레만 쌓여있고(스크랩은 나중에야 채워짐, 예: 제련로가
+        // 아직 산출 전) 같은 목적지로 가는 라인이 둘이면, 담당을 "재고 있는지"로 정하는 예전
+        // 방식은 A/B 둘 다 오레만 계속 실어 날랐다(스크랩 담당 라인도 재고 없다고 오레를 대신
+        // 나름). 그러다 목적지의 오레 버퍼가 꽉 차면(용량 한계) 벨트에 오레가 계속 쌓여서
+        // 뒤늦게 스크랩이 코어에 들어와도 물리적으로 못 지나가는 정체가 생겼다.
+        // 이제는 담당을 재고와 무관하게 "아직 아무도 안 맡은 재료"로 즉시 정하므로, 스크랩
+        // 담당 라인(B)은 스크랩 재고가 없는 동안 오레를 대신 나르지 않고 그냥 비어서 기다려야
+        // 하고, 그래서 A가 나르는 오레만으로 목적지 버퍼가 꽉 찰 일이 없다.
+        var db = BuildDatabaseWithTwoInputRecipe(out int oreId, out int scrapId, out int recipeId);
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        core.InputBuffer[oreId] = 20; // scrapId는 아직 0 -> 아직 코어에 없음(제련로가 아직 안 만듦)
+        var target = new ProcessorInstance(db.ResourceCount) { RecipeId = recipeId };
+
+        var segmentA = new BeltSegment { Id = 0, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var segmentB = new BeltSegment { Id = 1, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var segments = new List<BeltSegment> { segmentA, segmentB };
+        var processors = new List<ProcessorInstance> { core, target };
+
+        var system = new BeltSystem();
+        system.Configure(segments);
+
+        for (int i = 0; i < 20; i++) system.Tick(0.1f, segments, processors, db);
+
+        Assert.AreEqual(oreId, segmentA.LockedSourceResourceId, "A는 아무도 안 맡은 오레를 즉시 담당해야 함");
+        Assert.AreEqual(scrapId, segmentB.LockedSourceResourceId,
+            "B는 재고가 없어도 스크랩 담당으로 즉시 정해져야 함(오레 담당으로 잘못 굳으면 안 됨)");
+        Assert.AreEqual(0, segmentB.Items.Count, "담당 자원(스크랩) 재고가 없는 동안은 오레를 대신 나르지 않고 비어서 기다려야 함");
+        Assert.AreEqual(0, core.InputBuffer[scrapId], "스크랩은 아직 안 들어왔으니 그대로 0이어야 함");
+
+        core.InputBuffer[scrapId] = 20; // 이제서야 스크랩이 코어에 들어옴(제련로가 뒤늦게 산출)
+
+        for (int i = 0; i < 20; i++) system.Tick(0.1f, segments, processors, db);
+
+        Assert.Less(core.InputBuffer[scrapId], 20, "스크랩이 들어온 뒤엔 B가 곧바로 실어 날라야 함");
+    }
+
+    private static GameDatabase BuildDatabaseWithTwoInputRecipe(out int oreId, out int scrapId, out int recipeId)
+    {
+        var ore = ScriptableObject.CreateInstance<ResourceDef>();
+        ore.resourceId = "TestOre";
+        var scrap = ScriptableObject.CreateInstance<ResourceDef>();
+        scrap.resourceId = "TestScrap";
+
+        var recipe = ScriptableObject.CreateInstance<RecipeDef>();
+        recipe.recipeId = "TestTwoInputRecipe";
+        recipe.inputs = new[]
+        {
+            new RecipeIngredient { resource = ore, amount = 1 },
+            new RecipeIngredient { resource = scrap, amount = 1 },
+        };
+        recipe.outputs = System.Array.Empty<RecipeIngredient>();
+        recipe.processSeconds = 1f;
+        recipe.requiredCategory = MachineCategory.Assembler;
+
+        var db = GameDatabase.Build(new[] { ore, scrap }, new[] { recipe }, System.Array.Empty<MachineDef>());
+        oreId = db.GetResourceId("TestOre");
+        scrapId = db.GetResourceId("TestScrap");
+        recipeId = db.GetRecipeId("TestTwoInputRecipe");
+
+        Object.DestroyImmediate(ore);
+        Object.DestroyImmediate(scrap);
+        Object.DestroyImmediate(recipe);
+        return db;
+    }
+
     private static GameDatabase BuildDatabaseWithRecipe(out int oreId, out int scrapId, out int recipeId)
     {
         var ore = ScriptableObject.CreateInstance<ResourceDef>();

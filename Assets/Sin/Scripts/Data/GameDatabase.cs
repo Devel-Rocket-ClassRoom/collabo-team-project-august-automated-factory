@@ -9,11 +9,13 @@ namespace Factory.Data
     {
         public readonly string Key;
         public readonly string DisplayName;
+        public readonly Color Color;
 
-        public ResourceRuntime(string key, string displayName)
+        public ResourceRuntime(string key, string displayName, Color color)
         {
             Key = key;
             DisplayName = displayName;
+            Color = color;
         }
     }
 
@@ -41,15 +43,31 @@ namespace Factory.Data
         public readonly MachineCategory Category;
         public readonly Vector2Int Footprint;
         public readonly float SpeedMultiplier;
-        public readonly int MinerOutputResourceId; // Category != Miner이면 -1
 
-        public MachineRuntime(string key, MachineCategory category, Vector2Int footprint, float speedMultiplier, int minerOutputResourceId)
+        public MachineRuntime(string key, MachineCategory category, Vector2Int footprint, float speedMultiplier)
         {
             Key = key;
             Category = category;
             Footprint = footprint;
             SpeedMultiplier = speedMultiplier;
-            MinerOutputResourceId = minerOutputResourceId;
+        }
+    }
+
+    // 땅 위 광물 노드 하나의 런타임 정보 — 채굴기는 이 노드 위에 지어져야만 생기고, 이 노드의
+    // 자원/속도/산출량을 그대로 물려받는다(OreDepositDef 참고).
+    public readonly struct OreDepositRuntime
+    {
+        public readonly string Key;
+        public readonly int ResourceId;
+        public readonly float MineIntervalSeconds;
+        public readonly int YieldPerCycle;
+
+        public OreDepositRuntime(string key, int resourceId, float mineIntervalSeconds, int yieldPerCycle)
+        {
+            Key = key;
+            ResourceId = resourceId;
+            MineIntervalSeconds = mineIntervalSeconds;
+            YieldPerCycle = yieldPerCycle;
         }
     }
 
@@ -63,35 +81,42 @@ namespace Factory.Data
         public IReadOnlyList<ResourceRuntime> Resources => resources;
         public IReadOnlyList<RecipeRuntime> Recipes => recipes;
         public IReadOnlyList<MachineRuntime> Machines => machines;
+        public IReadOnlyList<OreDepositRuntime> OreDeposits => oreDeposits;
 
         public int ResourceCount => resources.Length;
 
         private readonly ResourceRuntime[] resources;
         private readonly RecipeRuntime[] recipes;
         private readonly MachineRuntime[] machines;
+        private readonly OreDepositRuntime[] oreDeposits;
 
         private readonly Dictionary<string, int> resourceIdByKey;
         private readonly Dictionary<string, int> recipeIdByKey;
         private readonly Dictionary<string, int> machineIdByKey;
+        private readonly Dictionary<string, int> oreDepositIdByKey;
 
-        private GameDatabase(ResourceRuntime[] resources, RecipeRuntime[] recipes, MachineRuntime[] machines,
-            Dictionary<string, int> resourceIdByKey, Dictionary<string, int> recipeIdByKey, Dictionary<string, int> machineIdByKey)
+        private GameDatabase(ResourceRuntime[] resources, RecipeRuntime[] recipes, MachineRuntime[] machines, OreDepositRuntime[] oreDeposits,
+            Dictionary<string, int> resourceIdByKey, Dictionary<string, int> recipeIdByKey, Dictionary<string, int> machineIdByKey, Dictionary<string, int> oreDepositIdByKey)
         {
             this.resources = resources;
             this.recipes = recipes;
             this.machines = machines;
+            this.oreDeposits = oreDeposits;
             this.resourceIdByKey = resourceIdByKey;
             this.recipeIdByKey = recipeIdByKey;
             this.machineIdByKey = machineIdByKey;
+            this.oreDepositIdByKey = oreDepositIdByKey;
         }
 
         public int GetResourceId(string key) => resourceIdByKey[key];
         public int GetRecipeId(string key) => recipeIdByKey[key];
         public int GetMachineId(string key) => machineIdByKey[key];
+        public int GetOreDepositId(string key) => oreDepositIdByKey[key];
 
         public bool TryGetResourceId(string key, out int id) => resourceIdByKey.TryGetValue(key, out id);
         public bool TryGetRecipeId(string key, out int id) => recipeIdByKey.TryGetValue(key, out id);
         public bool TryGetMachineId(string key, out int id) => machineIdByKey.TryGetValue(key, out id);
+        public bool TryGetOreDepositId(string key, out int id) => oreDepositIdByKey.TryGetValue(key, out id);
 
         // 레시피 선택 UI에서 이 기계 카테고리로 고를 수 있는 레시피 목록을 보여줄 때 쓴다.
         public List<int> GetRecipeIdsForCategory(MachineCategory category)
@@ -113,16 +138,20 @@ namespace Factory.Data
             var resourceDefs = UnityEngine.Resources.LoadAll<ResourceDef>($"{rootPath}/Resources");
             var recipeDefs = UnityEngine.Resources.LoadAll<RecipeDef>($"{rootPath}/Recipes");
             var machineDefs = UnityEngine.Resources.LoadAll<MachineDef>($"{rootPath}/Machines");
-            return Build(resourceDefs, recipeDefs, machineDefs);
+            var oreDepositDefs = UnityEngine.Resources.LoadAll<OreDepositDef>($"{rootPath}/OreDeposits");
+            return Build(resourceDefs, recipeDefs, machineDefs, oreDepositDefs);
         }
 
-        public static GameDatabase Build(ResourceDef[] resourceDefs, RecipeDef[] recipeDefs, MachineDef[] machineDefs)
+        public static GameDatabase Build(ResourceDef[] resourceDefs, RecipeDef[] recipeDefs, MachineDef[] machineDefs, OreDepositDef[] oreDepositDefs = null)
         {
+            oreDepositDefs ??= Array.Empty<OreDepositDef>();
+
             // Resources.LoadAll의 순서는 플랫폼/빌드마다 보장되지 않으므로, id 문자열로 정렬해
             // 실행마다 동일한 int id가 배정되도록 한다 (결정적 동작, 저장 데이터 안정성).
             var sortedResources = resourceDefs.OrderBy(r => r.resourceId, StringComparer.Ordinal).ToArray();
             var sortedMachines = machineDefs.OrderBy(m => m.machineId, StringComparer.Ordinal).ToArray();
             var sortedRecipes = recipeDefs.OrderBy(r => r.recipeId, StringComparer.Ordinal).ToArray();
+            var sortedOreDeposits = oreDepositDefs.OrderBy(d => d.depositId, StringComparer.Ordinal).ToArray();
 
             var resourceIdByKey = new Dictionary<string, int>(sortedResources.Length);
             var resources = new ResourceRuntime[sortedResources.Length];
@@ -130,7 +159,7 @@ namespace Factory.Data
             {
                 var def = sortedResources[i];
                 resourceIdByKey[def.resourceId] = i;
-                resources[i] = new ResourceRuntime(def.resourceId, def.displayName);
+                resources[i] = new ResourceRuntime(def.resourceId, def.displayName, def.color);
             }
 
             var machineIdByKey = new Dictionary<string, int>(sortedMachines.Length);
@@ -139,8 +168,7 @@ namespace Factory.Data
             {
                 var def = sortedMachines[i];
                 machineIdByKey[def.machineId] = i;
-                int minerOutputResourceId = def.minerOutput != null && resourceIdByKey.TryGetValue(def.minerOutput.resourceId, out int rid) ? rid : -1;
-                machines[i] = new MachineRuntime(def.machineId, def.category, def.footprint, def.speedMultiplier, minerOutputResourceId);
+                machines[i] = new MachineRuntime(def.machineId, def.category, def.footprint, def.speedMultiplier);
             }
 
             var recipeIdByKey = new Dictionary<string, int>(sortedRecipes.Length);
@@ -157,7 +185,17 @@ namespace Factory.Data
                     def.requiredCategory);
             }
 
-            return new GameDatabase(resources, recipes, machines, resourceIdByKey, recipeIdByKey, machineIdByKey);
+            var oreDepositIdByKey = new Dictionary<string, int>(sortedOreDeposits.Length);
+            var oreDeposits = new OreDepositRuntime[sortedOreDeposits.Length];
+            for (int i = 0; i < sortedOreDeposits.Length; i++)
+            {
+                var def = sortedOreDeposits[i];
+                oreDepositIdByKey[def.depositId] = i;
+                int resourceId = resourceIdByKey[def.resource.resourceId];
+                oreDeposits[i] = new OreDepositRuntime(def.depositId, resourceId, def.mineIntervalSeconds, def.yieldPerCycle);
+            }
+
+            return new GameDatabase(resources, recipes, machines, oreDeposits, resourceIdByKey, recipeIdByKey, machineIdByKey, oreDepositIdByKey);
         }
 
         private static ResourceAmount[] ResolveIngredients(RecipeIngredient[] ingredients, Dictionary<string, int> resourceIdByKey)

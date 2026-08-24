@@ -15,7 +15,7 @@ namespace Factory.Data
         public Vector2Int footprint = Vector2Int.one;
         public float speedMultiplier = 1f;
 
-        [Tooltip("category가 Miner일 때만 쓰임: 이 채굴기가 캐낼 자원. 실제 자원 노드/지형 시스템이 생기기 전까지의 임시 단순화.")]
-        public ResourceDef minerOutput;
+        [Tooltip("이 기계 종류 전용 외형 프리팹. 비어있으면 고스트/배치 도구가 기본 박스로 대체한다.")]
+        public GameObject visualPrefab;
     }
 }

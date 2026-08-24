@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Factory.Building;
 using Factory.Simulation;
 using UnityEngine;
 
@@ -38,12 +39,16 @@ namespace Factory.Rendering
 
             EnsurePoolSize(segment.Items.Count);
 
+            var database = driver.World.Database;
             for (int i = 0; i < segment.Items.Count; i++)
             {
                 var item = segment.Items[i];
                 float t = segment.Length <= 0f ? 0f : item.Position / segment.Length;
                 pool[i].position = Vector3.Lerp(startPoint.position, endPoint.position, t);
                 pool[i].gameObject.SetActive(true);
+                // 자원별 프리팹은 없고(에셋 없는 프로토타입) 대신 색으로 구분한다 — 풀 슬롯이
+                // 이전엔 다른 자원을 표시했을 수 있으니 매 프레임 다시 칠한다.
+                BuildVisuals.Colorize(pool[i].gameObject, database.Resources[item.ResourceId].Color);
             }
 
             for (int i = segment.Items.Count; i < pool.Count; i++)

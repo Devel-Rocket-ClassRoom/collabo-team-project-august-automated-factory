@@ -17,4 +17,5 @@ MonoBehaviour:
   category: 3
   footprint: {x: 1, y: 1}
   speedMultiplier: 1
+  visualPrefab: {fileID: 3541852005448857136, guid: c64e1bdbb94738e47ae0cfacd1189c23, type: 3}
   minerOutput: {fileID: 0}

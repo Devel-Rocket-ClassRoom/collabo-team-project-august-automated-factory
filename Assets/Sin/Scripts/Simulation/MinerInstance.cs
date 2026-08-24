@@ -8,6 +8,8 @@ namespace Factory.Simulation
         public int OutputResourceId;
         public float SpeedMultiplier = 1f;
         public float MineIntervalSeconds = SimulationConstants.DefaultMineIntervalSeconds;
+        // 아래 밟고 있는 광물 노드(OreDepositDef)가 정한 사이클당 산출량.
+        public int YieldPerCycle = 1;
 
         public float Progress;
         public int BufferedOutput;

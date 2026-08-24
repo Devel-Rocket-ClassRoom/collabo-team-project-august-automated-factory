@@ -19,6 +19,16 @@ public class TapInputManager : MonoBehaviour
         var pointer = Pointer.current;
         if (pointer == null || !pointer.press.wasPressedThisFrame) return;
 
+        // UI 위(레시피 선택 버튼, 팔레트 버튼 등)를 누른 거면 월드 레이캐스트를 쏘면 안 된다 —
+        // 안 그러면 레시피 버튼을 누르는 순간 그 뒤에 있는(또는 화면상 같은 위치의) 기계도
+        // 같이 탭된 걸로 처리돼서, 방금 연 레시피 패널이 다시 열리는 등 상태가 꼬인다.
+        // BuildInputRouter에는 이미 있던 체크인데 여기엔 빠져 있었다.
+        if (UnityEngine.EventSystems.EventSystem.current != null &&
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
+
         HandleTap(pointer.position.ReadValue());
     }
 

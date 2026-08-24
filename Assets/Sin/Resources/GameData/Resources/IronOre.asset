@@ -15,3 +15,4 @@ MonoBehaviour:
   resourceId: IronOre
   displayName: "\uCCA0\uAD11\uC11D"
   icon: {fileID: 0}
+  color: {r: 0.45, g: 0.32, b: 0.22, a: 1}

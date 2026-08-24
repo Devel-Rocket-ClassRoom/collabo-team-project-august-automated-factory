@@ -34,8 +34,26 @@ namespace Factory.Simulation
         private readonly Dictionary<Vector2Int, Chunk> chunks = new Dictionary<Vector2Int, Chunk>();
         private readonly Dictionary<Vector2Int, CellOccupant> occupants = new Dictionary<Vector2Int, CellOccupant>();
 
+        // 건물 점유(occupants)와는 별개인 "땅" 레이어 — 채굴기는 광물 노드 위에 건물로 올라가야
+        // 하므로 두 레이어가 같은 칸에 공존해야 한다(occupants에 넣으면 그 칸이 "점유됨"으로
+        // 잡혀서 정작 채굴기를 못 짓게 된다).
+        private readonly Dictionary<Vector2Int, int> oreDepositRuntimeIdByCell = new Dictionary<Vector2Int, int>();
+
         public bool IsOccupied(Vector2Int cell) => occupants.ContainsKey(cell);
         public bool TryGetOccupant(Vector2Int cell, out CellOccupant occupant) => occupants.TryGetValue(cell, out occupant);
+
+        public void RegisterOreDeposit(Vector2Int cell, int oreDepositRuntimeId) => oreDepositRuntimeIdByCell[cell] = oreDepositRuntimeId;
+        public bool TryGetOreDeposit(Vector2Int cell, out int oreDepositRuntimeId) => oreDepositRuntimeIdByCell.TryGetValue(cell, out oreDepositRuntimeId);
+
+        // footprint 전체 칸이 하나도 안 겹치는지(멀티칸 배치 유효성 검사용).
+        public bool IsFootprintFree(IReadOnlyList<Vector2Int> cells)
+        {
+            for (int i = 0; i < cells.Count; i++)
+            {
+                if (IsOccupied(cells[i])) return false;
+            }
+            return true;
+        }
 
         public static Vector2Int WorldCellToChunkCoord(Vector2Int cell)
         {

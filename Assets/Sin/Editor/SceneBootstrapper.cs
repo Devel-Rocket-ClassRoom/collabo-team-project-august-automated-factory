@@ -19,6 +19,8 @@ public static class SceneBootstrapper
     private const string ScenePath = "Assets/Scenes/SampleScene.unity";
     private const string MachinesPath = "Assets/Sin/Resources/GameData/Machines";
     private const string PrefabsPath = "Assets/Sin/Prefabs";
+    // 48dp 최소 터치 타겟은 유지하면서(캔버스 스케일 기준 대략 매칭) 예전(160x100)보다 작게.
+    private static readonly Vector2 ButtonSize = new Vector2(120f, 72f);
 
     [MenuItem("Tools/Factory Prototype/Build Tech Tree Scene")]
     public static void BuildPrototypeScene()
@@ -53,13 +55,13 @@ public static class SceneBootstrapper
         SetRef(router, "machineTool", machineTool);
         SetRef(router, "cameraRig", cameraRig);
 
+        // 기계별 외형은 이제 코드가 아니라 MachineDef.visualPrefab(DataSeeder가 채움)이 들고
+        // 있어서, MachineGhostTool에는 종류 무관 폴백용 ghostPrefab만 넘기면 된다.
         var itemPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltItemVisual.prefab");
-        var minerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/MinerVisual.prefab");
-        var processorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/ProcessorVisual.prefab");
         var corePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/CoreVisual.prefab");
         var ghostPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/MachineGhost.prefab");
         var stripPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltStripVisual.prefab");
-        if (itemPrefab == null || minerPrefab == null || processorPrefab == null || corePrefab == null || ghostPrefab == null || stripPrefab == null)
+        if (itemPrefab == null || corePrefab == null || ghostPrefab == null || stripPrefab == null)
         {
             Debug.LogWarning("[SceneBootstrapper] Prefab(s) not found — run Tools > Factory Prototype > Build Prefabs first.");
         }
@@ -67,22 +69,27 @@ public static class SceneBootstrapper
         SetRef(beltTool, "itemVisualPrefab", itemPrefab);
         SetRef(beltTool, "stripPrefab", stripPrefab);
         SetRef(machineTool, "ghostPrefab", ghostPrefab);
-        SetRef(machineTool, "minerPrefab", minerPrefab);
-        SetRef(machineTool, "processorPrefab", processorPrefab);
 
         var coreSpawnerGO = EnsureEmpty("CoreSpawner", Vector3.zero);
         var coreSpawner = EnsureComponentOn<CoreSpawner>(coreSpawnerGO);
         SetRef(coreSpawner, "driver", driver);
         SetRef(coreSpawner, "corePrefab", corePrefab);
 
+        var oreDepositVisualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/OreDepositVisual.prefab");
+        var oreDepositSpawnerGO = EnsureEmpty("OreDepositSpawner", Vector3.zero);
+        var oreDepositSpawner = EnsureComponentOn<OreDepositSpawner>(oreDepositSpawnerGO);
+        SetRef(oreDepositSpawner, "driver", driver);
+        SetRef(oreDepositSpawner, "oreDepositVisualPrefab", oreDepositVisualPrefab);
+
         var minerDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Miner.asset");
         var smelterDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Smelter.asset");
-        if (minerDef == null || smelterDef == null)
+        var assemblerDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Assembler.asset");
+        if (minerDef == null || smelterDef == null || assemblerDef == null)
         {
-            Debug.LogWarning("[SceneBootstrapper] Miner/Smelter MachineDef not found — run Tools > Factory Prototype > Seed Sample Game Data first.");
+            Debug.LogWarning("[SceneBootstrapper] Machine def(s) not found — run Tools > Factory Prototype > Seed Sample Game Data first.");
         }
 
-        BuildPalette(router, machineTool, minerDef, smelterDef);
+        BuildPalette(router, machineTool, minerDef, smelterDef, assemblerDef);
         BuildHud(driver);
         BuildRecipePanel(driver);
         BuildGround();
@@ -100,6 +107,7 @@ public static class SceneBootstrapper
         "BeltStrip_Segment0", "BeltStrip_Segment1", "BeltRenderer_Segment0", "BeltRenderer_Segment1",
         "DemoSceneSetup",
         "FacingLabel", // 예전 실행에서 캔버스 루트에 잘못 붙였던 버전을 지우고 버튼 자식으로 다시 만든다.
+        "PaletteButton_CopperMiner", // 채굴기가 하나로 통합되면서 없어짐(광물 노드 태그로 대체).
     };
 
     private static void RemoveLegacyObjects()
@@ -164,7 +172,7 @@ public static class SceneBootstrapper
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
     }
 
-    private static void BuildPalette(BuildInputRouter router, MachineGhostTool machineTool, MachineDef minerDef, MachineDef smelterDef)
+    private static void BuildPalette(BuildInputRouter router, MachineGhostTool machineTool, MachineDef minerDef, MachineDef smelterDef, MachineDef assemblerDef)
     {
         var canvasGO = GameObject.Find("HUDCanvas");
         if (canvasGO == null)
@@ -179,28 +187,28 @@ public static class SceneBootstrapper
 
         EnsureEventSystem();
 
-        var minerButton = EnsureButton(canvasGO.transform, "PaletteButton_Miner", "채굴기", new Vector2(40, 40));
+        var minerButton = EnsureButton(canvasGO.transform, "PaletteButton_Miner", "채굴기", new Vector2(20, 40));
         WirePaletteButton(minerButton, router, machineTool, minerDef);
 
-        var smelterButton = EnsureButton(canvasGO.transform, "PaletteButton_Smelter", "제련로", new Vector2(220, 40));
+        var smelterButton = EnsureButton(canvasGO.transform, "PaletteButton_Smelter", "제련로", new Vector2(150, 40));
         WirePaletteButton(smelterButton, router, machineTool, smelterDef);
 
-        var beltButton = EnsureButton(canvasGO.transform, "PaletteButton_Belt", "벨트", new Vector2(400, 40));
-        WirePaletteButton(beltButton, router, machineTool, null);
+        var assemblerButton = EnsureButton(canvasGO.transform, "PaletteButton_Assembler", "조립기", new Vector2(280, 40));
+        WirePaletteButton(assemblerButton, router, machineTool, assemblerDef);
 
-        var rotateButton = EnsureButton(canvasGO.transform, "RotateButton", "회전", new Vector2(-400, 40), rightAnchored: true);
+        var beltButton = EnsureButton(canvasGO.transform, "PaletteButton_Belt", "벨트", new Vector2(410, 40));
+        WirePaletteButton(beltButton, router, machineTool, null, isBeltButton: true);
+
+        // 팔레트(1행, y=40)와 같은 줄에 두면 기계 종류가 늘어날 때마다 배치/확정 버튼과
+        // 자리다툼이 난다(실제로 조립기 추가하면서 회전 버튼과 겹쳤음) — 그래서 배치 액션
+        // 버튼들은 팔레트 위 2행(y=140)에 따로 둬서 팔레트가 늘어나도 절대 안 겹치게 한다.
+        // 방향 표시는 화면 글자 대신 기계 위 화살표(OutputArrow)만 쓰기로 해서 별도 라벨 없음.
+        var rotateButton = EnsureButton(canvasGO.transform, "RotateButton", "회전", new Vector2(-270, 140), rightAnchored: true);
         var rotate = rotateButton.gameObject.GetComponent<RotatePlacementButton>() ?? rotateButton.gameObject.AddComponent<RotatePlacementButton>();
         SetRef(rotate, "machineTool", machineTool);
         SetRef(rotate, "button", rotateButton);
 
-        // 회전 버튼 위에 현재 출력 방향을 글자로 표시 — 3D 화살표 표식만으로는 배치 전
-        // 고스트 단계에서 화면 크기상 눈에 잘 안 띌 수 있어서 텍스트로도 이중 표시한다.
-        // 캔버스 절대 좌표가 아니라 회전 버튼의 자식으로 붙여서(anchor를 버튼 위쪽에 상대
-        // 지정), 화면 비율/스케일이 뭐가 됐든 항상 버튼 바로 위에 붙어 있게 한다.
-        var facingLabel = EnsureLabelAboveButton(rotateButton.transform, "FacingLabel");
-        SetRef(rotate, "facingLabel", facingLabel);
-
-        var confirmButton = EnsureButton(canvasGO.transform, "ConfirmButton", "확정", new Vector2(-220, 40), rightAnchored: true);
+        var confirmButton = EnsureButton(canvasGO.transform, "ConfirmButton", "확정", new Vector2(-140, 140), rightAnchored: true);
         var confirm = confirmButton.gameObject.GetComponent<ConfirmPlacementButton>() ?? confirmButton.gameObject.AddComponent<ConfirmPlacementButton>();
         SetRef(confirm, "machineTool", machineTool);
         SetRef(confirm, "router", router);
@@ -251,12 +259,13 @@ public static class SceneBootstrapper
         SetRef(panelComponent, "driver", driver);
     }
 
-    private static void WirePaletteButton(Button button, BuildInputRouter router, MachineGhostTool machineTool, MachineDef machineDef)
+    private static void WirePaletteButton(Button button, BuildInputRouter router, MachineGhostTool machineTool, MachineDef machineDef, bool isBeltButton = false)
     {
         var paletteButton = button.gameObject.GetComponent<BuildPaletteButton>() ?? button.gameObject.AddComponent<BuildPaletteButton>();
         SetRef(paletteButton, "router", router);
         SetRef(paletteButton, "machineTool", machineTool);
         SetRef(paletteButton, "machineDef", machineDef);
+        SetBoolField(paletteButton, "isBeltButton", isBeltButton);
         SetRef(paletteButton, "button", button);
     }
 
@@ -271,11 +280,22 @@ public static class SceneBootstrapper
     private static Button EnsureButton(Transform parent, string name, string label, Vector2 anchoredPos, bool rightAnchored = false)
     {
         var existing = GameObject.Find(name);
-        if (existing != null) return existing.GetComponent<Button>();
+        GameObject go;
+        bool isNew = existing == null;
 
-        var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        go.transform.SetParent(parent, false);
+        if (isNew)
+        {
+            go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+        }
+        else
+        {
+            go = existing;
+        }
 
+        // 위치/앵커/크기는 순전히 코드가 결정하는 레이아웃이라, 이미 있는 버튼이어도 매번
+        // 최신 값으로 맞춘다 — 안 그러면(예전엔 여기서 바로 return) 팔레트에 버튼을 새로
+        // 추가할 때 기존 버튼이 옛 자리에 그대로 남아서 새 버튼과 겹쳐버린다.
         var rt = go.GetComponent<RectTransform>();
         if (rightAnchored)
         {
@@ -290,7 +310,9 @@ public static class SceneBootstrapper
             rt.pivot = new Vector2(0f, 0f);
         }
         rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = new Vector2(160f, 100f); // 모바일 48dp 최소 타겟 확보 여유분
+        rt.sizeDelta = ButtonSize;
+
+        if (!isNew) return go.GetComponent<Button>();
 
         var image = go.GetComponent<Image>();
         image.color = new Color(0.2f, 0.2f, 0.2f, 0.85f);
@@ -305,7 +327,10 @@ public static class SceneBootstrapper
 
         var text = textGO.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 32;
+        text.fontSize = 22;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 12;
+        text.resizeTextMaxSize = 22;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
         text.text = label;
@@ -332,31 +357,6 @@ public static class SceneBootstrapper
         SetRef(bridge, "hud", hud);
     }
 
-    // 버튼의 자식으로, 버튼 바로 위쪽에 상대 anchor로 붙는 라벨을 만든다(캔버스 절대 좌표를
-    // 안 쓰므로 CanvasScaler 비율이 뭐든 항상 버튼과 같이 움직인다).
-    private static Text EnsureLabelAboveButton(Transform buttonTransform, string name)
-    {
-        var existing = buttonTransform.Find(name);
-        if (existing != null) return existing.GetComponent<Text>();
-
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
-        go.transform.SetParent(buttonTransform, false);
-
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 1f);
-        rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 10f);
-        rt.sizeDelta = new Vector2(0f, 60f);
-
-        var text = go.GetComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 24;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.color = Color.white;
-        text.text = string.Empty;
-        return text;
-    }
 
     private static Text EnsureText(Transform parent, string name, Vector2 anchoredPos)
     {
@@ -385,6 +385,13 @@ public static class SceneBootstrapper
     {
         var so = new SerializedObject(target);
         so.FindProperty(fieldName).objectReferenceValue = value;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetBoolField(Object target, string fieldName, bool value)
+    {
+        var so = new SerializedObject(target);
+        so.FindProperty(fieldName).boolValue = value;
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 }

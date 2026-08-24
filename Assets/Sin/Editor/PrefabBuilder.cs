@@ -21,10 +21,14 @@ public static class PrefabBuilder
         EnsureFolder(MaterialsPath);
 
         BuildBeltItemPrefab();
-        // 채굴기는 입출력 포트가 없다(원격 전송) — 출력 화살표를 붙이지 않는다.
+        // 기계 종류마다 전용 프리팹을 둬서(색이라도 다르게) 눈으로 구분되게 한다.
+        // 채굴기는 이제 하나뿐이다(뭘 캐는지는 아래 광물 노드가 정함) — 입출력 포트가
+        // 없으므로(원격 전송) 출력 화살표를 붙이지 않는다.
         BuildMachinePrefab("MinerVisual", new Color(0.55f, 0.4f, 0.25f), hasOutputPort: false);
-        BuildMachinePrefab("ProcessorVisual", new Color(0.6f, 0.15f, 0.1f), hasOutputPort: true);
+        BuildMachinePrefab("SmelterVisual", new Color(0.6f, 0.15f, 0.1f), hasOutputPort: true);
+        BuildMachinePrefab("AssemblerVisual", new Color(0.45f, 0.25f, 0.65f), hasOutputPort: true);
         BuildCorePrefab();
+        BuildOreDepositVisualPrefab();
         BuildGhostPrefab();
         BuildBeltStripPrefab();
 
@@ -145,6 +149,20 @@ public static class PrefabBuilder
 
         if (dirty) PrefabUtility.SaveAsPrefabAsset(contents, path);
         PrefabUtility.UnloadPrefabContents(contents);
+    }
+
+    private static void BuildOreDepositVisualPrefab()
+    {
+        if (AlreadyExists("OreDepositVisual")) return;
+
+        // 순수 시각 표식(탭 불가) — 실제 색은 OreDepositSpawner가 자원 색으로 매 인스턴스마다
+        // 다시 칠한다(BuildVisuals.Colorize, 런타임). 여기 머티리얼은 그 전까지의 기본값일 뿐.
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.localScale = new Vector3(0.95f, 0.05f, 0.95f);
+        ApplyPersistedMaterial(go, "OreDepositVisual_Mat", new Color(0.5f, 0.5f, 0.5f));
+
+        SaveAndDestroy(go, "OreDepositVisual");
     }
 
     // 기계의 로컬 +Z(출력 쪽)에 화살표(삼각형) 표식을 붙인다. 부모가 Facing만큼 회전되면

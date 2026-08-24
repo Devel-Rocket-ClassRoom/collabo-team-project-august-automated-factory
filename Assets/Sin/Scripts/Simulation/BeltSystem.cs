@@ -85,11 +85,23 @@ namespace Factory.Simulation
             }
 
             var buffer = processor.OutputBuffer;
+
+            // 이 라인이 이미 특정 자원으로 굳어졌으면 그것만 계속 내준다("벨트 하나당 한 종류").
+            if (segment.LockedSourceResourceId.HasValue)
+            {
+                int lockedId = segment.LockedSourceResourceId.Value;
+                if (buffer[lockedId] <= 0) return;
+                buffer[lockedId]--;
+                segment.Items.Insert(0, new BeltItem(lockedId, 0f));
+                return;
+            }
+
             for (int resourceId = 0; resourceId < buffer.Length; resourceId++)
             {
                 if (buffer[resourceId] <= 0) continue;
                 buffer[resourceId]--;
                 segment.Items.Insert(0, new BeltItem(resourceId, 0f));
+                segment.LockedSourceResourceId = resourceId;
                 return;
             }
         }
@@ -112,15 +124,58 @@ namespace Factory.Simulation
 
             if (target.RecipeId < 0) return; // 아직 레시피 미지정 -> 뭐가 필요한지 모르니 안 줌
 
-            var inputs = database.Recipes[target.RecipeId].Inputs;
+            // 이 라인이 담당할 자원은 "지금 재고가 있는지"와 무관하게 딱 한 번만 정해진다
+            // ("이 라인은 철판 담당, 저 라인은 구리 담당"). 예전엔 재고 여부로 담당을 정해서,
+            // 담당 자원(철판)이 코어에 아직 없는 잠깐 사이에 다른 라인이 이미 맡은 자원(구리)을
+            // 대신 실어 날랐는데 — 구리는 이미 목적지 버퍼가 꽉 찰 만큼 계속 들어오다 보니
+            // 정작 필요한 철판이 뒤늦게 와도 벨트가 구리로 막혀서 못 지나가는 정체가 실제로
+            // 발생했다. 그래서 담당은 재고와 무관하게 즉시 정하고, 담당 자원이 코어에 없으면
+            // 다른 자원을 대신 나르지 않고 그냥 빈 채로 기다린다.
+            if (!segment.LockedSourceResourceId.HasValue)
+            {
+                AssignLaneResource(segment, target, database.Recipes[target.RecipeId].Inputs, processors);
+            }
+
+            if (!segment.LockedSourceResourceId.HasValue) return; // 레시피에 재료가 하나도 없는 등 방어적 처리
+
+            int assignedId = segment.LockedSourceResourceId.Value;
+            if (core.InputBuffer[assignedId] <= 0) return; // 담당 자원이 아직 코어에 없음 -> 대신 나르지 않고 대기
+            core.InputBuffer[assignedId]--;
+            segment.Items.Insert(0, new BeltItem(assignedId, 0f));
+        }
+
+        // 여러 라인이 코어에서 같은 목적지로 뻗어있을 때, 라인마다 서로 다른 재료를 담당하도록
+        // "아직 아무도 안 맡은 재료"를 찾아 굳힌다(사용자가 실제로 겪은 버그 — 재고 기준으로
+        // 정하면 다들 똑같은 순서로 시도해서 전부 하나로 몰렸다). 재료 종류보다 라인 수가 더
+        // 많아서 전부 이미 다른 라인이 맡고 있으면, 남는 라인은 어쩔 수 없이 첫 재료를 중복으로
+        // 맡는다(안 맡는 것보단 낫다).
+        private void AssignLaneResource(BeltSegment segment, ProcessorInstance target, ResourceAmount[] inputs, List<ProcessorInstance> processors)
+        {
+            if (inputs.Length == 0) return;
+
             for (int i = 0; i < inputs.Length; i++)
             {
                 int resourceId = inputs[i].ResourceId;
-                if (core.InputBuffer[resourceId] <= 0) continue;
-                core.InputBuffer[resourceId]--;
-                segment.Items.Insert(0, new BeltItem(resourceId, 0f));
+                if (IsClaimedByAnotherLane(segment, target, resourceId, processors)) continue;
+                segment.LockedSourceResourceId = resourceId;
                 return;
             }
+
+            segment.LockedSourceResourceId = inputs[0].ResourceId;
+        }
+
+        // segmentsById 전체를 훑어서, "같은 목적지로 흘러가는 다른 라인"이 이미 이 자원으로
+        // 굳어져 있는지 확인한다. 세그먼트 수가 적은 프로토타입 규모라 매번 O(N) 스캔이어도 무방.
+        private bool IsClaimedByAnotherLane(BeltSegment self, ProcessorInstance target, int resourceId, List<ProcessorInstance> processors)
+        {
+            foreach (var other in segmentsById.Values)
+            {
+                if (other == self) continue;
+                if (other.LockedSourceResourceId != resourceId) continue;
+                if (FindTerminalTarget(other, processors) != target) continue;
+                return true;
+            }
+            return false;
         }
 
         private static void DispenseAny(BeltSegment segment, int[] buffer)

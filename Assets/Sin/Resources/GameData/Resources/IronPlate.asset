@@ -15,3 +15,4 @@ MonoBehaviour:
   resourceId: IronPlate
   displayName: "\uCCA0\uD310"
   icon: {fileID: 0}
+  color: {r: 0.75, g: 0.75, b: 0.78, a: 1}

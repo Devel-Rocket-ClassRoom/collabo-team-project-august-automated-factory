@@ -24,9 +24,13 @@ public class BuildToolsIntegrationTests
 
     private ResourceDef oreDef;
     private ResourceDef outputDef;
+    private ResourceDef gearDef;
     private MachineDef minerDef;
     private MachineDef processorDef;
+    private MachineDef assemblerDef;
     private RecipeDef recipeDef;
+    private RecipeDef gearRecipeDef;
+    private OreDepositDef oreDepositDef;
 
     [SetUp]
     public void SetUp()
@@ -37,14 +41,27 @@ public class BuildToolsIntegrationTests
         outputDef = ScriptableObject.CreateInstance<ResourceDef>();
         outputDef.resourceId = "TestOutput";
 
+        gearDef = ScriptableObject.CreateInstance<ResourceDef>();
+        gearDef.resourceId = "TestGear";
+
         minerDef = ScriptableObject.CreateInstance<MachineDef>();
         minerDef.machineId = "TestMiner";
         minerDef.category = MachineCategory.Miner;
-        minerDef.minerOutput = oreDef;
+
+        // 채굴기는 이제 하나뿐이고, 뭘 캐는지는 땅 위 광물 노드가 정한다(PlaceOreDeposit 참고).
+        oreDepositDef = ScriptableObject.CreateInstance<OreDepositDef>();
+        oreDepositDef.depositId = "TestOreDeposit";
+        oreDepositDef.resource = oreDef;
 
         processorDef = ScriptableObject.CreateInstance<MachineDef>();
         processorDef.machineId = "TestProcessor";
         processorDef.category = MachineCategory.Smelter;
+
+        assemblerDef = ScriptableObject.CreateInstance<MachineDef>();
+        assemblerDef.machineId = "TestAssembler";
+        assemblerDef.category = MachineCategory.Assembler;
+        // 조립기는 2x2에 입력 포트 2칸/출력 포트 2칸 — 서로 다른 두 자원을 각각 다른 벨트로 받는다.
+        assemblerDef.footprint = new Vector2Int(2, 2);
 
         recipeDef = ScriptableObject.CreateInstance<RecipeDef>();
         recipeDef.recipeId = "TestRecipe";
@@ -55,7 +72,24 @@ public class BuildToolsIntegrationTests
         recipeDef.processSeconds = 0.1f;
         recipeDef.requiredCategory = MachineCategory.Smelter;
 
-        var db = GameDatabase.Build(new[] { oreDef, outputDef }, new[] { recipeDef }, new[] { minerDef, processorDef });
+        // 3단계 트리(광석 -> 철판 역할의 TestOutput -> 기어) 검증용 레시피 — 조립기답게
+        // 서로 다른 두 자원(제련로 출력 TestOutput + 광석 TestOre 직접)을 동시에 소비한다.
+        gearRecipeDef = ScriptableObject.CreateInstance<RecipeDef>();
+        gearRecipeDef.recipeId = "TestGearRecipe";
+        gearRecipeDef.inputs = new[]
+        {
+            new RecipeIngredient { resource = outputDef, amount = 1 },
+            new RecipeIngredient { resource = oreDef, amount = 1 },
+        };
+        gearRecipeDef.outputs = new[] { new RecipeIngredient { resource = gearDef, amount = 1 } };
+        gearRecipeDef.processSeconds = 0.1f;
+        gearRecipeDef.requiredCategory = MachineCategory.Assembler;
+
+        var db = GameDatabase.Build(
+            new[] { oreDef, outputDef, gearDef },
+            new[] { recipeDef, gearRecipeDef },
+            new[] { minerDef, processorDef, assemblerDef },
+            new[] { oreDepositDef });
         db.MakeGlobal();
 
         cameraGO = new GameObject("TestCamera");
@@ -83,9 +117,13 @@ public class BuildToolsIntegrationTests
         Object.DestroyImmediate(toolsGO);
         Object.DestroyImmediate(oreDef);
         Object.DestroyImmediate(outputDef);
+        Object.DestroyImmediate(gearDef);
         Object.DestroyImmediate(minerDef);
         Object.DestroyImmediate(processorDef);
+        Object.DestroyImmediate(assemblerDef);
         Object.DestroyImmediate(recipeDef);
+        Object.DestroyImmediate(gearRecipeDef);
+        Object.DestroyImmediate(oreDepositDef);
     }
 
     private Vector2 ScreenPosForCell(Vector2Int cell)
@@ -95,10 +133,24 @@ public class BuildToolsIntegrationTests
 
     private void PlaceMachine(MachineDef def, Vector2Int cell)
     {
+        // 채굴기는 이제 광물 노드가 있는 칸에만 지을 수 있다 — 테스트에서 매번 따로 챙기는
+        // 대신, 채굴기를 놓을 때 그 칸에 자동으로 노드를 깔아준다(테스트 의도는 "채굴기가
+        // 정상 동작하는가"이지 "노드 배치 자체"가 아니므로).
+        if (def.category == MachineCategory.Miner)
+        {
+            PlaceOreDeposit(cell);
+        }
+
         machineTool.SelectMachine(def);
         machineTool.OnPressBegin(ScreenPosForCell(cell) - GhostScreenOffset);
         bool confirmed = machineTool.Confirm();
         Assert.IsTrue(confirmed, $"{def.machineId} 배치가 {cell}에서 실패함");
+    }
+
+    private void PlaceOreDeposit(Vector2Int cell)
+    {
+        int depositId = driver.World.Database.GetOreDepositId("TestOreDeposit");
+        driver.World.Grid.RegisterOreDeposit(cell, depositId);
     }
 
     // 레시피는 이제 배치 시 자동 배정되지 않고 탭-선택 UI로 고른다 (RecipeSelectionPanel).
@@ -106,8 +158,13 @@ public class BuildToolsIntegrationTests
     // 방금 고른 것"을 흉내낸다.
     private void AssignRecipeToNewestProcessor()
     {
-        int recipeId = driver.World.Database.GetRecipeId("TestRecipe");
-        driver.World.Processors[driver.World.Processors.Count - 1].RecipeId = recipeId;
+        AssignRecipe(driver.World.Processors.Count - 1, "TestRecipe");
+    }
+
+    private void AssignRecipe(int processorIndex, string recipeKey)
+    {
+        int recipeId = driver.World.Database.GetRecipeId(recipeKey);
+        driver.World.Processors[processorIndex].RecipeId = recipeId;
     }
 
     // CoreSpawner와 동일한 방식으로(RecipeId=-1, UniversalPorts=true) 코어를 흉내낸 Processor를
@@ -153,6 +210,26 @@ public class BuildToolsIntegrationTests
         var smelter = driver.World.Processors[driver.World.Processors.Count - 1];
         Assert.Greater(smelter.OutputBuffer[outputId], 0,
             "코어 옆에서 뻗은 벨트가 나중에 놓인 제련로까지 실제로 아이템을 날라야 함");
+    }
+
+    [Test]
+    public void PlacingAssembler_AdjacentToExistingDeadEndBelt_AutoConnects()
+    {
+        // 위 테스트와 같은 시나리오를 2x2 조립기(입력 포트 2칸)에 대해서도 검증한다 —
+        // 사용자가 보고한 "미리 그려둔 벨트 모양에 맞게 조립기를 놓아도 연결이 안 된다"는
+        // 문제가 실제로 재현되는지 확인.
+        var core = PlaceCoreLike(new Vector2Int(0, 0), new Vector2Int(1, 1));
+        core.InputBuffer[driver.World.Database.GetResourceId("TestOre")] = 20;
+
+        // 조립기를 (6,0)에 놓을 계획 -> Facing 기본값(1,0)이면 입력 포트는 (5,0),(5,1).
+        DragBelt(new Vector2Int(0, 0), new Vector2Int(5, 0)); // 입력 포트 1(철판 자리) 미리 뻗어둠
+
+        PlaceMachine(assemblerDef, new Vector2Int(6, 0));
+
+        var lastSegment = driver.World.Segments[driver.World.Segments.Count - 1];
+        int assemblerIndex = driver.World.Processors.Count - 1;
+        Assert.AreEqual(assemblerIndex, lastSegment.TargetProcessorId,
+            "미리 뻗어둔 막다른 벨트가 나중에 놓인 조립기의 입력 포트에 자동으로 연결되어야 함");
     }
 
     [Test]
@@ -223,6 +300,85 @@ public class BuildToolsIntegrationTests
     }
 
     [Test]
+    public void PlacingMiner_WithoutOreDepositUnderneath_IsRejected()
+    {
+        // 채굴기는 이제 하나뿐이고, 광물 노드가 있는 땅에만 지을 수 있다 — 아무것도 없는
+        // 빈 땅에는 배치 자체가 거부되어야 한다(PlaceMachine 헬퍼가 자동으로 깔아주는 노드
+        // 없이, 직접 확인/배치를 호출해서 검증).
+        machineTool.SelectMachine(minerDef);
+        machineTool.OnPressBegin(ScreenPosForCell(new Vector2Int(9, 9)) - GhostScreenOffset);
+        bool confirmed = machineTool.Confirm();
+
+        Assert.IsFalse(confirmed, "광물 노드가 없는 칸에는 채굴기를 배치할 수 없어야 함");
+        Assert.AreEqual(0, driver.World.Miners.Count);
+    }
+
+    [Test]
+    public void PlacingMiner_OnOreDeposit_InheritsResourceAndYield()
+    {
+        // 채굴기가 광물 노드의 자원/속도/산출량을 그대로 물려받는지 확인한다.
+        int depositId = driver.World.Database.GetOreDepositId("TestOreDeposit");
+        var deposit = driver.World.Database.OreDeposits[depositId];
+
+        PlaceMachine(minerDef, new Vector2Int(2, 2)); // PlaceMachine이 그 칸에 TestOreDeposit을 자동으로 깔아줌
+
+        var miner = driver.World.Miners[0];
+        Assert.AreEqual(deposit.ResourceId, miner.OutputResourceId, "채굴기가 노드의 자원을 그대로 물려받아야 함");
+        Assert.AreEqual(deposit.YieldPerCycle, miner.YieldPerCycle, "채굴기가 노드의 사이클당 산출량을 그대로 물려받아야 함");
+    }
+
+    [Test]
+    public void PlacingMachine_OnTopOfExistingBeltCell_IsRejected()
+    {
+        // 사용자가 보고한 버그: 이미 벨트가 깔린 칸에 제련로를 그냥 겹쳐 놓을 수 있으면 안 된다.
+        // 소스는 코어로 — 채굴기는 포트가 없어서(원격 전송) 벨트 소스가 될 수 없다.
+        var core = PlaceCoreLike(new Vector2Int(0, 0), new Vector2Int(1, 1));
+        core.InputBuffer[driver.World.Database.GetResourceId("TestOre")] = 10;
+        DragBelt(new Vector2Int(0, 0), new Vector2Int(3, 0)); // (1,0),(2,0),(3,0)에 벨트가 깔림
+        Assert.AreEqual(3, driver.World.Segments.Count, "사전 조건: 벨트 3칸이 실제로 깔려있어야 함");
+
+        machineTool.SelectMachine(processorDef);
+        machineTool.OnPressBegin(ScreenPosForCell(new Vector2Int(2, 0)) - GhostScreenOffset); // 벨트 칸 위
+        bool confirmed = machineTool.Confirm();
+
+        Assert.IsFalse(confirmed, "이미 벨트가 있는 칸에는 기계를 배치할 수 없어야 함");
+        Assert.AreEqual(CellOccupantType.Belt, GetOccupantTypeAt(new Vector2Int(2, 0)),
+            "그 칸은 여전히 벨트여야 함(제련로로 덮어씌워지면 안 됨)");
+    }
+
+    private CellOccupantType GetOccupantTypeAt(Vector2Int cell)
+    {
+        driver.World.Grid.TryGetOccupant(cell, out var occupant);
+        return occupant.Type;
+    }
+
+    [Test]
+    public void DraggingFromAlreadyConnectedBeltCell_DoesNotHijackItsExistingConnection()
+    {
+        // 사용자가 보고한 버그 원인: 이미 다른 곳으로 흐르고 있는 벨트 칸을 새 드래그의 시작점
+        // 으로 삼으면, 예전엔 그 벨트의 NextSegmentId를 조용히 새 목적지로 덮어써서 원래
+        // 목적지와의 연결이 몰래 끊기고 두 벨트가 뜻하지 않게 하나로 합쳐졌다. 지금은 거부되고
+        // 원래 체인이 그대로 살아있어야 한다.
+        var core = PlaceCoreLike(new Vector2Int(0, 0), new Vector2Int(1, 1));
+        core.InputBuffer[driver.World.Database.GetResourceId("TestOre")] = 20;
+        PlaceMachine(processorDef, new Vector2Int(5, 0));
+        AssignRecipeToNewestProcessor();
+
+        DragBelt(new Vector2Int(0, 0), new Vector2Int(5, 0)); // 코어 -> 제련로, (1,0)~(4,0) 4칸
+        Assert.AreEqual(4, driver.World.Segments.Count, "사전 조건: 4칸짜리 체인이 만들어져 있어야 함");
+
+        // 이미 체인 중간인 (2,0)을 시작점 삼아 완전히 다른 방향으로 드래그 시도 — 가로채기 시도.
+        DragBelt(new Vector2Int(2, 0), new Vector2Int(2, 3));
+
+        Assert.AreEqual(4, driver.World.Segments.Count, "가로채기 시도는 거부되어 세그먼트가 추가로 생기면 안 됨");
+
+        RunTicks(400);
+        int outputId = driver.World.Database.GetResourceId("TestOutput");
+        Assert.Greater(driver.World.Processors[driver.World.Processors.Count - 1].OutputBuffer[outputId], 0,
+            "가로채기 시도 이후에도 원래 체인(코어->제련로)은 그대로 살아서 동작해야 함");
+    }
+
+    [Test]
     public void FullLoop_MinerDeliversToCore_BeltCarriesToProcessor_NoMinerBelt()
     {
         // 실제 플레이 순서 그대로: 채굴기를 놓으면(벨트 없이) 자동으로 코어에 쌓이고, 코어에서
@@ -240,6 +396,43 @@ public class BuildToolsIntegrationTests
         var smelter = driver.World.Processors[driver.World.Processors.Count - 1];
         Assert.Greater(smelter.OutputBuffer[outputId], 0,
             "채굴 -> 코어 원격 전송 -> 벨트 -> 제련까지 전체 루프가 실제로 동작해야 함");
+    }
+
+    [Test]
+    public void ThreeStageChain_MinerToCoreToSmelterAndAssembler_TwoDifferentInputsProduceGear()
+    {
+        // 미션 스펙의 예시 생산 트리(광석 -> 철판 -> 기어)를 그대로 재현하되, 조립기는 진짜
+        // "조립"답게 서로 다른 두 자원을 서로 다른 벨트로 동시에 받는다:
+        // 채굴기(원격 전송) -> 코어 -> (A) 벨트 -> 제련로 -> 벨트 -> 조립기 입력 포트 1(철판)
+        //                        -> (B) 벨트 -----------------------> 조립기 입력 포트 2(광석 직접)
+        // 코어를 세로로 2칸(footprint 1x2)으로 둬서 두 벨트가 각자 다른 줄에서 직선으로
+        // 출발할 수 있게 한다(대각선 자동 라우팅이 조립기 자신의 다른 footprint 칸을 가로질러
+        // 지나가면서 막히는 걸 피하기 위함).
+        // 코어에 넉넉히 재고를 미리 쌓아둔다 — 채굴기 하나가 원격 전송으로 공급하는 속도만
+        // 믿으면, 제련로 체인이 벨트 처리량만큼 항상 굶주려서(0.1초마다 1개 소비, 벨트가
+        // 감당 가능한 최대치) 광석을 먼저 다 채가는 바람에 조립기 직행 벨트가 만성적으로
+        // 굶는 경합이 생긴다(실제로 재현해서 확인함) — 재고를 넉넉히 두면 그 경합 없이
+        // "서로 다른 두 벨트가 각자 다른 포트에 잘 연결되는가"만 순수하게 검증할 수 있다.
+        var core = PlaceCoreLike(new Vector2Int(0, 0), new Vector2Int(1, 2)); // (0,0),(0,1)
+        core.InputBuffer[driver.World.Database.GetResourceId("TestOre")] = 50;
+        PlaceMachine(minerDef, new Vector2Int(4, 4)); // 원격 전송이라 코어와 안 이어도 됨
+
+        PlaceMachine(processorDef, new Vector2Int(3, 0)); // 제련로: 코어와 같은 줄(y=0)
+        AssignRecipe(driver.World.Processors.Count - 1, "TestRecipe");
+
+        PlaceMachine(assemblerDef, new Vector2Int(6, 0)); // 조립기(2x2): 입력면(서쪽) = (5,0),(5,1)
+        AssignRecipe(driver.World.Processors.Count - 1, "TestGearRecipe");
+
+        DragBelt(new Vector2Int(0, 0), new Vector2Int(3, 0)); // 코어(y=0) -> 제련로
+        DragBelt(new Vector2Int(3, 0), new Vector2Int(6, 0)); // 제련로 -> 조립기 입력 포트 1(철판, y=0)
+        DragBelt(new Vector2Int(0, 1), new Vector2Int(6, 1)); // 코어(y=1) -> 조립기 입력 포트 2(광석, y=1)
+
+        RunTicks(1500);
+
+        int gearId = driver.World.Database.GetResourceId("TestGear");
+        var assembler = driver.World.Processors[driver.World.Processors.Count - 1];
+        Assert.Greater(assembler.OutputBuffer[gearId], 0,
+            "채굴 -> 코어 -> (제련로 경유 철판 + 광석 직접)라는 서로 다른 두 자원이 각자 다른 벨트로 조립기까지 도착해서 조립되어야 함");
     }
 
     [Test]
@@ -301,5 +494,33 @@ public class BuildToolsIntegrationTests
         int outputId = driver.World.Database.GetResourceId("TestOutput");
         Assert.Greater(smelter.OutputBuffer[outputId], 0,
             "역방향 드래그로 이어도 코어의 재고가 실제로 제련로까지 도착해야 함");
+    }
+
+    [Test]
+    public void ProcessorOutputBelt_IntoCore_ActuallyStoresProduceInCoreInputBuffer()
+    {
+        // 사용자가 기대하는 구조: 제련로에서 나온 산출물을 코어로 보내서 저장해뒀다가,
+        // 나중에 코어에서 다시 다른 기계로 꺼내 쓴다("코어에 저장되어 있는 철판을 가져올거라고").
+        // 지금까지의 테스트는 전부 "코어 -> 벨트 -> 기계" 방향(코어가 Source)만 검증했고,
+        // 이 반대 방향("기계 -> 벨트 -> 코어", 코어가 Target)은 한 번도 자동 검증된 적이 없었다.
+        var core = PlaceCoreLike(new Vector2Int(3, 0), new Vector2Int(1, 1));
+        int coreIndex = driver.World.Processors.IndexOf(core);
+
+        PlaceMachine(processorDef, new Vector2Int(0, 0)); // Facing 기본값 (1,0) -> 출력면은 (1,0)
+        AssignRecipeToNewestProcessor();
+        int smelterIndex = driver.World.Processors.Count - 1;
+        var smelter = driver.World.Processors[smelterIndex];
+        smelter.InputBuffer[driver.World.Database.GetResourceId("TestOre")] = 50; // 벨트 없이 직접 원료 공급(제련 자체는 이 테스트 대상이 아님)
+
+        DragBelt(new Vector2Int(0, 0), new Vector2Int(3, 0)); // 제련로 출력면에서 시작 -> 코어 쪽으로
+
+        Assert.AreEqual(smelterIndex, driver.World.Segments[0].SourceProcessorId, "제련로가 소스로 잡혀야 함");
+        Assert.AreEqual(coreIndex, driver.World.Segments[driver.World.Segments.Count - 1].TargetProcessorId, "코어가 타겟으로 잡혀야 함");
+
+        RunTicks(400);
+
+        int outputId = driver.World.Database.GetResourceId("TestOutput");
+        Assert.Greater(core.InputBuffer[outputId], 0,
+            "제련로의 산출물이 벨트를 타고 코어의 InputBuffer에 실제로 쌓여야 함(코어를 창고로 쓰는 구조)");
     }
 }

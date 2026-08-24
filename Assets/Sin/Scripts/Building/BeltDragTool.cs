@@ -140,12 +140,12 @@ namespace Factory.Building
 
         // 기계 포트(고정 입력/출력면), 코어(4면 다 유효), 기존 벨트(방향대로) 각각의 규칙으로
         // 이 endpoint가 소스/타겟/무효 중 뭔지 판정한다.
-        // machineCell: 점유된 칸(기계가 있는 칸). touchingCell: 드래그 경로상 그 바로 옆 칸.
+        // touchingCell: 드래그 경로상 기계 칸 바로 옆 칸(이게 어느 포트에 해당하는지로 역할이 정해짐).
         // isStart: 이 endpoint가 드래그 시작 쪽인지 (코어/벨트처럼 방향 의존적인 경우에만 씀).
         // isFixed: true면 포트 방향(Facing)만으로 확정된 값이라 절대 안 바뀐다(채굴기/제련로).
         // false면 코어/벨트처럼 "어느 쪽에 이어붙이느냐"로만 정해지는 값이라, 반대쪽이 고정
         // 역할을 가지고 있으면 그걸 보고 나중에 뒤집힐 수 있다(둘 다 같은 역할로 겹치는 것 방지).
-        private EndpointRole ResolveEndpointRole(CellOccupant occupant, Vector2Int machineCell, Vector2Int touchingCell, bool isStart, out bool isFixed)
+        private EndpointRole ResolveEndpointRole(CellOccupant occupant, Vector2Int touchingCell, bool isStart, out bool isFixed)
         {
             switch (occupant.Type)
             {
@@ -163,8 +163,13 @@ namespace Factory.Building
                         return isStart ? EndpointRole.Source : EndpointRole.Target;
                     }
                     isFixed = true;
-                    if (touchingCell == machineCell + processor.Facing) return EndpointRole.Source;
-                    if (touchingCell == machineCell - processor.Facing) return EndpointRole.Target;
+                    // footprint가 1칸보다 클 수 있어서(예: 2x2 조립기), 밟은 칸(machineCell)이
+                    // 아니라 앵커 기준으로 포트 칸 목록을 계산한다 — 어느 footprint 칸에
+                    // 닿았든 앵커만 같으면 같은 결과가 나온다.
+                    var outputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, isOutputSide: true);
+                    if (outputs.Contains(touchingCell)) return EndpointRole.Source;
+                    var inputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, isOutputSide: false);
+                    if (inputs.Contains(touchingCell)) return EndpointRole.Target;
                     return EndpointRole.None;
                 }
                 case CellOccupantType.Belt:
@@ -185,12 +190,17 @@ namespace Factory.Building
             var grid = driver.World.Grid;
             bool startOccupied = grid.IsOccupied(path[0]);
             bool endOccupied = grid.IsOccupied(path[path.Count - 1]);
+
+            // 벨트는 반드시 기존 포트(기계)나 벨트에서 시작해야 한다 — 손가락을 뗀 자리가
+            // 어디든(방향은 나중에 뒤집힐 수 있음) 아예 허공에서 시작해서 그릴 순 없다.
+            if (!startOccupied) return;
+
             grid.TryGetOccupant(path[0], out var startOccupant);
             grid.TryGetOccupant(path[path.Count - 1], out var endOccupant);
 
             bool startFixed = false, endFixed = false;
-            var startRole = startOccupied ? ResolveEndpointRole(startOccupant, path[0], path[1], true, out startFixed) : EndpointRole.None;
-            var endRole = endOccupied ? ResolveEndpointRole(endOccupant, path[path.Count - 1], path[path.Count - 2], false, out endFixed) : EndpointRole.None;
+            var startRole = startOccupied ? ResolveEndpointRole(startOccupant, path[1], true, out startFixed) : EndpointRole.None;
+            var endRole = endOccupied ? ResolveEndpointRole(endOccupant, path[path.Count - 2], false, out endFixed) : EndpointRole.None;
 
             // 점유된 칸이 있는데 유효한 포트가 아니면(기계 옆면 등) 거부 — 잘못된 연결을
             // 어설프게 만들지 않는다.
@@ -219,6 +229,16 @@ namespace Factory.Building
                 (startOccupied, endOccupied) = (endOccupied, startOccupied);
                 (startOccupant, endOccupant) = (endOccupant, startOccupant);
                 (startRole, endRole) = (endRole, startRole);
+            }
+
+            // 시작 칸이 "이미 다른 곳으로 흐르고 있는" 기존 벨트면 여기서 거부한다 — 안 그러면
+            // 그 벨트의 NextSegmentId를 조용히 새 목적지로 덮어써서, 원래 흐르던 곳과의 연결이
+            // 몰래 끊기고 두 벨트가 뜻하지 않게 하나로 합쳐진다(합류 자체는 나중에 합류기로
+            // 의도적으로 할 수 있어야 하니 막지 않지만, "이미 연결된 벨트를 가로채는" 건 막는다).
+            if (startOccupied && startRole == EndpointRole.Source && startOccupant.Type == CellOccupantType.Belt
+                && driver.World.Segments[startOccupant.InstanceIndex].NextSegmentId.HasValue)
+            {
+                return;
             }
 
             // 시작/끝 칸이 유효한 포트(기계)나 기존 벨트와 겹치면 그 칸 자체는 새 벨트 칸으로
@@ -301,6 +321,10 @@ namespace Factory.Building
             if (!endOccupied || endRole != EndpointRole.Target) return;
 
             var startSegment = driver.World.Segments[startOccupant.InstanceIndex];
+            // 이미 다른 곳으로 흐르고 있는 벨트를 여기서 또 가로채면 안 된다(위 Commit()의
+            // 같은 취지 가드 참고) — 안 그러면 원래 목적지와의 연결이 조용히 끊긴다.
+            if (startSegment.NextSegmentId.HasValue || startSegment.TargetProcessorId.HasValue) return;
+
             if (endOccupant.Type == CellOccupantType.Processor)
             {
                 startSegment.TargetProcessorId = endOccupant.InstanceIndex;

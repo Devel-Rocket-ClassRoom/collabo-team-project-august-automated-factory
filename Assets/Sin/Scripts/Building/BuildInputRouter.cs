@@ -24,6 +24,7 @@ namespace Factory.Building
         private bool singleTouchActive;
         private Vector2? lastTwoTouchMidpoint;
         private float lastTwoTouchDistance;
+        private Vector2? lastSingleTouchPosition;
 
         public void SetMode(Mode newMode)
         {
@@ -102,17 +103,47 @@ namespace Factory.Building
             bool overUI = IsOverUI(null);
             HandleSingleTouch(position, mouse.leftButton.wasPressedThisFrame, mouse.leftButton.wasReleasedThisFrame, overUI);
 
+            // 오른쪽 버튼 드래그는 왼쪽 버튼(건설 제스처)과 별개로 항상 카메라를 이동시킨다 —
+            // 터치의 두 손가락 팬에 대응하는 마우스 조작이라, 배치/벨트 모드 중에도 막히면 안 됨.
+            HandleRightButtonPan(position, mouse.rightButton.wasPressedThisFrame, mouse.rightButton.wasReleasedThisFrame, overUI);
+
             float scroll = mouse.scroll.ReadValue().y;
             if (Mathf.Abs(scroll) > 0.01f && cameraRig != null)
             {
-                cameraRig.Zoom(scroll * 2f); // 에디터 테스트 편의: 실기기엔 없는 휠 줌
+                // 휠 한 칸(scroll notch)은 터치 핀치 델타보다 훨씬 작은 값이라, 같은
+                // zoomSpeed를 그대로 곱하면 체감상 너무 느리다 — 휠 전용으로 크게 배율을 준다.
+                cameraRig.Zoom(scroll * 40f); // 마우스 휠 = 핀치 줌에 대응
             }
+        }
+
+        private Vector2? lastRightButtonPosition;
+
+        private void HandleRightButtonPan(Vector2 position, bool pressedThisFrame, bool releasedThisFrame, bool overUI)
+        {
+            if (pressedThisFrame)
+            {
+                lastRightButtonPosition = overUI ? (Vector2?)null : position;
+                return;
+            }
+
+            if (lastRightButtonPosition.HasValue && cameraRig != null)
+            {
+                cameraRig.Pan(position - lastRightButtonPosition.Value);
+                lastRightButtonPosition = position;
+            }
+
+            if (releasedThisFrame) lastRightButtonPosition = null;
         }
 
         private void HandleSingleTouch(Vector2 position, bool pressedThisFrame, bool releasedThisFrame, bool overUI)
         {
             var tool = ActiveTool();
-            if (tool == null) return;
+            if (tool == null)
+            {
+                // 건설 도구가 선택 안 된 상태(None)에서는 한 손가락 드래그로 맵을 이동한다.
+                HandleSingleTouchPan(position, pressedThisFrame, releasedThisFrame, overUI);
+                return;
+            }
 
             // 팔레트/확정 버튼 위에서 시작한 프레스는 UI 클릭이지 월드 건설 제스처가 아니다.
             // 한번 시작된 드래그가 도중에 UI 위로 지나가는 것까지는 막지 않는다.
@@ -132,6 +163,32 @@ namespace Factory.Building
             {
                 singleTouchActive = false;
                 tool.OnReleased(position);
+            }
+        }
+
+        private void HandleSingleTouchPan(Vector2 position, bool pressedThisFrame, bool releasedThisFrame, bool overUI)
+        {
+            if (pressedThisFrame)
+            {
+                if (overUI) return;
+                singleTouchActive = true;
+                lastSingleTouchPosition = position;
+                return;
+            }
+
+            if (singleTouchActive)
+            {
+                if (lastSingleTouchPosition.HasValue && cameraRig != null)
+                {
+                    cameraRig.Pan(position - lastSingleTouchPosition.Value);
+                }
+                lastSingleTouchPosition = position;
+            }
+
+            if (releasedThisFrame)
+            {
+                singleTouchActive = false;
+                lastSingleTouchPosition = null;
             }
         }
 

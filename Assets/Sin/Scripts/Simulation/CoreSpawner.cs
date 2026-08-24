@@ -26,12 +26,17 @@ namespace Factory.Simulation
 
             var grid = driver.World.Grid;
             var cells = GridUtility.GetFootprintCells(Anchor, Footprint);
-            for (int i = 0; i < cells.Count; i++)
-            {
-                if (grid.IsOccupied(cells[i])) return; // 이미 있으면(재실행 등) 건너뜀
-            }
+            if (!grid.IsFootprintFree(cells)) return; // 이미 있으면(재실행 등) 건너뜀
 
-            var core = new ProcessorInstance(db.ResourceCount) { MachineId = machineId, RecipeId = -1, UniversalPorts = true };
+            var core = new ProcessorInstance(db.ResourceCount)
+            {
+                MachineId = machineId,
+                RecipeId = -1,
+                UniversalPorts = true,
+                Anchor = Anchor,
+                Footprint = Footprint,
+                Capacity = 9999, // 창고 역할이라 일반 기계 버퍼보다 훨씬 크게.
+            };
             int index = driver.World.AddProcessor(core);
             driver.World.CoreProcessorIndex = index; // 채굴기 원격 전송(MinerSystem)이 참조하는 대상
             grid.RegisterBuildingFootprint(cells, CellOccupantType.Processor, index);

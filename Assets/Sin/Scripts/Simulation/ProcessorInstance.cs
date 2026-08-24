@@ -20,8 +20,16 @@ namespace Factory.Simulation
         // true면(코어) 고정 포트 대신 4면 전부 입출력 가능.
         public bool UniversalPorts;
 
+        // footprint가 1칸보다 큰 기계(예: 2x2 조립기)의 포트 계산 기준. 어느 footprint 칸을
+        // 밟아서 연결하든 항상 이 앵커 기준으로 포트 위치를 계산한다(GridUtility.GetPortCells).
+        public Vector2Int Anchor;
+        public Vector2Int Footprint = Vector2Int.one;
+
         public bool IsProcessing;
         public float Progress;
+
+        // 인스턴스별 버퍼 용량(기본은 일반 기계 값, 코어는 CoreSpawner에서 훨씬 크게 설정).
+        public int Capacity = SimulationConstants.ResourceBufferCapacity;
 
         // 자원 id로 인덱싱되는 고정 크기 버퍼. GameDatabase.ResourceCount에 맞춰 1회 할당.
         public int[] InputBuffer;
@@ -35,7 +43,7 @@ namespace Factory.Simulation
 
         public bool TryAcceptInput(int resourceId, int amount)
         {
-            if (InputBuffer[resourceId] + amount > SimulationConstants.ResourceBufferCapacity) return false;
+            if (InputBuffer[resourceId] + amount > Capacity) return false;
             InputBuffer[resourceId] += amount;
             return true;
         }
