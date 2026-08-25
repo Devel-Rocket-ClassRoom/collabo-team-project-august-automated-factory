@@ -21,6 +21,12 @@ namespace Factory.Simulation
         // 매번 아무거나 골라서 한 벨트에 섞어 올리게 된다(BeltSystem.LoadFromSource 참고).
         public int? LockedSourceResourceId;
 
+        // LockedSourceResourceId를 굳힐 당시 목적지 프로세서의 RecipeId. 목적지 레시피가
+        // 바뀌면(BeltSystem.LoadFromCore) 이 값이 최신 RecipeId와 달라지므로 잠금을 풀고
+        // 새 레시피 기준으로 다시 담당 자원을 정한다 — 안 그러면 레시피를 바꿔도 벨트가
+        // 예전 재료만 계속 실어 날라서 기계가 영구히 기아 상태에 빠진다.
+        public int LockedForRecipeId = -1;
+
         // 체인의 마지막 세그먼트(NextSegmentId == null)에만 설정됨: 도착한 아이템을 받는 기계.
         public int? TargetProcessorId;
 

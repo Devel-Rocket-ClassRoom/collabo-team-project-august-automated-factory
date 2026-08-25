@@ -148,54 +148,45 @@ namespace Factory.Data
 
             // Resources.LoadAll의 순서는 플랫폼/빌드마다 보장되지 않으므로, id 문자열로 정렬해
             // 실행마다 동일한 int id가 배정되도록 한다 (결정적 동작, 저장 데이터 안정성).
-            var sortedResources = resourceDefs.OrderBy(r => r.resourceId, StringComparer.Ordinal).ToArray();
-            var sortedMachines = machineDefs.OrderBy(m => m.machineId, StringComparer.Ordinal).ToArray();
-            var sortedRecipes = recipeDefs.OrderBy(r => r.recipeId, StringComparer.Ordinal).ToArray();
-            var sortedOreDeposits = oreDepositDefs.OrderBy(d => d.depositId, StringComparer.Ordinal).ToArray();
+            var (resources, resourceIdByKey) = BuildIndexed(
+                resourceDefs, r => r.resourceId,
+                def => new ResourceRuntime(def.resourceId, def.displayName, def.color));
 
-            var resourceIdByKey = new Dictionary<string, int>(sortedResources.Length);
-            var resources = new ResourceRuntime[sortedResources.Length];
-            for (int i = 0; i < sortedResources.Length; i++)
-            {
-                var def = sortedResources[i];
-                resourceIdByKey[def.resourceId] = i;
-                resources[i] = new ResourceRuntime(def.resourceId, def.displayName, def.color);
-            }
+            var (machines, machineIdByKey) = BuildIndexed(
+                machineDefs, m => m.machineId,
+                def => new MachineRuntime(def.machineId, def.category, def.footprint, def.speedMultiplier));
 
-            var machineIdByKey = new Dictionary<string, int>(sortedMachines.Length);
-            var machines = new MachineRuntime[sortedMachines.Length];
-            for (int i = 0; i < sortedMachines.Length; i++)
-            {
-                var def = sortedMachines[i];
-                machineIdByKey[def.machineId] = i;
-                machines[i] = new MachineRuntime(def.machineId, def.category, def.footprint, def.speedMultiplier);
-            }
-
-            var recipeIdByKey = new Dictionary<string, int>(sortedRecipes.Length);
-            var recipes = new RecipeRuntime[sortedRecipes.Length];
-            for (int i = 0; i < sortedRecipes.Length; i++)
-            {
-                var def = sortedRecipes[i];
-                recipeIdByKey[def.recipeId] = i;
-                recipes[i] = new RecipeRuntime(
+            // 레시피/광물노드는 resourceIdByKey가 먼저 완성되어 있어야 재료를 id로 풀 수 있다.
+            var (recipes, recipeIdByKey) = BuildIndexed(
+                recipeDefs, r => r.recipeId,
+                def => new RecipeRuntime(
                     def.recipeId,
                     ResolveIngredients(def.inputs, resourceIdByKey),
                     ResolveIngredients(def.outputs, resourceIdByKey),
                     def.processSeconds,
-                    def.requiredCategory);
-            }
+                    def.requiredCategory));
 
-            var oreDepositIdByKey = new Dictionary<string, int>(sortedOreDeposits.Length);
-            var oreDeposits = new OreDepositRuntime[sortedOreDeposits.Length];
-            for (int i = 0; i < sortedOreDeposits.Length; i++)
-            {
-                var def = sortedOreDeposits[i];
-                oreDepositIdByKey[def.depositId] = i;
-                int resourceId = resourceIdByKey[def.resource.resourceId];
-                oreDeposits[i] = new OreDepositRuntime(def.depositId, resourceId, def.mineIntervalSeconds, def.yieldPerCycle);
-            }
+            var (oreDeposits, oreDepositIdByKey) = BuildIndexed(
+                oreDepositDefs, d => d.depositId,
+                def => new OreDepositRuntime(def.depositId, resourceIdByKey[def.resource.resourceId], def.mineIntervalSeconds, def.yieldPerCycle));
 
             return new GameDatabase(resources, recipes, machines, oreDeposits, resourceIdByKey, recipeIdByKey, machineIdByKey, oreDepositIdByKey);
+        }
+
+        // id 문자열로 정렬 -> 배열 인덱스를 그 정렬 순서로 배정 -> 키→id 사전을 함께 만드는,
+        // Resources/Machines/Recipes/OreDeposits 네 가지에서 반복되던 패턴 하나로 통합.
+        private static (TRuntime[] runtime, Dictionary<string, int> idByKey) BuildIndexed<TDef, TRuntime>(
+            TDef[] defs, Func<TDef, string> keyOf, Func<TDef, TRuntime> makeRuntime)
+        {
+            var sorted = defs.OrderBy(keyOf, StringComparer.Ordinal).ToArray();
+            var idByKey = new Dictionary<string, int>(sorted.Length);
+            var runtime = new TRuntime[sorted.Length];
+            for (int i = 0; i < sorted.Length; i++)
+            {
+                idByKey[keyOf(sorted[i])] = i;
+                runtime[i] = makeRuntime(sorted[i]);
+            }
+            return (runtime, idByKey);
         }
 
         private static ResourceAmount[] ResolveIngredients(RecipeIngredient[] ingredients, Dictionary<string, int> resourceIdByKey)

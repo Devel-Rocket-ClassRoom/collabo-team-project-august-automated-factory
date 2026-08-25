@@ -15,6 +15,11 @@ namespace Factory.Simulation
         public int RecipeId = -1;
         public float SpeedMultiplier = 1f;
 
+        // 현재 진행 중인 사이클이 실제로 재료를 소비한 레시피. RecipeId는 사용자가 언제든
+        // (처리 도중에도) 바꿀 수 있지만, 이미 시작된 사이클은 끝까지 이 값 기준으로
+        // 완료되어야 한다 — 안 그러면 옛 레시피 재료로 새 레시피 산출물을 공짜로 만들어내게 된다.
+        public int ActiveRecipeId = -1;
+
         // 입력 포트 = 이 기계가 놓인 셀 - Facing, 출력 포트 = 놓인 셀 + Facing.
         public Vector2Int Facing = new Vector2Int(1, 0);
         // true면(코어) 고정 포트 대신 4면 전부 입출력 가능.

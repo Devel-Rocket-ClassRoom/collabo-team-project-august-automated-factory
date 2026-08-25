@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -21,6 +22,15 @@ namespace Factory.Building
         [SerializeField] private TouchCameraRig cameraRig;
 
         private Mode mode = Mode.None;
+
+        // 벨트/배치 도구가 활성 상태인지 — TapInputManager가 "지금 이 프레스는 빌드 제스처지
+        // 기계 정보 확인 탭이 아니다"를 판단하는 데 쓴다.
+        public bool IsToolActive => mode != Mode.None;
+        public Mode CurrentMode => mode;
+
+        // 팔레트 버튼이 "지금 내가 선택된 도구인지" UI로 표시할 수 있게 모드가 바뀔 때마다 알림.
+        public event Action<Mode> ModeChanged;
+
         private bool singleTouchActive;
         private Vector2? lastTwoTouchMidpoint;
         private float lastTwoTouchDistance;
@@ -30,6 +40,7 @@ namespace Factory.Building
         {
             if (singleTouchActive) CancelActiveTool();
             mode = newMode;
+            ModeChanged?.Invoke(mode);
         }
 
         private void Update()
@@ -69,7 +80,10 @@ namespace Factory.Building
 
             for (int i = 0; i < touches.Count; i++)
             {
-                if (!touches[i].press.isPressed) continue;
+                // isPressed만 보면 뗀 그 프레임(wasReleasedThisFrame)이 빠져서 릴리즈가
+                // 카운트되지 않고 else 분기(CancelActiveTool)로 새 버린다 — HasRelevantTouch와
+                // 같은 기준으로 릴리즈 프레임도 유효한 터치로 센다.
+                if (!touches[i].press.isPressed && !touches[i].press.wasReleasedThisFrame) continue;
                 activeCount++;
                 if (first == null) first = touches[i];
                 else if (second == null) second = touches[i];

@@ -29,6 +29,7 @@ namespace Factory.Building
         private bool hasValidCell;
 
         public bool IsPlacing => selectedMachine != null;
+        public MachineDef SelectedMachine => selectedMachine;
 
         // 에디터 SerializedObject 없이(런타임/테스트에서) 직접 배선할 때 쓴다.
         public void Initialize(Camera targetCamera, SimulationDriver driver)
@@ -167,6 +168,7 @@ namespace Factory.Building
                     OutputResourceId = deposit.ResourceId,
                     MineIntervalSeconds = deposit.MineIntervalSeconds,
                     YieldPerCycle = deposit.YieldPerCycle,
+                    SpeedMultiplier = runtime.SpeedMultiplier,
                 };
                 int index = driver.World.AddMiner(miner);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Miner, index);
@@ -181,6 +183,7 @@ namespace Factory.Building
                     Facing = currentFacing,
                     Anchor = currentCell,
                     Footprint = runtime.Footprint,
+                    SpeedMultiplier = runtime.SpeedMultiplier,
                 };
                 int index = driver.World.AddProcessor(processor);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Processor, index);
@@ -223,7 +226,9 @@ namespace Factory.Building
             }
         }
 
-        private static bool IsChainStart(List<BeltSegment> segments, BeltSegment segment)
+        // BeltDragTool도 "기존 벨트에 새 상류를 붙여도 되는지" 판단할 때 이 정의를 그대로
+        // 써야 한다(안 그러면 이미 완성된 체인의 끝에 억지로 연결되는 버그가 생김) — 그래서 public.
+        public static bool IsChainStart(List<BeltSegment> segments, BeltSegment segment)
         {
             return segment.SourceProcessorId == null && !IsTargetOfAnySegment(segments, segment.Id);
         }

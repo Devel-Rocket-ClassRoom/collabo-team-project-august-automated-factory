@@ -88,11 +88,13 @@ namespace Factory.Building
             return go;
         }
 
-        public static void Colorize(GameObject go, Color color)
-        {
-            var renderer = go.GetComponent<Renderer>();
-            if (renderer == null) return;
+        public static void Colorize(GameObject go, Color color) => Colorize(go.GetComponent<Renderer>(), color);
 
+        // GetComponent 없이 이미 갖고 있는 Renderer 참조로 바로 칠한다 — 매 프레임 여러 번
+        // 호출되는 곳(예: BeltItemRenderer)에서 GetComponent 비용을 반복하지 않기 위함.
+        public static void Colorize(Renderer renderer, Color color)
+        {
+            if (renderer == null) return;
             renderer.sharedMaterial = GetOrCreateMaterial(color);
         }
 

@@ -16,6 +16,7 @@ namespace Factory.Rendering
         [SerializeField] private GameObject itemVisualPrefab;
 
         private readonly List<Transform> pool = new List<Transform>();
+        private readonly List<Renderer> poolRenderers = new List<Renderer>();
         private BeltSegment segment;
 
         // 런타임에 벨트를 놓는 건설 도구가 에디터 SerializedObject 없이 직접 배선할 때 쓴다.
@@ -47,8 +48,9 @@ namespace Factory.Rendering
                 pool[i].position = Vector3.Lerp(startPoint.position, endPoint.position, t);
                 pool[i].gameObject.SetActive(true);
                 // 자원별 프리팹은 없고(에셋 없는 프로토타입) 대신 색으로 구분한다 — 풀 슬롯이
-                // 이전엔 다른 자원을 표시했을 수 있으니 매 프레임 다시 칠한다.
-                BuildVisuals.Colorize(pool[i].gameObject, database.Resources[item.ResourceId].Color);
+                // 이전엔 다른 자원을 표시했을 수 있으니 매 프레임 다시 칠한다. Renderer는
+                // EnsurePoolSize에서 이미 캐시해뒀으므로 매 프레임 GetComponent를 반복하지 않는다.
+                BuildVisuals.Colorize(poolRenderers[i], database.Resources[item.ResourceId].Color);
             }
 
             for (int i = segment.Items.Count; i < pool.Count; i++)
@@ -85,6 +87,7 @@ namespace Factory.Rendering
                     if (collider != null) Object.Destroy(collider);
                 }
                 pool.Add(visual.transform);
+                poolRenderers.Add(visual.GetComponent<Renderer>());
             }
         }
     }

@@ -8,7 +8,7 @@ namespace Factory.Building
     {
         [SerializeField] private Camera targetCamera;
         [SerializeField] private float panSpeed = 0.02f;
-        [SerializeField] private float zoomSpeed = 0.02f;
+        [SerializeField] private float zoomSpeed = 0.2f;
         [SerializeField] private float minDistance = 3f;
         [SerializeField] private float maxDistance = 20f;
         [SerializeField] private float minOrthographicSize = 3f;

@@ -173,8 +173,20 @@ namespace Factory.Building
                     return EndpointRole.None;
                 }
                 case CellOccupantType.Belt:
+                {
                     isFixed = false;
-                    return isStart ? EndpointRole.Source : EndpointRole.Target;
+                    if (isStart) return EndpointRole.Source;
+
+                    // 드래그가 기존 벨트 칸에서 끝나는 경우, 그 벨트가 아직 아무 데서도 안
+                    // 먹여지고 있는 체인의 시작일 때만 새 상류를 붙일 수 있다. 이미 다른
+                    // 세그먼트(또는 기계)가 먹이고 있는 벨트에 억지로 연결하면 그 벨트 고유의
+                    // 방향대로 아이템이 흘러버려서, 반대 방향으로 지어진 막다른 벨트끼리
+                    // 마주보고 있을 때 아이템이 반대쪽으로 순간이동한 것처럼 보이는 버그가 생긴다.
+                    var targetSegment = driver.World.Segments[occupant.InstanceIndex];
+                    return MachineGhostTool.IsChainStart(driver.World.Segments, targetSegment)
+                        ? EndpointRole.Target
+                        : EndpointRole.None;
+                }
                 default:
                     isFixed = false;
                     return EndpointRole.None;

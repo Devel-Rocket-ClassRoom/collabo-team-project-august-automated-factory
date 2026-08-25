@@ -124,6 +124,15 @@ namespace Factory.Simulation
 
             if (target.RecipeId < 0) return; // 아직 레시피 미지정 -> 뭐가 필요한지 모르니 안 줌
 
+            // 목적지 레시피가 잠금 당시와 달라졌으면(사용자가 기계 탭해서 레시피를 바꿈)
+            // 예전 재료로 굳은 잠금은 더 이상 유효하지 않다 — 풀어서 새 레시피 기준으로
+            // 다시 담당 자원을 정하게 한다. 안 그러면 벨트가 예전 재료만 계속 실어 날라서
+            // 기계가 새 레시피로는 영구히 재료를 못 받는다.
+            if (segment.LockedSourceResourceId.HasValue && segment.LockedForRecipeId != target.RecipeId)
+            {
+                segment.LockedSourceResourceId = null;
+            }
+
             // 이 라인이 담당할 자원은 "지금 재고가 있는지"와 무관하게 딱 한 번만 정해진다
             // ("이 라인은 철판 담당, 저 라인은 구리 담당"). 예전엔 재고 여부로 담당을 정해서,
             // 담당 자원(철판)이 코어에 아직 없는 잠깐 사이에 다른 라인이 이미 맡은 자원(구리)을
@@ -134,6 +143,7 @@ namespace Factory.Simulation
             if (!segment.LockedSourceResourceId.HasValue)
             {
                 AssignLaneResource(segment, target, database.Recipes[target.RecipeId].Inputs, processors);
+                segment.LockedForRecipeId = target.RecipeId;
             }
 
             if (!segment.LockedSourceResourceId.HasValue) return; // 레시피에 재료가 하나도 없는 등 방어적 처리

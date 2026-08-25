@@ -12,23 +12,36 @@ namespace Factory.Simulation
             for (int i = 0; i < processors.Count; i++)
             {
                 var processor = processors[i];
-                if (processor.RecipeId < 0) continue;
-
-                var recipe = database.Recipes[processor.RecipeId];
 
                 if (!processor.IsProcessing)
                 {
-                    if (!TryConsumeInputs(processor, recipe)) continue;
+                    if (processor.RecipeId < 0) continue;
+                    if (!TryConsumeInputs(processor, database.Recipes[processor.RecipeId])) continue;
+                    processor.ActiveRecipeId = processor.RecipeId;
                     processor.IsProcessing = true;
                     processor.Progress = 0f;
                 }
 
                 processor.Progress += deltaSeconds * processor.SpeedMultiplier;
-                if (processor.Progress >= recipe.ProcessSeconds)
+
+                // while로 돌아 사이클 경계를 넘는 초과분(overshoot)을 다음 사이클로 이어간다
+                // (MinerSystem.Tick과 동일한 이유) — 단, 매 사이클은 그 사이클이 실제로 소비한
+                // ActiveRecipeId 기준으로 산출해야 한다. RecipeId가 처리 도중 바뀌었어도 이번
+                // 사이클은 ActiveRecipeId로 끝맺고, 다음 사이클을 시작할 때 재료가 있으면
+                // (바뀌었을 수도 있는) RecipeId로 새로 시작한다.
+                while (processor.IsProcessing)
                 {
-                    ProduceOutputs(processor, recipe);
+                    var activeRecipe = database.Recipes[processor.ActiveRecipeId];
+                    if (processor.Progress < activeRecipe.ProcessSeconds) break;
+
+                    processor.Progress -= activeRecipe.ProcessSeconds;
+                    ProduceOutputs(processor, activeRecipe);
                     processor.IsProcessing = false;
-                    processor.Progress = 0f;
+
+                    if (processor.RecipeId < 0) break;
+                    if (!TryConsumeInputs(processor, database.Recipes[processor.RecipeId])) break;
+                    processor.ActiveRecipeId = processor.RecipeId;
+                    processor.IsProcessing = true;
                 }
             }
         }

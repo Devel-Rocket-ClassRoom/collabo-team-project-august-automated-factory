@@ -51,9 +51,13 @@ public static class SceneBootstrapper
         SetRef(machineTool, "targetCamera", Camera.main);
         SetRef(machineTool, "driver", driver);
         SetRef(cameraRig, "targetCamera", Camera.main);
+        // zoomSpeed는 필드 기본값을 코드에서 올려도 이미 씬에 저장된 컴포넌트 인스턴스의
+        // 직렬화된 값은 그대로 남는다 — 재실행해도 반영되도록 여기서 명시적으로 맞춰준다.
+        SetFloatField(cameraRig, "zoomSpeed", 0.2f);
         SetRef(router, "beltTool", beltTool);
         SetRef(router, "machineTool", machineTool);
         SetRef(router, "cameraRig", cameraRig);
+        SetRef(tapInput, "buildInputRouter", router);
 
         // 기계별 외형은 이제 코드가 아니라 MachineDef.visualPrefab(DataSeeder가 채움)이 들고
         // 있어서, MachineGhostTool에는 종류 무관 폴백용 ghostPrefab만 넘기면 된다.
@@ -343,8 +347,11 @@ public static class SceneBootstrapper
         var canvasGO = GameObject.Find("HUDCanvas");
         if (canvasGO == null) return;
 
-        var line1 = EnsureText(canvasGO.transform, "HudLine1", new Vector2(40, -60));
-        var line2 = EnsureText(canvasGO.transform, "HudLine2", new Vector2(40, -110));
+        var line1 = EnsureText(canvasGO.transform, "HudLine1", new Vector2(40, -60), new Vector2(700f, 50f));
+        // line2는 코어에 쌓인 자원 종류가 늘어날수록 길어지는 목록이라, line1보다 훨씬
+        // 넉넉하게 잡는다 — 예전엔 500x60 고정 박스라 자원 종류가 몇 개만 넘어가도
+        // (기본 verticalOverflow=Truncate라 에러 없이 조용히) 잘려서 안 보였다.
+        var line2 = EnsureText(canvasGO.transform, "HudLine2", new Vector2(40, -120), new Vector2(1000f, 200f));
 
         var hudGO = GameObject.Find("ResourceHUD") ?? new GameObject("ResourceHUD");
         var hud = EnsureComponentOn<ResourceHUD>(hudGO);
@@ -358,26 +365,35 @@ public static class SceneBootstrapper
     }
 
 
-    private static Text EnsureText(Transform parent, string name, Vector2 anchoredPos)
+    private static Text EnsureText(Transform parent, string name, Vector2 anchoredPos, Vector2 size)
     {
         var existing = GameObject.Find(name);
-        if (existing != null) return existing.GetComponent<Text>();
+        bool isNew = existing == null;
+        var go = isNew ? new GameObject(name, typeof(RectTransform), typeof(Text)) : existing;
+        if (isNew) go.transform.SetParent(parent, false);
 
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
-        go.transform.SetParent(parent, false);
-
+        // 버튼 배치와 마찬가지로 이미 있는 오브젝트여도 매번 최신 크기/위치로 맞춘다 —
+        // 안 그러면 예전 씬에 남아있던 작은 박스 크기가 그대로 남아 재실행해도 안 고쳐진다.
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = new Vector2(0f, 1f);
         rt.anchorMax = new Vector2(0f, 1f);
         rt.pivot = new Vector2(0f, 1f);
         rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = new Vector2(500f, 60f);
+        rt.sizeDelta = size;
 
         var text = go.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 40;
+        text.fontSize = 32;
+        // 코어 자원 목록처럼 길이가 늘어나는 텍스트가 고정 폰트 크기 탓에 박스 밖에서
+        // 조용히 잘려 안 보이는 걸 막는다 — 잘리는 대신 줄어들거나(최소 14) 필요하면
+        // 박스 밖으로도 넘쳐 그려지게(Overflow) 해서 최소한 화면에서 사라지진 않게 한다.
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 14;
+        text.resizeTextMaxSize = 32;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
         text.color = Color.white;
-        text.text = name;
+        if (isNew) text.text = name;
         return text;
     }
 
@@ -392,6 +408,13 @@ public static class SceneBootstrapper
     {
         var so = new SerializedObject(target);
         so.FindProperty(fieldName).boolValue = value;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetFloatField(Object target, string fieldName, float value)
+    {
+        var so = new SerializedObject(target);
+        so.FindProperty(fieldName).floatValue = value;
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 }
