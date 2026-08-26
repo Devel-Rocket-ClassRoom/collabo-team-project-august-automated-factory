@@ -1,0 +1,32 @@
+{
+    "items": [
+        {
+            "itemID": "IronOre",
+            "itemName": "철광석",
+            "description": "기본 구조재의 원료가 되는 광석입니다.",
+            "iconName": "Icon_IronOre",
+            "prefabName": "Prefab_Item_IronOre"
+        },
+        {
+            "itemID": "IronIngot",
+            "itemName": "철 주괴",
+            "description": "철광석을 제련하여 만든 주괴입니다.",
+            "iconName": "Icon_IronIngot",
+            "prefabName": "Prefab_Item_IronIngot"
+        },
+        {
+            "itemID": "IronPlate",
+            "itemName": "철판",
+            "description": "건축과 기계 부품에 폭넓게 쓰이는 기초 재료입니다.",
+            "iconName": "Icon_IronPlate",
+            "prefabName": "Prefab_Item_IronPlate"
+        },
+        {
+            "itemID": "Coal",
+            "itemName": "석탄",
+            "description": "전력 발전과 합금 제작에 쓰이는 연료입니다.",
+            "iconName": "Icon_Coal",
+            "prefabName": "Prefab_Item_Coal"
+        }
+    ]
+}
