@@ -36,55 +36,57 @@ namespace Bae.Data
             Debug.Log("모든 JSON 데이터 로드 완료!");
         }
 
-        private void LoadItems()
+        private string GetJsonText(string fileName)
         {
-            // Assets/Bae/Resources/JSON/Items.json 을 읽어옵니다.
-            TextAsset jsonAsset = Resources.Load<TextAsset>("JSON/Items");
+            // 1. 모바일 기기(또는 PC)에서 접근 가능한 외부 폴더 경로
+            string externalPath = Path.Combine(Application.persistentDataPath, fileName + ".json");
+
+            // 2. 외부 폴더에 수정된 JSON 파일이 존재하면 그것을 최우선으로 읽어옵니다. (실시간 수정 기능)
+            if (File.Exists(externalPath))
+            {
+                return File.ReadAllText(externalPath);
+            }
+            
+            // 3. 외부에 파일이 없다면, 앱(APK) 내부에 빌드된 기본 데이터를 읽어옵니다.
+            TextAsset jsonAsset = Resources.Load<TextAsset>("JSON/" + fileName);
             if (jsonAsset != null)
             {
-                ItemDatabase db = JsonUtility.FromJson<ItemDatabase>(jsonAsset.text);
-                foreach (var item in db.items)
-                {
-                    itemDict[item.itemID] = item;
-                }
+                // 다음번엔 외부에서 수정할 수 있도록 복사본을 밖으로 빼둡니다.
+                File.WriteAllText(externalPath, jsonAsset.text);
+                return jsonAsset.text;
             }
-            else
+
+            Debug.LogError($"JSON 데이터를 찾을 수 없습니다: {fileName}");
+            return null;
+        }
+
+        private void LoadItems()
+        {
+            string jsonText = GetJsonText("Items");
+            if (!string.IsNullOrEmpty(jsonText))
             {
-                Debug.LogError("Items.json 을 찾을 수 없습니다! (경로: Assets/Bae/Resources/JSON/Items.json)");
+                ItemDatabase db = JsonUtility.FromJson<ItemDatabase>(jsonText);
+                foreach (var item in db.items) itemDict[item.itemID] = item;
             }
         }
 
         private void LoadMachines()
         {
-            TextAsset jsonAsset = Resources.Load<TextAsset>("JSON/Machines");
-            if (jsonAsset != null)
+            string jsonText = GetJsonText("Machines");
+            if (!string.IsNullOrEmpty(jsonText))
             {
-                MachineDatabase db = JsonUtility.FromJson<MachineDatabase>(jsonAsset.text);
-                foreach (var machine in db.machines)
-                {
-                    machineDict[machine.machineID] = machine;
-                }
-            }
-            else
-            {
-                Debug.LogError("Machines.json 을 찾을 수 없습니다!");
+                MachineDatabase db = JsonUtility.FromJson<MachineDatabase>(jsonText);
+                foreach (var machine in db.machines) machineDict[machine.machineID] = machine;
             }
         }
 
         private void LoadRecipes()
         {
-            TextAsset jsonAsset = Resources.Load<TextAsset>("JSON/Recipes");
-            if (jsonAsset != null)
+            string jsonText = GetJsonText("Recipes");
+            if (!string.IsNullOrEmpty(jsonText))
             {
-                RecipeDatabase db = JsonUtility.FromJson<RecipeDatabase>(jsonAsset.text);
-                foreach (var recipe in db.recipes)
-                {
-                    recipeDict[recipe.recipeID] = recipe;
-                }
-            }
-            else
-            {
-                Debug.LogError("Recipes.json 을 찾을 수 없습니다!");
+                RecipeDatabase db = JsonUtility.FromJson<RecipeDatabase>(jsonText);
+                foreach (var recipe in db.recipes) recipeDict[recipe.recipeID] = recipe;
             }
         }
 
