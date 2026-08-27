@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using Bae.Data;
 using Factory.Data;
 using Factory.Simulation;
 using NUnit.Framework;
-using UnityEngine;
 
 public class ProcessorSystemTests
 {
@@ -44,32 +44,22 @@ public class ProcessorSystemTests
 
     private static GameDatabase BuildFixtureDatabase(out int oreId, out int plateId, out int recipeId)
     {
-        var ore = ScriptableObject.CreateInstance<ResourceDef>();
-        ore.resourceId = "IronOre";
+        var ore = new ItemData { itemID = "IronOre" };
+        var plate = new ItemData { itemID = "IronPlate" };
+        var machine = new MachineData { machineID = "Smelter" };
+        var recipe = new RecipeData
+        {
+            recipeID = "SmeltIron",
+            machineID = "Smelter",
+            timeToCraft = 1f,
+            inputItems = new List<string> { "IronOre", "IronOre" },
+            outputItems = new List<string> { "IronPlate" },
+        };
 
-        var plate = ScriptableObject.CreateInstance<ResourceDef>();
-        plate.resourceId = "IronPlate";
-
-        var machine = ScriptableObject.CreateInstance<MachineDef>();
-        machine.machineId = "Smelter";
-        machine.category = MachineCategory.Smelter;
-
-        var recipe = ScriptableObject.CreateInstance<RecipeDef>();
-        recipe.recipeId = "SmeltIron";
-        recipe.inputs = new[] { new RecipeIngredient { resource = ore, amount = 2 } };
-        recipe.outputs = new[] { new RecipeIngredient { resource = plate, amount = 1 } };
-        recipe.processSeconds = 1f;
-        recipe.requiredCategory = MachineCategory.Smelter;
-
-        var db = GameDatabase.Build(new[] { ore, plate }, new[] { recipe }, new[] { machine });
+        var db = GameDatabase.Build(new[] { ore, plate }, new[] { machine }, new[] { recipe });
         oreId = db.GetResourceId("IronOre");
         plateId = db.GetResourceId("IronPlate");
         recipeId = db.GetRecipeId("SmeltIron");
-
-        Object.DestroyImmediate(ore);
-        Object.DestroyImmediate(plate);
-        Object.DestroyImmediate(machine);
-        Object.DestroyImmediate(recipe);
 
         return db;
     }

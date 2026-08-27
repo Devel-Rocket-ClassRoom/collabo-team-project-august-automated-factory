@@ -3,7 +3,7 @@ using Factory.Data;
 
 namespace Factory.Simulation
 {
-    // 제련로/조립기 공용 처리 시스템. RecipeRuntime 데이터를 그대로 읽어 소비/생산할 뿐
+    // 제련로/성형기/합성기 공용 처리 시스템. RecipeRuntime 데이터를 그대로 읽어 소비/생산할 뿐
     // 레시피 id로 분기하지 않는다 — 새 레시피를 데이터로 추가해도 이 코드는 그대로 통과한다.
     public sealed class ProcessorSystem
     {
@@ -12,6 +12,7 @@ namespace Factory.Simulation
             for (int i = 0; i < processors.Count; i++)
             {
                 var processor = processors[i];
+                if (processor == null) continue; // 철거로 비워진 슬롯(SimulationWorld.RemoveProcessor 참고).
 
                 if (!processor.IsProcessing)
                 {

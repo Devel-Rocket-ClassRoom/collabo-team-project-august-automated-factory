@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using Bae.Data;
 using Factory.Data;
 using Factory.Simulation;
 using NUnit.Framework;
-using UnityEngine;
 
 public class BeltSystemTests
 {
@@ -289,67 +289,55 @@ public class BeltSystemTests
 
     private static GameDatabase BuildDatabaseWithTwoInputRecipe(out int oreId, out int scrapId, out int recipeId)
     {
-        var ore = ScriptableObject.CreateInstance<ResourceDef>();
-        ore.resourceId = "TestOre";
-        var scrap = ScriptableObject.CreateInstance<ResourceDef>();
-        scrap.resourceId = "TestScrap";
+        var ore = new ItemData { itemID = "TestOre" };
+        var scrap = new ItemData { itemID = "TestScrap" };
 
-        var recipe = ScriptableObject.CreateInstance<RecipeDef>();
-        recipe.recipeId = "TestTwoInputRecipe";
-        recipe.inputs = new[]
+        var recipe = new RecipeData
         {
-            new RecipeIngredient { resource = ore, amount = 1 },
-            new RecipeIngredient { resource = scrap, amount = 1 },
+            recipeID = "TestTwoInputRecipe",
+            machineID = "Assembler",
+            timeToCraft = 1f,
+            inputItems = new List<string> { "TestOre", "TestScrap" },
+            outputItems = new List<string>(),
         };
-        recipe.outputs = System.Array.Empty<RecipeIngredient>();
-        recipe.processSeconds = 1f;
-        recipe.requiredCategory = MachineCategory.Assembler;
 
-        var db = GameDatabase.Build(new[] { ore, scrap }, new[] { recipe }, System.Array.Empty<MachineDef>());
+        var db = GameDatabase.Build(new[] { ore, scrap }, System.Array.Empty<MachineData>(), new[] { recipe });
         oreId = db.GetResourceId("TestOre");
         scrapId = db.GetResourceId("TestScrap");
         recipeId = db.GetRecipeId("TestTwoInputRecipe");
 
-        Object.DestroyImmediate(ore);
-        Object.DestroyImmediate(scrap);
-        Object.DestroyImmediate(recipe);
         return db;
     }
 
     private static GameDatabase BuildDatabaseWithRecipe(out int oreId, out int scrapId, out int recipeId)
     {
-        var ore = ScriptableObject.CreateInstance<ResourceDef>();
-        ore.resourceId = "TestOre";
-        var scrap = ScriptableObject.CreateInstance<ResourceDef>();
-        scrap.resourceId = "TestScrap";
+        var ore = new ItemData { itemID = "TestOre" };
+        var scrap = new ItemData { itemID = "TestScrap" };
 
-        var recipe = ScriptableObject.CreateInstance<RecipeDef>();
-        recipe.recipeId = "TestRecipe";
-        recipe.inputs = new[] { new RecipeIngredient { resource = ore, amount = 1 } };
-        recipe.outputs = System.Array.Empty<RecipeIngredient>();
-        recipe.processSeconds = 1f;
-        recipe.requiredCategory = MachineCategory.Smelter;
+        var recipe = new RecipeData
+        {
+            recipeID = "TestRecipe",
+            machineID = "Smelter",
+            timeToCraft = 1f,
+            inputItems = new List<string> { "TestOre" },
+            outputItems = new List<string>(),
+        };
 
-        var db = GameDatabase.Build(new[] { ore, scrap }, new[] { recipe }, System.Array.Empty<MachineDef>());
+        var db = GameDatabase.Build(new[] { ore, scrap }, System.Array.Empty<MachineData>(), new[] { recipe });
         oreId = db.GetResourceId("TestOre");
         scrapId = db.GetResourceId("TestScrap");
         recipeId = db.GetRecipeId("TestRecipe");
 
-        Object.DestroyImmediate(ore);
-        Object.DestroyImmediate(scrap);
-        Object.DestroyImmediate(recipe);
         return db;
     }
 
     private static GameDatabase BuildMinimalDatabase(out int resourceId)
     {
-        var ore = ScriptableObject.CreateInstance<ResourceDef>();
-        ore.resourceId = "TestOre";
+        var ore = new ItemData { itemID = "TestOre" };
 
-        var db = GameDatabase.Build(new[] { ore }, System.Array.Empty<RecipeDef>(), System.Array.Empty<MachineDef>());
+        var db = GameDatabase.Build(new[] { ore }, System.Array.Empty<MachineData>(), System.Array.Empty<RecipeData>());
         resourceId = db.GetResourceId("TestOre");
 
-        Object.DestroyImmediate(ore);
         return db;
     }
 }

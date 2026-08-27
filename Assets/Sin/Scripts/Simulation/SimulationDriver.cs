@@ -1,3 +1,4 @@
+using Bae.Data;
 using Factory.Data;
 using UnityEngine;
 
@@ -16,8 +17,25 @@ namespace Factory.Simulation
 
         private void Awake()
         {
-            var database = GameDatabase.Instance ?? GameDatabase.LoadFromResources();
-            database.MakeGlobal();
+            // DataManager.Awake()가 JSON을 로드하는데, 유니티는 서로 다른 오브젝트의 Awake
+            // 순서를 보장 안 해준다 — DataManager.cs에 [DefaultExecutionOrder]를 붙여서 항상
+            // 이보다 먼저 돌게 해뒀다(Bae.Data.DataManager 참고). DataManager가 아예 없는
+            // 상태(씬 구성 문제, 또는 Initialize(GameDatabase)로 직접 초기화할 테스트 코드)일
+            // 수도 있어서 여기선 조용히 건너뛴다 — 실제 게임 씬에서 없으면 팔레트/기계 배치가
+            // 전부 안 되는 걸로 바로 드러나니 별도 에러 로그 없이도 원인 찾기 쉽다.
+            if (DataManager.Instance == null) return;
+
+            // GameDatabase.Instance 같은 static 캐시로 "이미 있으면 재사용"하지 않고 매번 새로
+            // 읽는다 — 그런 캐시를 쓰면 JSON을 다시 구워도(특히 Reload Domain을 꺼둔 경우)
+            // 예전 값이 계속 남아있을 위험이 있는데, "빌드 없이 데이터만 바꿔서 반영"이 이
+            // 파이프라인의 핵심 요구사항이라 그 위험을 아예 안 만드는 쪽을 택한다.
+            var database = GameDatabase.LoadFromBaeData(DataManager.Instance);
+            World = new SimulationWorld(database);
+        }
+
+        // 테스트 등에서 DataManager/JSON 없이 직접 구성한 GameDatabase로 초기화할 때 쓴다.
+        public void Initialize(GameDatabase database)
+        {
             World = new SimulationWorld(database);
         }
 

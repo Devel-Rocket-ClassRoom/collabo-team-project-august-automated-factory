@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: IronOreDeposit
   m_EditorClassIdentifier: FactoryPrototype::Factory.Data.OreDepositDef
   depositId: IronOreDeposit
-  resource: {fileID: 11400000, guid: f9fbb07370fa9414dafc4cc4cfce743b, type: 2}
+  resourceId: IronOre
   mineIntervalSeconds: 0.25
   yieldPerCycle: 1

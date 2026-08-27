@@ -10,26 +10,37 @@ namespace Factory.Building
     // 확인 버튼을 눌러야 실제로 배치된다 (터치 릴리즈만으로는 확정하지 않음 — 오조작 방지).
     // 배치 전 "회전" 버튼으로 방향(Facing)을 90도씩 돌릴 수 있고, 고스트도 같이 돌아서
     // 출력 화살표가 어느 쪽을 향할지 미리 볼 수 있다.
+    //
+    // 기계 종류는 machineId(Bae님 MachineData.machineID랑 같은 문자열) 하나로만 식별한다 —
+    // ScriptableObject(MachineDef)를 안 쓰므로, 필요한 정보(footprint 등)는 그때그때
+    // GameDatabase에서 조회한다.
     public class MachineGhostTool : MonoBehaviour, IBuildTool
     {
+        // 채굴기는 이제 하나뿐이고 유일하게 특별 취급되는 종류다(입출력 포트가 없어 원격
+        // 전송, 광물 노드 위에만 지을 수 있음) — Bae님 데이터엔 이걸 구분할 필드가 없어서
+        // 문자열 id로 직접 비교한다.
+        private const string MinerMachineId = "Miner";
+
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SimulationDriver driver;
+        [SerializeField] private MachineVisualLibrary visualLibrary;
         [SerializeField] private Vector2 screenOffset = new Vector2(0f, 150f);
         [SerializeField] private Color validColor = new Color(0.3f, 0.9f, 0.4f, 0.45f);
         [SerializeField] private Color invalidColor = new Color(0.9f, 0.2f, 0.2f, 0.45f);
-        // machineDef.visualPrefab이 없을 때(폴백)만 쓰는 공용 박스 프리팹.
+        // 기계 전용 프리팹도, visualLibrary에 등록된 것도 없을 때(폴백)만 쓰는 공용 박스 프리팹.
         [SerializeField] private GameObject ghostPrefab;
 
         private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
 
-        private MachineDef selectedMachine;
+        private string selectedMachineId;
+        private MachineRuntime selectedMachineRuntime;
         private GameObject ghost;
         private Vector2Int currentCell;
         private Vector2Int currentFacing = new Vector2Int(1, 0);
         private bool hasValidCell;
 
-        public bool IsPlacing => selectedMachine != null;
-        public MachineDef SelectedMachine => selectedMachine;
+        public bool IsPlacing => selectedMachineId != null;
+        public string SelectedMachineId => selectedMachineId;
 
         // 에디터 SerializedObject 없이(런타임/테스트에서) 직접 배선할 때 쓴다.
         public void Initialize(Camera targetCamera, SimulationDriver driver)
@@ -38,15 +49,25 @@ namespace Factory.Building
             this.driver = driver;
         }
 
-        public void SelectMachine(MachineDef machineDef)
+        public void SelectMachine(string machineId)
         {
+            if (driver == null || driver.World == null) return;
+            var db = driver.World.Database;
+            if (!db.TryGetMachineId(machineId, out int id))
+            {
+                Debug.LogError($"[MachineGhostTool] '{machineId}' 기계 데이터를 찾을 수 없습니다 — " +
+                    "Bae님 JSON(Machines.json)에 있는지, Bake를 다시 돌려야 하는 건 아닌지 확인하세요.");
+                return;
+            }
+
             CancelPlacement();
-            selectedMachine = machineDef;
+            selectedMachineId = machineId;
+            selectedMachineRuntime = db.Machines[id];
             currentFacing = new Vector2Int(1, 0);
 
-            // 고스트는 실제로 놓일 기계와 같은 모양(기계 종류별 전용 프리팹)을 쓰고, 색만
-            // 유효/무효 색으로 덮어씌운다.
-            GameObject shapePrefab = machineDef.visualPrefab;
+            // 고스트는 실제로 놓일 기계와 같은 모양(machineVisualLibrary에 등록된 종류별 전용
+            // 프리팹)을 쓰고, 색만 유효/무효 색으로 덮어씌운다. 등록 안 된 종류는 공용 박스로 대체.
+            GameObject shapePrefab = visualLibrary != null && visualLibrary.TryGetPrefab(machineId, out var found) ? found : null;
             ghost = shapePrefab != null
                 ? Instantiate(shapePrefab, transform)
                 : ghostPrefab != null
@@ -59,12 +80,13 @@ namespace Factory.Building
             var collider = ghost.GetComponent<Collider>();
             if (collider != null) Destroy(collider);
 
-            // footprint가 1칸보다 크면(예: 2x2 조립기) 고스트도 그만큼 크게 스케일한다 — 생성
+            // footprint가 1칸보다 크면(예: 2x2 합성기) 고스트도 그만큼 크게 스케일한다 — 생성
             // 경로(프리팹/폴백 박스)가 원래 갖고 있던 기본 스케일에 곱해서, footprint=(1,1)일
             // 때는 기존 크기 그대로 유지된다.
             var baseGhostScale = ghost.transform.localScale;
+            var footprint = selectedMachineRuntime.Footprint;
             ghost.transform.localScale = new Vector3(
-                baseGhostScale.x * machineDef.footprint.x, baseGhostScale.y, baseGhostScale.z * machineDef.footprint.y);
+                baseGhostScale.x * footprint.x, baseGhostScale.y, baseGhostScale.z * footprint.y);
 
             ghost.transform.rotation = FacingToRotation(currentFacing);
             ghost.SetActive(false);
@@ -92,7 +114,7 @@ namespace Factory.Building
 
         public void CancelPlacement()
         {
-            selectedMachine = null;
+            selectedMachineId = null;
             hasValidCell = false;
             if (ghost != null) Destroy(ghost);
             ghost = null;
@@ -105,7 +127,7 @@ namespace Factory.Building
 
         private void UpdateGhost(Vector2 screenPosition)
         {
-            if (selectedMachine == null || targetCamera == null) return;
+            if (selectedMachineId == null || targetCamera == null) return;
             PlaceGhostAlongRay(targetCamera.ScreenPointToRay(screenPosition + screenOffset));
         }
 
@@ -123,13 +145,14 @@ namespace Factory.Building
             hasValidCell = true;
 
             ghost.SetActive(true);
-            ghost.transform.position = GridUtility.GetFootprintCenter(currentCell, selectedMachine.footprint, 0.5f);
+            var footprint = selectedMachineRuntime.Footprint;
+            ghost.transform.position = GridUtility.GetFootprintCenter(currentCell, footprint, 0.5f);
 
             bool free = driver == null || driver.World == null
-                || driver.World.Grid.IsFootprintFree(GridUtility.GetFootprintCells(currentCell, selectedMachine.footprint));
+                || driver.World.Grid.IsFootprintFree(GridUtility.GetFootprintCells(currentCell, footprint));
 
             // 채굴기는 광물 노드가 있는 칸에만 지을 수 있다 — 미리보기에서도 그 조건을 반영한다.
-            if (free && selectedMachine.category == MachineCategory.Miner
+            if (free && selectedMachineId == MinerMachineId
                 && driver != null && driver.World != null && !driver.World.Grid.TryGetOreDeposit(currentCell, out _))
             {
                 free = false;
@@ -141,11 +164,11 @@ namespace Factory.Building
         // 확인 버튼에서 호출.
         public bool Confirm()
         {
-            if (selectedMachine == null || !hasValidCell || driver == null || driver.World == null) return false;
+            if (selectedMachineId == null || !hasValidCell || driver == null || driver.World == null) return false;
 
             var grid = driver.World.Grid;
             var db = driver.World.Database;
-            if (!db.TryGetMachineId(selectedMachine.machineId, out int machineId)) return false;
+            if (!db.TryGetMachineId(selectedMachineId, out int machineId)) return false;
 
             var runtime = db.Machines[machineId];
             var footprintCells = GridUtility.GetFootprintCells(currentCell, runtime.Footprint);
@@ -154,7 +177,7 @@ namespace Factory.Building
             Vector3 worldPos = GridUtility.GetFootprintCenter(currentCell, runtime.Footprint, 0.5f);
             Quaternion rotation = FacingToRotation(currentFacing);
 
-            if (selectedMachine.category == MachineCategory.Miner)
+            if (selectedMachineId == MinerMachineId)
             {
                 // 채굴기는 이제 하나뿐이고, 뭘 캐는지는 그 아래 광물 노드가 정한다 — 땅에
                 // 노드가 없으면 애초에 지을 수 없다("광물이 있는 곳에만 채굴기를 지을 수 있다").
@@ -168,11 +191,10 @@ namespace Factory.Building
                     OutputResourceId = deposit.ResourceId,
                     MineIntervalSeconds = deposit.MineIntervalSeconds,
                     YieldPerCycle = deposit.YieldPerCycle,
-                    SpeedMultiplier = runtime.SpeedMultiplier,
                 };
                 int index = driver.World.AddMiner(miner);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Miner, index);
-                SpawnMachineVisual(selectedMachine.visualPrefab, worldPos, rotation, MachineInstanceKind.Miner, index, new Color(0.55f, 0.4f, 0.25f), runtime.Footprint);
+                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), worldPos, rotation, MachineInstanceKind.Miner, index, new Color(0.55f, 0.4f, 0.25f), runtime.Footprint);
             }
             else
             {
@@ -183,16 +205,20 @@ namespace Factory.Building
                     Facing = currentFacing,
                     Anchor = currentCell,
                     Footprint = runtime.Footprint,
-                    SpeedMultiplier = runtime.SpeedMultiplier,
                 };
                 int index = driver.World.AddProcessor(processor);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Processor, index);
                 TryAutoConnectAdjacentBelts(processor, index);
-                SpawnMachineVisual(selectedMachine.visualPrefab, worldPos, rotation, MachineInstanceKind.Processor, index, new Color(0.6f, 0.15f, 0.1f), runtime.Footprint);
+                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), worldPos, rotation, MachineInstanceKind.Processor, index, new Color(0.6f, 0.15f, 0.1f), runtime.Footprint);
             }
 
             CancelPlacement();
             return true;
+        }
+
+        private GameObject GetVisualPrefab(string machineId)
+        {
+            return visualLibrary != null && visualLibrary.TryGetPrefab(machineId, out var prefab) ? prefab : null;
         }
 
         // 벨트를 먼저 뻗어두고 나중에 그 옆에 기계를 놓는 순서로 지어도 연결되도록, 새로 놓인
@@ -237,6 +263,7 @@ namespace Factory.Building
         {
             for (int i = 0; i < segments.Count; i++)
             {
+                if (segments[i] == null) continue; // 철거로 비워진 슬롯(SimulationWorld.RemoveSegment 참고).
                 if (segments[i].NextSegmentId == segmentId) return true;
             }
             return false;
@@ -257,7 +284,7 @@ namespace Factory.Building
             }
             go.name = $"{kind}_{index}";
 
-            // footprint가 1칸보다 크면(예: 2x2 조립기) 실제 오브젝트도 그만큼 크게 스케일한다.
+            // footprint가 1칸보다 크면(예: 2x2 합성기) 실제 오브젝트도 그만큼 크게 스케일한다.
             var baseScale = go.transform.localScale;
             go.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
 

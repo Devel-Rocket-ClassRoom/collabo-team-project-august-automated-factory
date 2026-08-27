@@ -15,10 +15,12 @@ namespace Factory.Building
             None,
             Belt,
             PlaceMachine,
+            Demolish,
         }
 
         [SerializeField] private BeltDragTool beltTool;
         [SerializeField] private MachineGhostTool machineTool;
+        [SerializeField] private DemolishTool demolishTool;
         [SerializeField] private TouchCameraRig cameraRig;
 
         private Mode mode = Mode.None;
@@ -240,6 +242,7 @@ namespace Factory.Building
             {
                 case Mode.Belt: return beltTool;
                 case Mode.PlaceMachine: return machineTool;
+                case Mode.Demolish: return demolishTool;
                 default: return null;
             }
         }

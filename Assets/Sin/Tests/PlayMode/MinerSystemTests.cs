@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using Bae.Data;
 using Factory.Data;
 using Factory.Simulation;
 using NUnit.Framework;
-using UnityEngine;
 
 // 채굴기는 입출력 포트가 없다 — 캔 자원은 벨트 없이 코어(UniversalPorts 켜진 Processor)로
 // 곧바로 "원격 전송"된다. MinerSystem이 그 배송 자체를 담당한다.
@@ -62,13 +62,11 @@ public class MinerSystemTests
 
     private static GameDatabase BuildMinimalDatabase(out int resourceId)
     {
-        var ore = ScriptableObject.CreateInstance<ResourceDef>();
-        ore.resourceId = "TestOre";
+        var ore = new ItemData { itemID = "TestOre" };
 
-        var db = GameDatabase.Build(new[] { ore }, System.Array.Empty<RecipeDef>(), System.Array.Empty<MachineDef>());
+        var db = GameDatabase.Build(new[] { ore }, System.Array.Empty<MachineData>(), System.Array.Empty<RecipeData>());
         resourceId = db.GetResourceId("TestOre");
 
-        Object.DestroyImmediate(ore);
         return db;
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Factory.UI
 {
-    // 제련로/조립기를 탭했을 때 뜨는 레시피 선택 패널. 카테고리에 맞는 레시피 버튼을 동적으로
+    // 제련로/성형기/합성기를 탭했을 때 뜨는 레시피 선택 패널. 기계 종류에 맞는 레시피 버튼을 동적으로
     // 채우고, 고르면 그 프로세서 인스턴스에 RecipeId를 대입한다. 사용자가 설명한 대로 —
     // "레시피를 선택해서 지정하면 거기서 필요한 자원의 정보를 전달받는" 구조.
     public class RecipeSelectionPanel : MonoBehaviour
@@ -27,7 +27,7 @@ namespace Factory.UI
             if (panelRoot != null) panelRoot.SetActive(false);
         }
 
-        public void Open(int processorIndex, MachineCategory category)
+        public void Open(int processorIndex, string machineId)
         {
             if (driver == null || driver.World == null) return;
 
@@ -35,7 +35,7 @@ namespace Factory.UI
             ClearButtons();
 
             var db = driver.World.Database;
-            var recipeIds = db.GetRecipeIdsForCategory(category);
+            var recipeIds = db.GetRecipeIdsForMachine(machineId);
             for (int i = 0; i < recipeIds.Count; i++)
             {
                 CreateRecipeButton(recipeIds[i], db.Recipes[recipeIds[i]].Key);
@@ -80,7 +80,10 @@ namespace Factory.UI
         {
             if (targetProcessorIndex >= 0 && targetProcessorIndex < driver.World.Processors.Count)
             {
-                driver.World.Processors[targetProcessorIndex].RecipeId = recipeId;
+                // 패널이 열려있는 동안 이 프로세서가 철거됐을 수 있다(SimulationWorld.RemoveProcessor
+                // 참고 — 그 자리는 null로 비워짐).
+                var processor = driver.World.Processors[targetProcessorIndex];
+                if (processor != null) processor.RecipeId = recipeId;
             }
             Close();
         }

@@ -50,6 +50,71 @@ namespace Factory.Simulation
             return Segments.Count - 1;
         }
 
+        // 철거 전용 — 리스트 중간 아무 인덱스나 지울 수 있어야 한다(플레이어가 아무 기계나
+        // 골라 지우므로, 항상 최근 것만 지우던 것과 다름). 그런데 InstanceIndex가 "리스트
+        // 인덱스"와 같다는 전제가 WorldGrid/BeltSystem 곳곳에 깔려 있어서, 그냥 List.RemoveAt으로
+        // 지우면 그 뒤 모든 occupant의 인덱스가 한 칸씩 밀려서 완전히 틀어진다. 그래서 실제로
+        // 지우지 않고 그 자리를 null로 비워두는 "톰스톤" 방식을 쓴다 — 인덱스는 절대 안 바뀌고,
+        // Tick 루프들만 null 슬롯을 건너뛰면 된다(MinerSystem/ProcessorSystem/BeltSystem 참고).
+        //
+        // 지우는 대상이 그 순간 들고 있던 자원(벨트 위 아이템, 기계 버퍼, 채굴기가 아직 코어로
+        // 못 보낸 산출물)은 그냥 사라지면 안 되고 코어로 환불한다 — 안 그러면 철거를 타이밍
+        // 나쁘게 쓸 때마다 자원이 조용히 증발한다.
+        public void RemoveMiner(int index)
+        {
+            if (index < 0 || index >= Miners.Count || Miners[index] == null) return;
+
+            RefundToCore(Miners[index].OutputResourceId, Miners[index].BufferedOutput);
+            Miners[index] = null;
+        }
+
+        public void RemoveProcessor(int index)
+        {
+            if (index < 0 || index >= Processors.Count || Processors[index] == null) return;
+
+            var processor = Processors[index];
+            for (int r = 0; r < processor.InputBuffer.Length; r++) RefundToCore(r, processor.InputBuffer[r]);
+            for (int r = 0; r < processor.OutputBuffer.Length; r++) RefundToCore(r, processor.OutputBuffer[r]);
+            Processors[index] = null;
+
+            // 이 프로세서를 참조하던 벨트 세그먼트들의 연결을 끊는다 — 안 그러면 다음 틱에
+            // 지금 null이 된 자리를 그대로 인덱싱해서 예외가 난다.
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                var segment = Segments[i];
+                if (segment == null) continue;
+                if (segment.SourceProcessorId == index) segment.SourceProcessorId = null;
+                if (segment.TargetProcessorId == index) segment.TargetProcessorId = null;
+            }
+        }
+
+        public void RemoveSegment(int id)
+        {
+            if (id < 0 || id >= Segments.Count || Segments[id] == null) return;
+
+            var items = Segments[id].Items;
+            for (int j = 0; j < items.Count; j++) RefundToCore(items[j].ResourceId, 1);
+            Segments[id] = null;
+
+            beltSystem.Configure(Segments); // segmentsById 캐시에서 지워진 id를 빼서 다시 맞춘다.
+            // (다른 세그먼트의 NextSegmentId가 이 id를 계속 가리키더라도, 그 값을 찾는 건 항상
+            // segmentsById.TryGetValue를 통해서만 이뤄지므로 — 못 찾으면 그냥 "다음 세그먼트
+            // 없음"으로 취급돼서 안전하다. 따로 null로 되돌려줄 필요 없음.)
+        }
+
+        // 코어 용량(9999)이 넉넉해서 사실상 항상 다 받아준다 — 실패해도 자원을 잃는 것보단
+        // 넘치는 만큼만 잘리는 게 낫다(Math.Min으로 클램프, TryAcceptInput의 전부-거절 방식 아님).
+        // 코어가 아직 없거나(이론상으로만 가능) 이미 null이면 돌려줄 곳이 없으니 그냥 버린다.
+        private void RefundToCore(int resourceId, int amount)
+        {
+            if (amount <= 0) return;
+            if (CoreProcessorIndex < 0 || CoreProcessorIndex >= Processors.Count) return;
+
+            var core = Processors[CoreProcessorIndex];
+            if (core == null) return;
+            core.InputBuffer[resourceId] = System.Math.Min(core.InputBuffer[resourceId] + amount, core.Capacity);
+        }
+
         public void Tick(float deltaSeconds)
         {
             minerSystem.Tick(deltaSeconds, Miners, Processors, CoreProcessorIndex);

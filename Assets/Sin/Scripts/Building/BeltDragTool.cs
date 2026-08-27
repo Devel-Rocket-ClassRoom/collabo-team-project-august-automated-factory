@@ -163,7 +163,7 @@ namespace Factory.Building
                         return isStart ? EndpointRole.Source : EndpointRole.Target;
                     }
                     isFixed = true;
-                    // footprint가 1칸보다 클 수 있어서(예: 2x2 조립기), 밟은 칸(machineCell)이
+                    // footprint가 1칸보다 클 수 있어서(예: 2x2 합성기), 밟은 칸(machineCell)이
                     // 아니라 앵커 기준으로 포트 칸 목록을 계산한다 — 어느 footprint 칸에
                     // 닿았든 앵커만 같으면 같은 결과가 나온다.
                     var outputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, isOutputSide: true);
