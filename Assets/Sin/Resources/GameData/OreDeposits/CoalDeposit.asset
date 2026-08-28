@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 36285457fb0d1db4ab27d84b39700436, type: 3}
-  m_Name: CopperOreDeposit
+  m_Name: CoalDeposit
   m_EditorClassIdentifier: FactoryPrototype::Factory.Data.OreDepositDef
-  depositId: CopperOreDeposit
-  resource: {fileID: 11400000, guid: a7c2eb3523c1dd543b11e45d05e249bc, type: 2}
+  depositId: CoalDeposit
+  resourceId: Coal
   mineIntervalSeconds: 0.25
   yieldPerCycle: 1

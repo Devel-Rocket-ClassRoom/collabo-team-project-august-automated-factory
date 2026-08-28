@@ -91,6 +91,34 @@ namespace Factory.Simulation
             }
         }
 
+        // 철거용 — RegisterSegment/RegisterBuilding(Footprint)이 등록한 칸을 그대로 되돌린다.
+        public void UnregisterCell(Vector2Int cell)
+        {
+            if (!occupants.TryGetValue(cell, out var occupant)) return;
+
+            var chunk = GetOrCreateChunk(WorldCellToChunkCoord(cell));
+            if (occupant.Type == CellOccupantType.Belt) chunk.SegmentIds.Remove(occupant.InstanceIndex);
+            else chunk.BuildingIds.Remove(occupant.InstanceIndex);
+
+            occupants.Remove(cell);
+        }
+
+        // 철거 대상 occupant가 차지한 칸 전부를 찾아 지운다. footprint가 몇 칸인지(멀티칸 건물)를
+        // 호출자가 따로 알 필요 없게, occupants를 직접 훑어서 (type, instanceIndex)가 일치하는
+        // 칸을 전부 찾는다 — 철거는 드문 조작이라 이 정도 스캔 비용은 무방하다.
+        public void UnregisterOccupant(CellOccupantType type, int instanceIndex)
+        {
+            List<Vector2Int> matchingCells = null;
+            foreach (var kvp in occupants)
+            {
+                if (kvp.Value.Type != type || kvp.Value.InstanceIndex != instanceIndex) continue;
+                (matchingCells ??= new List<Vector2Int>()).Add(kvp.Key);
+            }
+
+            if (matchingCells == null) return;
+            for (int i = 0; i < matchingCells.Count; i++) UnregisterCell(matchingCells[i]);
+        }
+
         // 카메라 시야(월드 셀 기준 사각형)와 겹치는 청크만 반환 — 렌더 갱신 대상 산정용.
         public IEnumerable<Chunk> GetVisibleChunks(RectInt viewCellBounds)
         {

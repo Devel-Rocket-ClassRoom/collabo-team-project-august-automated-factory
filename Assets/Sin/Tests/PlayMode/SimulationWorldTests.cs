@@ -1,7 +1,7 @@
+using Bae.Data;
 using Factory.Data;
 using Factory.Simulation;
 using NUnit.Framework;
-using UnityEngine;
 
 public class SimulationWorldTests
 {
@@ -75,13 +75,11 @@ public class SimulationWorldTests
 
     private static GameDatabase BuildMinimalDatabase(out int resourceId)
     {
-        var ore = ScriptableObject.CreateInstance<ResourceDef>();
-        ore.resourceId = "TestOre";
+        var ore = new ItemData { itemID = "TestOre" };
 
-        var db = GameDatabase.Build(new[] { ore }, System.Array.Empty<RecipeDef>(), System.Array.Empty<MachineDef>());
+        var db = GameDatabase.Build(new[] { ore }, System.Array.Empty<MachineData>(), System.Array.Empty<RecipeData>());
         resourceId = db.GetResourceId("TestOre");
 
-        Object.DestroyImmediate(ore);
         return db;
     }
 }

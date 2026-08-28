@@ -12,11 +12,14 @@ namespace Factory.Simulation
         [SerializeField] private SimulationDriver driver;
         [SerializeField] private GameObject oreDepositVisualPrefab;
 
+        // CopperOreDeposit은 뺐다 — "CopperOre" 아이템이 아직 Bae님 데이터에 없어서(팀에서
+        // 실제 아이템으로 추가하면 다시 넣으면 됨). 대신 석탄(Coal, 실제 아이템으로 이미 있음)
+        // 노드를 둬서 합성기가 진짜 서로 다른 두 자원(철 주괴 + 석탄)을 받는 걸 테스트할 수 있게 함.
         private static readonly (Vector2Int cell, string depositId)[] FixedDeposits =
         {
             (new Vector2Int(4, 3), "IronOreDeposit"),
             (new Vector2Int(4, 5), "IronOreDeposit"),
-            (new Vector2Int(-4, 3), "CopperOreDeposit"),
+            (new Vector2Int(-4, 3), "CoalDeposit"),
         };
 
         private void Start()

@@ -26,7 +26,8 @@ public static class PrefabBuilder
         // 없으므로(원격 전송) 출력 화살표를 붙이지 않는다.
         BuildMachinePrefab("MinerVisual", new Color(0.55f, 0.4f, 0.25f), hasOutputPort: false);
         BuildMachinePrefab("SmelterVisual", new Color(0.6f, 0.15f, 0.1f), hasOutputPort: true);
-        BuildMachinePrefab("AssemblerVisual", new Color(0.45f, 0.25f, 0.65f), hasOutputPort: true);
+        BuildMachinePrefab("FormerVisual", new Color(0.2f, 0.5f, 0.55f), hasOutputPort: true);
+        BuildMachinePrefab("SynthesizerVisual", new Color(0.45f, 0.25f, 0.65f), hasOutputPort: true);
         BuildCorePrefab();
         BuildOreDepositVisualPrefab();
         BuildGhostPrefab();

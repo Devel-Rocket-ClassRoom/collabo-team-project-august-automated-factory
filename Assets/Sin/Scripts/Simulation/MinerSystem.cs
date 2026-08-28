@@ -16,6 +16,8 @@ namespace Factory.Simulation
             for (int i = 0; i < miners.Count; i++)
             {
                 var miner = miners[i];
+                if (miner == null) continue; // 철거로 비워진 슬롯(SimulationWorld.RemoveMiner 참고).
+
                 miner.Progress += deltaSeconds * miner.SpeedMultiplier;
 
                 while (miner.Progress >= miner.MineIntervalSeconds)

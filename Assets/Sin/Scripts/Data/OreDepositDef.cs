@@ -12,8 +12,8 @@ namespace Factory.Data
         [Tooltip("안정적인 문자열 키.")]
         public string depositId;
 
-        [Tooltip("이 노드에서 캐지는 자원 — 별도 '태그' 문자열 없이 이 참조 자체가 태그 역할을 한다.")]
-        public ResourceDef resource;
+        [Tooltip("이 노드에서 캐지는 자원의 id. Bae님 ItemData.itemID랑 정확히 같은 문자열이어야 한다(예: \"IronOre\").")]
+        public string resourceId;
 
         public float mineIntervalSeconds = SimulationConstants.DefaultMineIntervalSeconds;
         public int yieldPerCycle = 1;

@@ -65,6 +65,7 @@ namespace Factory.Rendering
             var segments = driver.World.Segments;
             for (int i = 0; i < segments.Count; i++)
             {
+                if (segments[i] == null) continue; // 철거로 비워진 슬롯(SimulationWorld.RemoveSegment 참고).
                 if (segments[i].Id == segmentId) return segments[i];
             }
             return null;
