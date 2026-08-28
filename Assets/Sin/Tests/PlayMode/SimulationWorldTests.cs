@@ -73,6 +73,28 @@ public class SimulationWorldTests
         Assert.AreEqual(5, core.InputBuffer[resourceId], "코어 재고로 곧바로 들어가 있어야 함");
     }
 
+    [Test]
+    public void RemoveSegment_ClearsUpstreamNextSegmentId_SoTheSpotCanBeRewired()
+    {
+        // 사용자가 보고한 버그: 벨트를 한 번 철거하면 그 자리에 벨트를 다시 못 이었다.
+        // 원인 — 상류 세그먼트의 NextSegmentId가 지워진 세그먼트를 계속 가리켜서, 건설 도구가
+        // "이미 다른 곳으로 흐르는 벨트"로 보고 재연결을 거부했다.
+        var db = BuildMinimalDatabase(out int resourceId);
+        var world = new SimulationWorld(db);
+
+        int upstreamId = world.Segments.Count;
+        world.AddBeltSegment(new BeltSegment { Id = upstreamId, Length = 1f });
+        int downstreamId = world.Segments.Count;
+        world.AddBeltSegment(new BeltSegment { Id = downstreamId, Length = 1f });
+        world.Segments[upstreamId].NextSegmentId = downstreamId;
+
+        world.RemoveSegment(downstreamId);
+
+        Assert.IsNull(world.Segments[downstreamId], "철거한 세그먼트 자리는 null(톰스톤)이어야 함");
+        Assert.IsFalse(world.Segments[upstreamId].NextSegmentId.HasValue,
+            "상류 세그먼트는 더 이상 지워진 세그먼트를 가리키면 안 됨 — 그래야 그 자리에 새 벨트를 다시 잇는다");
+    }
+
     private static GameDatabase BuildMinimalDatabase(out int resourceId)
     {
         var ore = new ItemData { itemID = "TestOre" };

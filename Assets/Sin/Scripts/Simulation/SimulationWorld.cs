@@ -96,10 +96,18 @@ namespace Factory.Simulation
             for (int j = 0; j < items.Count; j++) RefundToCore(items[j].ResourceId, 1);
             Segments[id] = null;
 
+            // 이 세그먼트로 흘러들던 상류 세그먼트의 연결을 끊는다(RemoveProcessor가
+            // SourceProcessorId/TargetProcessorId를 끊어주는 것과 같은 취지). Tick 루프만 보면
+            // segmentsById.TryGetValue가 못 찾아서 "다음 없음"으로 안전하게 넘어가지만, 건설
+            // 도구는 NextSegmentId.HasValue를 직접 봐서 "이미 다른 곳으로 흐르는 벨트"로 판단해
+            // 재연결을 거부한다(BeltDragTool.Commit / TryDirectLink) — 그래서 철거한 자리에 새
+            // 벨트를 다시 못 잇는 버그가 있었다. dangling 참조를 실제로 지워야 한다.
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                if (Segments[i] != null && Segments[i].NextSegmentId == id) Segments[i].NextSegmentId = null;
+            }
+
             beltSystem.Configure(Segments); // segmentsById 캐시에서 지워진 id를 빼서 다시 맞춘다.
-            // (다른 세그먼트의 NextSegmentId가 이 id를 계속 가리키더라도, 그 값을 찾는 건 항상
-            // segmentsById.TryGetValue를 통해서만 이뤄지므로 — 못 찾으면 그냥 "다음 세그먼트
-            // 없음"으로 취급돼서 안전하다. 따로 null로 되돌려줄 필요 없음.)
         }
 
         // 코어 용량(9999)이 넉넉해서 사실상 항상 다 받아준다 — 실패해도 자원을 잃는 것보단
