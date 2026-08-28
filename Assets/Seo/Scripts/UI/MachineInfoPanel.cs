@@ -69,8 +69,42 @@ namespace Seo.UI
             panel.progressFill.type = Image.Type.Filled;
             panel.progressFill.fillMethod = Image.FillMethod.Horizontal;
 
-            var closeButton = CreateButton(root.transform, "CloseButton", "닫기", new Vector2(-118f, 22f), new Vector2(94f, 54f), true);
-            panel.recipeButton = CreateButton(root.transform, "RecipeButton", "레시피 변경", new Vector2(24f, 22f), new Vector2(210f, 54f), false);
+            // 기존 HUD의 회전/확정 버튼과 시각적으로 섞이지 않도록 패널 내부에 독립된
+            // 하단 액션 영역을 두고, 기능별 색상과 충분한 버튼 간격을 적용한다.
+            var actionFooter = CreateImage(
+                root.transform,
+                "ActionFooter",
+                Vector2.zero,
+                new Vector2(1f, 0f),
+                Vector2.zero,
+                new Vector2(0f, 94f));
+            actionFooter.color = new Color(0.035f, 0.045f, 0.06f, 0.98f);
+
+            var footerLine = CreateImage(
+                actionFooter.transform,
+                "TopLine",
+                new Vector2(0f, 1f),
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, 2f));
+            footerLine.color = new Color(1f, 1f, 1f, 0.14f);
+
+            panel.recipeButton = CreateButton(
+                actionFooter.transform,
+                "RecipeButton",
+                "레시피 설정",
+                new Vector2(24f, 18f),
+                new Vector2(250f, 58f),
+                false,
+                new Color(0.1f, 0.38f, 0.62f, 1f));
+            var closeButton = CreateButton(
+                actionFooter.transform,
+                "CloseButton",
+                "닫기",
+                new Vector2(-24f, 18f),
+                new Vector2(112f, 58f),
+                true,
+                new Color(0.38f, 0.16f, 0.18f, 1f));
             closeButton.onClick.AddListener(() => panel.CloseRequested?.Invoke());
             panel.recipeButton.onClick.AddListener(() => panel.RecipeRequested?.Invoke());
 
@@ -117,7 +151,14 @@ namespace Seo.UI
             return image;
         }
 
-        private static Button CreateButton(Transform parent, string name, string label, Vector2 position, Vector2 size, bool rightAnchored)
+        private static Button CreateButton(
+            Transform parent,
+            string name,
+            string label,
+            Vector2 position,
+            Vector2 size,
+            bool rightAnchored,
+            Color backgroundColor)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
@@ -127,7 +168,7 @@ namespace Seo.UI
             rt.pivot = rightAnchored ? new Vector2(1f, 0f) : Vector2.zero;
             rt.anchoredPosition = position;
             rt.sizeDelta = size;
-            go.GetComponent<Image>().color = new Color(0.18f, 0.2f, 0.24f, 1f);
+            go.GetComponent<Image>().color = backgroundColor;
 
             var text = CreateText(go.transform, "Label", Vector2.zero, size, 20, FontStyle.Bold);
             var textRt = text.rectTransform;
@@ -137,6 +178,7 @@ namespace Seo.UI
             textRt.anchoredPosition = Vector2.zero;
             textRt.sizeDelta = Vector2.zero;
             text.alignment = TextAnchor.MiddleCenter;
+            text.text = label;
             return go.GetComponent<Button>();
         }
     }
