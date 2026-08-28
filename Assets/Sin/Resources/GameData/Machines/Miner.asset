@@ -9,13 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0be1f45012a031f428e08d4f021b06ff, type: 3}
+  m_Script: {fileID: 0}
   m_Name: Miner
-  m_EditorClassIdentifier: FactoryPrototype::Factory.Data.MachineDef
+  m_EditorClassIdentifier: FactoryPrototype:Factory.Data:MachineDef
   machineId: Miner
   displayName: "\uCC44\uAD74\uAE30"
   category: 0
   footprint: {x: 1, y: 1}
   speedMultiplier: 1
-  visualPrefab: {fileID: 2094079478659925746, guid: 857faa14ef613d44e9eb8fbfb70bd67f, type: 3}
-  minerOutput: {fileID: 11400000, guid: f9fbb07370fa9414dafc4cc4cfce743b, type: 2}
+  visualPrefab: {fileID: 0}

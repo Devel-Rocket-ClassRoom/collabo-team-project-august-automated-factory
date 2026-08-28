@@ -1,3 +1,54 @@
 {
-    "machines": []
+    "machines": [
+        {
+            "machineID": "Core",
+            "machineName": "코어",
+            "powerConsumption": 0,
+            "inputSlots": 0,
+            "outputSlots": 0,
+            "gridWidth": 2,
+            "gridHeight": 2,
+            "prefabName": ""
+        },
+        {
+            "machineID": "Former",
+            "machineName": "성형기",
+            "powerConsumption": 0,
+            "inputSlots": 1,
+            "outputSlots": 1,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": ""
+        },
+        {
+            "machineID": "Miner",
+            "machineName": "채굴기",
+            "powerConsumption": 0,
+            "inputSlots": 0,
+            "outputSlots": 1,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": ""
+        },
+        {
+            "machineID": "Smelter",
+            "machineName": "제련로",
+            "powerConsumption": 0,
+            "inputSlots": 1,
+            "outputSlots": 1,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": ""
+        },
+        {
+            "machineID": "Synthesizer",
+            "machineName": "합성기",
+            "powerConsumption": 0,
+            "inputSlots": 2,
+            "outputSlots": 1,
+            "gridWidth": 2,
+            "gridHeight": 2,
+            "prefabName": ""
+        }
+    ]
 }

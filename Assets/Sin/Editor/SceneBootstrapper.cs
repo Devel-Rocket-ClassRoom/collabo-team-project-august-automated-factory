@@ -1,5 +1,5 @@
+using Bae.Data;
 using Factory.Building;
-using Factory.Data;
 using Factory.Simulation;
 using Factory.UI;
 using UnityEditor;
@@ -17,8 +17,8 @@ using UnityEngine.UI;
 public static class SceneBootstrapper
 {
     private const string ScenePath = "Assets/Scenes/SampleScene.unity";
-    private const string MachinesPath = "Assets/Sin/Resources/GameData/Machines";
     private const string PrefabsPath = "Assets/Sin/Prefabs";
+    private const string VisualLibraryPath = "Assets/Sin/MachineVisualLibrary.asset";
     // 48dp 최소 터치 타겟은 유지하면서(캔버스 스케일 기준 대략 매칭) 예전(160x100)보다 작게.
     private static readonly Vector2 ButtonSize = new Vector2(120f, 72f);
 
@@ -33,6 +33,11 @@ public static class SceneBootstrapper
 
         RemoveLegacyObjects();
 
+        // Bae님의 DataManager(JSON 로드 싱글톤) — SimulationDriver보다 먼저 존재해야 한다
+        // (DataManager.cs의 [DefaultExecutionOrder]가 Awake 순서를 보장해준다).
+        var dataManagerGO = EnsureEmpty("DataManager", Vector3.zero);
+        EnsureComponentOn<DataManager>(dataManagerGO);
+
         var driverGO = EnsureEmpty("SimulationDriver", Vector3.zero);
         var driver = EnsureComponentOn<SimulationDriver>(driverGO);
 
@@ -43,6 +48,7 @@ public static class SceneBootstrapper
         var buildSystemGO = EnsureEmpty("BuildSystem", Vector3.zero);
         var beltTool = EnsureComponentOn<BeltDragTool>(buildSystemGO);
         var machineTool = EnsureComponentOn<MachineGhostTool>(buildSystemGO);
+        var demolishTool = EnsureComponentOn<DemolishTool>(buildSystemGO);
         var cameraRig = EnsureComponentOn<TouchCameraRig>(buildSystemGO);
         var router = EnsureComponentOn<BuildInputRouter>(buildSystemGO);
 
@@ -50,17 +56,19 @@ public static class SceneBootstrapper
         SetRef(beltTool, "driver", driver);
         SetRef(machineTool, "targetCamera", Camera.main);
         SetRef(machineTool, "driver", driver);
+        SetRef(demolishTool, "targetCamera", Camera.main);
+        SetRef(demolishTool, "driver", driver);
         SetRef(cameraRig, "targetCamera", Camera.main);
         // zoomSpeed는 필드 기본값을 코드에서 올려도 이미 씬에 저장된 컴포넌트 인스턴스의
         // 직렬화된 값은 그대로 남는다 — 재실행해도 반영되도록 여기서 명시적으로 맞춰준다.
         SetFloatField(cameraRig, "zoomSpeed", 0.2f);
         SetRef(router, "beltTool", beltTool);
         SetRef(router, "machineTool", machineTool);
+        SetRef(router, "demolishTool", demolishTool);
+        SetRef(demolishTool, "router", router);
         SetRef(router, "cameraRig", cameraRig);
         SetRef(tapInput, "buildInputRouter", router);
 
-        // 기계별 외형은 이제 코드가 아니라 MachineDef.visualPrefab(DataSeeder가 채움)이 들고
-        // 있어서, MachineGhostTool에는 종류 무관 폴백용 ghostPrefab만 넘기면 된다.
         var itemPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltItemVisual.prefab");
         var corePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/CoreVisual.prefab");
         var ghostPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/MachineGhost.prefab");
@@ -74,6 +82,12 @@ public static class SceneBootstrapper
         SetRef(beltTool, "stripPrefab", stripPrefab);
         SetRef(machineTool, "ghostPrefab", ghostPrefab);
 
+        // Bae님 데이터(MachineData.prefabName)는 Addressables 키 문자열이라 아직 실제 프리팹을
+        // 못 가져온다(Addressables 미연결) — 그때까지 기계별 전용 외형을 유지하기 위한 임시
+        // machineId->프리팹 매핑(MachineVisualLibrary 참고). Addressables 실제 연결되면 이 부분 걷어내면 됨.
+        var visualLibrary = EnsureMachineVisualLibrary();
+        SetRef(machineTool, "visualLibrary", visualLibrary);
+
         var coreSpawnerGO = EnsureEmpty("CoreSpawner", Vector3.zero);
         var coreSpawner = EnsureComponentOn<CoreSpawner>(coreSpawnerGO);
         SetRef(coreSpawner, "driver", driver);
@@ -85,15 +99,8 @@ public static class SceneBootstrapper
         SetRef(oreDepositSpawner, "driver", driver);
         SetRef(oreDepositSpawner, "oreDepositVisualPrefab", oreDepositVisualPrefab);
 
-        var minerDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Miner.asset");
-        var smelterDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Smelter.asset");
-        var assemblerDef = AssetDatabase.LoadAssetAtPath<MachineDef>($"{MachinesPath}/Assembler.asset");
-        if (minerDef == null || smelterDef == null || assemblerDef == null)
-        {
-            Debug.LogWarning("[SceneBootstrapper] Machine def(s) not found — run Tools > Factory Prototype > Seed Sample Game Data first.");
-        }
-
-        BuildPalette(router, machineTool, minerDef, smelterDef, assemblerDef);
+        // 기계 종류는 이제 애셋이 아니라 Bae님 JSON의 machineID 문자열로만 식별한다.
+        BuildPalette(router, machineTool, demolishTool, "Miner", "Smelter", "Former", "Synthesizer");
         BuildHud(driver);
         BuildRecipePanel(driver);
         BuildGround();
@@ -110,8 +117,13 @@ public static class SceneBootstrapper
         "Miner", "Smelter", "BeltNodeA", "BeltNodeB", "BeltNodeC",
         "BeltStrip_Segment0", "BeltStrip_Segment1", "BeltRenderer_Segment0", "BeltRenderer_Segment1",
         "DemoSceneSetup",
+        "PaletteButton_Assembler", // 조립기 -> 성형기+합성기로 분리되면서 없어짐. 이름이 바뀌어
+                                   // EnsureButton이 새로 만들지 않고 예전 자리에 그대로 남으므로 명시적으로 지운다.
         "FacingLabel", // 예전 실행에서 캔버스 루트에 잘못 붙였던 버전을 지우고 버튼 자식으로 다시 만든다.
         "PaletteButton_CopperMiner", // 채굴기가 하나로 통합되면서 없어짐(광물 노드 태그로 대체).
+        "UndoButton", // 되돌리기 기능을 철거로 교체하면서 없어짐 — UndoButton.cs 자체가 삭제돼서
+                      // 이름만 같은 새 오브젝트를 만들어도 이 이름의 예전 오브젝트는 안 지워지고
+                      // 스크립트만 깨진 채(Missing) 화면에 남아있었다.
     };
 
     private static void RemoveLegacyObjects()
@@ -176,7 +188,7 @@ public static class SceneBootstrapper
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
     }
 
-    private static void BuildPalette(BuildInputRouter router, MachineGhostTool machineTool, MachineDef minerDef, MachineDef smelterDef, MachineDef assemblerDef)
+    private static void BuildPalette(BuildInputRouter router, MachineGhostTool machineTool, DemolishTool demolishTool, string minerMachineId, string smelterMachineId, string formerMachineId, string synthesizerMachineId)
     {
         var canvasGO = GameObject.Find("HUDCanvas");
         if (canvasGO == null)
@@ -192,16 +204,22 @@ public static class SceneBootstrapper
         EnsureEventSystem();
 
         var minerButton = EnsureButton(canvasGO.transform, "PaletteButton_Miner", "채굴기", new Vector2(20, 40));
-        WirePaletteButton(minerButton, router, machineTool, minerDef);
+        WirePaletteButton(minerButton, router, machineTool, minerMachineId);
 
         var smelterButton = EnsureButton(canvasGO.transform, "PaletteButton_Smelter", "제련로", new Vector2(150, 40));
-        WirePaletteButton(smelterButton, router, machineTool, smelterDef);
+        WirePaletteButton(smelterButton, router, machineTool, smelterMachineId);
 
-        var assemblerButton = EnsureButton(canvasGO.transform, "PaletteButton_Assembler", "조립기", new Vector2(280, 40));
-        WirePaletteButton(assemblerButton, router, machineTool, assemblerDef);
+        var formerButton = EnsureButton(canvasGO.transform, "PaletteButton_Former", "성형기", new Vector2(280, 40));
+        WirePaletteButton(formerButton, router, machineTool, formerMachineId);
 
-        var beltButton = EnsureButton(canvasGO.transform, "PaletteButton_Belt", "벨트", new Vector2(410, 40));
+        var synthesizerButton = EnsureButton(canvasGO.transform, "PaletteButton_Synthesizer", "합성기", new Vector2(410, 40));
+        WirePaletteButton(synthesizerButton, router, machineTool, synthesizerMachineId);
+
+        var beltButton = EnsureButton(canvasGO.transform, "PaletteButton_Belt", "벨트", new Vector2(540, 40));
         WirePaletteButton(beltButton, router, machineTool, null, isBeltButton: true);
+
+        var demolishButton = EnsureButton(canvasGO.transform, "PaletteButton_Demolish", "철거", new Vector2(670, 40));
+        WirePaletteButton(demolishButton, router, machineTool, null, isDemolishButton: true);
 
         // 팔레트(1행, y=40)와 같은 줄에 두면 기계 종류가 늘어날 때마다 배치/확정 버튼과
         // 자리다툼이 난다(실제로 조립기 추가하면서 회전 버튼과 겹쳤음) — 그래서 배치 액션
@@ -217,6 +235,13 @@ public static class SceneBootstrapper
         SetRef(confirm, "machineTool", machineTool);
         SetRef(confirm, "router", router);
         SetRef(confirm, "button", confirmButton);
+
+        // 회전/확정과 같은 2행(y=140)이지만 왼쪽에 둬서 팔레트 확장과도, 배치 액션 버튼들과도 안 겹치게.
+        var demolishConfirmButton = EnsureButton(canvasGO.transform, "DemolishConfirmButton", "철거 확정", new Vector2(20, 140));
+        var demolishConfirm = demolishConfirmButton.gameObject.GetComponent<DemolishConfirmButton>() ?? demolishConfirmButton.gameObject.AddComponent<DemolishConfirmButton>();
+        SetRef(demolishConfirm, "demolishTool", demolishTool);
+        SetRef(demolishConfirm, "router", router);
+        SetRef(demolishConfirm, "button", demolishConfirmButton);
     }
 
     private static void BuildRecipePanel(SimulationDriver driver)
@@ -263,14 +288,50 @@ public static class SceneBootstrapper
         SetRef(panelComponent, "driver", driver);
     }
 
-    private static void WirePaletteButton(Button button, BuildInputRouter router, MachineGhostTool machineTool, MachineDef machineDef, bool isBeltButton = false)
+    private static void WirePaletteButton(Button button, BuildInputRouter router, MachineGhostTool machineTool, string machineId, bool isBeltButton = false, bool isDemolishButton = false)
     {
         var paletteButton = button.gameObject.GetComponent<BuildPaletteButton>() ?? button.gameObject.AddComponent<BuildPaletteButton>();
         SetRef(paletteButton, "router", router);
         SetRef(paletteButton, "machineTool", machineTool);
-        SetRef(paletteButton, "machineDef", machineDef);
+        SetStringField(paletteButton, "machineId", machineId);
         SetBoolField(paletteButton, "isBeltButton", isBeltButton);
+        SetBoolField(paletteButton, "isDemolishButton", isDemolishButton);
         SetRef(paletteButton, "button", button);
+    }
+
+    // Bae님 데이터의 machineID <-> 프리팹({id}Visual.prefab) 매핑을 다시 채운다. 재실행해도
+    // 항상 최신 프리팹으로 다시 맞추도록, 매번 항목을 비우고 다시 채운다.
+    private static readonly string[] KnownMachineIds = { "Miner", "Smelter", "Former", "Synthesizer" };
+
+    private static MachineVisualLibrary EnsureMachineVisualLibrary()
+    {
+        var library = AssetDatabase.LoadAssetAtPath<MachineVisualLibrary>(VisualLibraryPath);
+        if (library == null)
+        {
+            library = ScriptableObject.CreateInstance<MachineVisualLibrary>();
+            AssetDatabase.CreateAsset(library, VisualLibraryPath);
+        }
+
+        var so = new SerializedObject(library);
+        var entries = so.FindProperty("entries");
+        entries.ClearArray();
+
+        for (int i = 0; i < KnownMachineIds.Length; i++)
+        {
+            string id = KnownMachineIds[i];
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/{id}Visual.prefab");
+            if (prefab == null) continue;
+
+            int index = entries.arraySize;
+            entries.InsertArrayElementAtIndex(index);
+            var element = entries.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("machineId").stringValue = id;
+            element.FindPropertyRelative("prefab").objectReferenceValue = prefab;
+        }
+
+        so.ApplyModifiedPropertiesWithoutUndo();
+        AssetDatabase.SaveAssets();
+        return library;
     }
 
     private static void EnsureEventSystem()
@@ -393,6 +454,10 @@ public static class SceneBootstrapper
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
         text.color = Color.white;
+        // Text는 기본적으로 Raycast Target이 켜져 있다 — 이 박스를 텍스트 안 잘리게 크게
+        // 키우면서(최대 1000x200) 화면 위쪽 상당 부분이 "UI 위"로 잡혀서, 그 영역에서
+        // 기계 배치/벨트 드래그가 전부 씹히는 원인이 됐다. 순수 표시용이라 꺼둔다.
+        text.raycastTarget = false;
         if (isNew) text.text = name;
         return text;
     }
@@ -415,6 +480,13 @@ public static class SceneBootstrapper
     {
         var so = new SerializedObject(target);
         so.FindProperty(fieldName).floatValue = value;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetStringField(Object target, string fieldName, string value)
+    {
+        var so = new SerializedObject(target);
+        so.FindProperty(fieldName).stringValue = value ?? string.Empty;
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 }

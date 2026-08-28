@@ -1,3 +1,38 @@
 {
-    "recipes": []
+    "recipes": [
+        {
+            "recipeID": "FormIronPlate",
+            "machineID": "Former",
+            "timeToCraft": 2.0,
+            "inputItems": [
+                "IronIngot"
+            ],
+            "outputItems": [
+                "IronPlate"
+            ]
+        },
+        {
+            "recipeID": "SmeltIronOre",
+            "machineID": "Smelter",
+            "timeToCraft": 2.0,
+            "inputItems": [
+                "IronOre"
+            ],
+            "outputItems": [
+                "IronIngot"
+            ]
+        },
+        {
+            "recipeID": "SynthesizeSteelIngot",
+            "machineID": "Synthesizer",
+            "timeToCraft": 2.0,
+            "inputItems": [
+                "IronIngot",
+                "Coal"
+            ],
+            "outputItems": [
+                "SteelIngot"
+            ]
+        }
+    ]
 }

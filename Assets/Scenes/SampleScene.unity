@@ -132,6 +132,8 @@ GameObject:
   - component: {fileID: 20674334}
   - component: {fileID: 20674333}
   - component: {fileID: 20674332}
+  - component: {fileID: 20674337}
+  - component: {fileID: 20674338}
   m_Layer: 0
   m_Name: BuildSystem
   m_TagString: Untagged
@@ -153,6 +155,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildInputRouter
   beltTool: {fileID: 20674335}
   machineTool: {fileID: 20674334}
+  demolishTool: {fileID: 20674338}
   cameraRig: {fileID: 20674333}
 --- !u!114 &20674333
 MonoBehaviour:
@@ -187,6 +190,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Building.MachineGhostTool
   targetCamera: {fileID: 330585545}
   driver: {fileID: 38120341}
+  visualLibrary: {fileID: 11400000, guid: 793385964b7f13049bd10a021234b92c, type: 2}
   screenOffset: {x: 0, y: 150}
   validColor: {r: 0.3, g: 0.9, b: 0.4, a: 0.45}
   invalidColor: {r: 0.9, g: 0.2, b: 0.2, a: 0.45}
@@ -227,6 +231,34 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &20674337
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 20674331}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b7c80e4b6a7ea343a33b8858389035e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildHistory
+--- !u!114 &20674338
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 20674331}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a169e343c123394499fe0e755bdb920, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.DemolishTool
+  targetCamera: {fileID: 330585545}
+  driver: {fileID: 38120341}
+  router: {fileID: 20674332}
+  previewColor: {r: 0.9, g: 0.15, b: 0.15, a: 0.4}
 --- !u!1 &38120340
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,7 +376,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -626,6 +658,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &406838729
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 406838731}
+  - component: {fileID: 406838730}
+  m_Layer: 0
+  m_Name: DataManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &406838730
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 406838729}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f48aaf59258cfa643a4e88a8a8c69aa9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Bae::Bae.Data.DataManager
+--- !u!4 &406838731
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 406838729}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -785,7 +861,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -832,6 +908,149 @@ RectTransform:
   m_AnchoredPosition: {x: 40, y: -120}
   m_SizeDelta: {x: 1000, y: 200}
   m_Pivot: {x: 0, y: 1}
+--- !u!1 &681698633
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 681698634}
+  - component: {fileID: 681698638}
+  - component: {fileID: 681698637}
+  - component: {fileID: 681698636}
+  - component: {fileID: 681698635}
+  m_Layer: 0
+  m_Name: PaletteButton_Demolish
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &681698634
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681698633}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1243130723}
+  m_Father: {fileID: 880268085}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 670, y: 40}
+  m_SizeDelta: {x: 120, y: 72}
+  m_Pivot: {x: 0, y: 0}
+--- !u!114 &681698635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681698633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f72b0022b6030424784724832a9aab69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
+  router: {fileID: 20674332}
+  machineTool: {fileID: 20674334}
+  machineId: 
+  isBeltButton: 0
+  isDemolishButton: 1
+  button: {fileID: 681698636}
+  background: {fileID: 0}
+  normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  selectedColor: {r: 0.25, g: 0.75, b: 0.35, a: 0.95}
+--- !u!114 &681698636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681698633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 681698637}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &681698637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681698633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &681698638
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681698633}
+  m_CullTransparentMesh: 1
 --- !u!1 &682112506
 GameObject:
   m_ObjectHideFlags: 0
@@ -957,6 +1176,292 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &809665319
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 809665320}
+  - component: {fileID: 809665324}
+  - component: {fileID: 809665323}
+  - component: {fileID: 809665322}
+  - component: {fileID: 809665321}
+  m_Layer: 0
+  m_Name: PaletteButton_Synthesizer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &809665320
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 809665319}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1091760475}
+  m_Father: {fileID: 880268085}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 410, y: 40}
+  m_SizeDelta: {x: 120, y: 72}
+  m_Pivot: {x: 0, y: 0}
+--- !u!114 &809665321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 809665319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f72b0022b6030424784724832a9aab69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
+  router: {fileID: 20674332}
+  machineTool: {fileID: 20674334}
+  machineId: Synthesizer
+  isBeltButton: 0
+  isDemolishButton: 0
+  button: {fileID: 809665322}
+  background: {fileID: 0}
+  normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  selectedColor: {r: 0.25, g: 0.75, b: 0.35, a: 0.95}
+--- !u!114 &809665322
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 809665319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 809665323}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &809665323
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 809665319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &809665324
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 809665319}
+  m_CullTransparentMesh: 1
+--- !u!1 &822983604
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 822983605}
+  - component: {fileID: 822983609}
+  - component: {fileID: 822983608}
+  - component: {fileID: 822983607}
+  - component: {fileID: 822983606}
+  m_Layer: 0
+  m_Name: PaletteButton_Former
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &822983605
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 822983604}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1764278292}
+  m_Father: {fileID: 880268085}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 280, y: 40}
+  m_SizeDelta: {x: 120, y: 72}
+  m_Pivot: {x: 0, y: 0}
+--- !u!114 &822983606
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 822983604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f72b0022b6030424784724832a9aab69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
+  router: {fileID: 20674332}
+  machineTool: {fileID: 20674334}
+  machineId: Former
+  isBeltButton: 0
+  isDemolishButton: 0
+  button: {fileID: 822983607}
+  background: {fileID: 0}
+  normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  selectedColor: {r: 0.25, g: 0.75, b: 0.35, a: 0.95}
+--- !u!114 &822983607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 822983604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 822983608}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &822983608
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 822983604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &822983609
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 822983604}
+  m_CullTransparentMesh: 1
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1045,7 +1550,10 @@ RectTransform:
   - {fileID: 2014862473}
   - {fileID: 1004092366}
   - {fileID: 2130735166}
-  - {fileID: 1252939565}
+  - {fileID: 681698634}
+  - {fileID: 1603784944}
+  - {fileID: 822983605}
+  - {fileID: 809665320}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1116,85 +1624,6 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
---- !u!1 &913498962
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 913498963}
-  - component: {fileID: 913498965}
-  - component: {fileID: 913498964}
-  m_Layer: 0
-  m_Name: Label
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &913498963
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913498962}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1252939565}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &913498964
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913498962}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 32
-    m_FontStyle: 0
-    m_BestFit: 0
-    m_MinSize: 10
-    m_MaxSize: 40
-    m_Alignment: 4
-    m_AlignByGeometry: 0
-    m_RichText: 1
-    m_HorizontalOverflow: 0
-    m_VerticalOverflow: 0
-    m_LineSpacing: 1
-  m_Text: "\uC870\uB9BD\uAE30"
---- !u!222 &913498965
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 913498962}
-  m_CullTransparentMesh: 1
 --- !u!1 &953064963
 GameObject:
   m_ObjectHideFlags: 0
@@ -1430,7 +1859,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 410, y: 40}
+  m_AnchoredPosition: {x: 540, y: 40}
   m_SizeDelta: {x: 120, y: 72}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &1013916982
@@ -1447,8 +1876,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
   router: {fileID: 20674332}
   machineTool: {fileID: 20674334}
-  machineDef: {fileID: 0}
+  machineId: 
   isBeltButton: 1
+  isDemolishButton: 0
   button: {fileID: 1013916983}
   background: {fileID: 0}
   normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
@@ -1534,6 +1964,85 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1013916980}
+  m_CullTransparentMesh: 1
+--- !u!1 &1091760474
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1091760475}
+  - component: {fileID: 1091760477}
+  - component: {fileID: 1091760476}
+  m_Layer: 0
+  m_Name: Label
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1091760475
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1091760474}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 809665320}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1091760476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1091760474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_FontSize: 22
+    m_FontStyle: 0
+    m_BestFit: 1
+    m_MinSize: 12
+    m_MaxSize: 22
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: "\uD569\uC131\uAE30"
+--- !u!222 &1091760477
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1091760474}
   m_CullTransparentMesh: 1
 --- !u!1 &1107773573
 GameObject:
@@ -1660,52 +2169,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1143241541}
   m_CullTransparentMesh: 1
---- !u!28 &1183326963
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ProceduralGridLine
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 64
-  m_Height: 64
-  m_CompleteImageSize: 16384
-  m_MipsStripped: 0
-  m_TextureFormat: 4
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 1
-  m_PlatformBlob: 
-  image data: 16384
-  _typelessdata: 7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1 &1189599894
 GameObject:
   m_ObjectHideFlags: 0
@@ -1785,7 +2248,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1189599894}
   m_CullTransparentMesh: 1
---- !u!1 &1252939564
+--- !u!1 &1243130722
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1793,140 +2256,243 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1252939565}
-  - component: {fileID: 1252939569}
-  - component: {fileID: 1252939568}
-  - component: {fileID: 1252939567}
-  - component: {fileID: 1252939566}
+  - component: {fileID: 1243130723}
+  - component: {fileID: 1243130725}
+  - component: {fileID: 1243130724}
   m_Layer: 0
-  m_Name: PaletteButton_Assembler
+  m_Name: Label
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!224 &1252939565
+--- !u!224 &1243130723
 RectTransform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1252939564}
+  m_GameObject: {fileID: 1243130722}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 913498963}
-  m_Father: {fileID: 880268085}
+  m_Children: []
+  m_Father: {fileID: 681698634}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 280, y: 40}
-  m_SizeDelta: {x: 120, y: 72}
-  m_Pivot: {x: 0, y: 0}
---- !u!114 &1252939566
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1243130724
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1252939564}
+  m_GameObject: {fileID: 1243130722}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f72b0022b6030424784724832a9aab69, type: 3}
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
-  router: {fileID: 20674332}
-  machineTool: {fileID: 20674334}
-  machineDef: {fileID: 11400000, guid: 6e93d6e571956ba43b0fb0d1b6524ea1, type: 2}
-  isBeltButton: 0
-  button: {fileID: 1252939567}
-  background: {fileID: 0}
-  normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
-  selectedColor: {r: 0.25, g: 0.75, b: 0.35, a: 0.95}
---- !u!114 &1252939567
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1252939564}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
-  m_Navigation:
-    m_Mode: 3
-    m_WrapAround: 0
-    m_SelectOnUp: {fileID: 0}
-    m_SelectOnDown: {fileID: 0}
-    m_SelectOnLeft: {fileID: 0}
-    m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
-  m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
-    m_ColorMultiplier: 1
-    m_FadeDuration: 0.1
-  m_SpriteState:
-    m_HighlightedSprite: {fileID: 0}
-    m_PressedSprite: {fileID: 0}
-    m_SelectedSprite: {fileID: 0}
-    m_DisabledSprite: {fileID: 0}
-  m_AnimationTriggers:
-    m_NormalTrigger: Normal
-    m_HighlightedTrigger: Highlighted
-    m_PressedTrigger: Pressed
-    m_SelectedTrigger: Selected
-    m_DisabledTrigger: Disabled
-  m_Interactable: 1
-  m_TargetGraphic: {fileID: 1252939568}
-  m_OnClick:
-    m_PersistentCalls:
-      m_Calls: []
---- !u!114 &1252939568
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1252939564}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
-  m_Color: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
-  m_PreserveAspect: 0
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
---- !u!222 &1252939569
+  m_FontData:
+    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_FontSize: 22
+    m_FontStyle: 0
+    m_BestFit: 1
+    m_MinSize: 12
+    m_MaxSize: 22
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: "\uCCA0\uAC70"
+--- !u!222 &1243130725
 CanvasRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1252939564}
+  m_GameObject: {fileID: 1243130722}
   m_CullTransparentMesh: 1
+--- !u!21 &1342252618
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Universal Render Pipeline/Lit
+  m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 1382105993}
+        m_Scale: {x: 40, y: 40}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailAlbedoMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MetallicGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OcclusionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ParallaxMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SpecGlossMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AddPrecomputedVelocity: 0
+    - _AlphaClip: 0
+    - _AlphaToMask: 0
+    - _Blend: 0
+    - _BlendModePreserveSpecular: 1
+    - _BumpScale: 1
+    - _ClearCoatMask: 0
+    - _ClearCoatSmoothness: 0
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DetailAlbedoMapScale: 1
+    - _DetailNormalMapScale: 1
+    - _DstBlend: 0
+    - _DstBlendAlpha: 0
+    - _EnvironmentReflections: 1
+    - _GlossMapScale: 0
+    - _Glossiness: 0
+    - _GlossyReflections: 0
+    - _Metallic: 0
+    - _OcclusionStrength: 1
+    - _Parallax: 0.005
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
+    - _Smoothness: 0.5
+    - _SmoothnessTextureChannel: 0
+    - _SpecularHighlights: 1
+    - _SrcBlend: 1
+    - _SrcBlendAlpha: 1
+    - _Surface: 0
+    - _WorkflowMode: 1
+    - _XRMotionVectorsPass: 1
+    - _ZWrite: 1
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
+--- !u!28 &1382105993
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ProceduralGridLine
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 64
+  m_Height: 64
+  m_CompleteImageSize: 16384
+  m_MipsStripped: 0
+  m_TextureFormat: 4
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 1
+  m_PlatformBlob: 
+  image data: 16384
+  _typelessdata: 7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff7a7a85ff7a7a85ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff4d4d54ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &1395979696
 GameObject:
   m_ObjectHideFlags: 0
@@ -1970,7 +2536,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1897076740}
+  - {fileID: 1342252618}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2142,6 +2708,143 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1576125298}
   m_CullTransparentMesh: 1
+--- !u!1 &1603784943
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1603784944}
+  - component: {fileID: 1603784948}
+  - component: {fileID: 1603784947}
+  - component: {fileID: 1603784946}
+  - component: {fileID: 1603784945}
+  m_Layer: 0
+  m_Name: DemolishConfirmButton
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1603784944
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603784943}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1882686952}
+  m_Father: {fileID: 880268085}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 20, y: 140}
+  m_SizeDelta: {x: 120, y: 72}
+  m_Pivot: {x: 0, y: 0}
+--- !u!114 &1603784945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603784943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b973f36ec476c14ebd6c3b5f1be8834, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Building.DemolishConfirmButton
+  demolishTool: {fileID: 20674338}
+  router: {fileID: 20674332}
+  button: {fileID: 1603784946}
+--- !u!114 &1603784946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603784943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 1603784947}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &1603784947
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603784943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1603784948
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603784943}
+  m_CullTransparentMesh: 1
 --- !u!1 &1714820422
 GameObject:
   m_ObjectHideFlags: 0
@@ -2221,6 +2924,85 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1714820422}
   m_CullTransparentMesh: 1
+--- !u!1 &1764278291
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1764278292}
+  - component: {fileID: 1764278294}
+  - component: {fileID: 1764278293}
+  m_Layer: 0
+  m_Name: Label
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1764278292
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764278291}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 822983605}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1764278293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764278291}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_FontSize: 22
+    m_FontStyle: 0
+    m_BestFit: 1
+    m_MinSize: 12
+    m_MaxSize: 22
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: "\uC131\uD615\uAE30"
+--- !u!222 &1764278294
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764278291}
+  m_CullTransparentMesh: 1
 --- !u!1 &1839981406
 GameObject:
   m_ObjectHideFlags: 0
@@ -2275,8 +3057,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
   router: {fileID: 20674332}
   machineTool: {fileID: 20674334}
-  machineDef: {fileID: 11400000, guid: 0925324794844434f9db5cd604b8109e, type: 2}
+  machineId: Miner
   isBeltButton: 0
+  isDemolishButton: 0
   button: {fileID: 1839981409}
   background: {fileID: 0}
   normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
@@ -2363,126 +3146,85 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1839981406}
   m_CullTransparentMesh: 1
---- !u!21 &1897076740
-Material:
-  serializedVersion: 8
+--- !u!1 &1882686951
+GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Universal Render Pipeline/Lit
-  m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _BaseMap:
-        m_Texture: {fileID: 1183326963}
-        m_Scale: {x: 40, y: 40}
-        m_Offset: {x: 0, y: 0}
-    - _BumpMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _DetailAlbedoMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _DetailMask:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _DetailNormalMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _EmissionMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MetallicGlossMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _OcclusionMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _ParallaxMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _SpecGlossMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _AddPrecomputedVelocity: 0
-    - _AlphaClip: 0
-    - _AlphaToMask: 0
-    - _Blend: 0
-    - _BlendModePreserveSpecular: 1
-    - _BumpScale: 1
-    - _ClearCoatMask: 0
-    - _ClearCoatSmoothness: 0
-    - _Cull: 2
-    - _Cutoff: 0.5
-    - _DetailAlbedoMapScale: 1
-    - _DetailNormalMapScale: 1
-    - _DstBlend: 0
-    - _DstBlendAlpha: 0
-    - _EnvironmentReflections: 1
-    - _GlossMapScale: 0
-    - _Glossiness: 0
-    - _GlossyReflections: 0
-    - _Metallic: 0
-    - _OcclusionStrength: 1
-    - _Parallax: 0.005
-    - _QueueOffset: 0
-    - _ReceiveShadows: 1
-    - _Smoothness: 0.5
-    - _SmoothnessTextureChannel: 0
-    - _SpecularHighlights: 1
-    - _SrcBlend: 1
-    - _SrcBlendAlpha: 1
-    - _Surface: 0
-    - _WorkflowMode: 1
-    - _XRMotionVectorsPass: 1
-    - _ZWrite: 1
-    m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1882686952}
+  - component: {fileID: 1882686954}
+  - component: {fileID: 1882686953}
+  m_Layer: 0
+  m_Name: Label
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1882686952
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1882686951}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1603784944}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1882686953
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1882686951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_FontSize: 22
+    m_FontStyle: 0
+    m_BestFit: 1
+    m_MinSize: 12
+    m_MaxSize: 22
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: "\uCCA0\uAC70 \uD655\uC815"
+--- !u!222 &1882686954
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1882686951}
+  m_CullTransparentMesh: 1
 --- !u!1 &1976631138
 GameObject:
   m_ObjectHideFlags: 0
@@ -2723,8 +3465,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Building.BuildPaletteButton
   router: {fileID: 20674332}
   machineTool: {fileID: 20674334}
-  machineDef: {fileID: 11400000, guid: 08ee7716da83f1d4eb033b792b461940, type: 2}
+  machineId: Smelter
   isBeltButton: 0
+  isDemolishButton: 0
   button: {fileID: 2120389464}
   background: {fileID: 0}
   normalColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.85}
@@ -2920,3 +3663,4 @@ SceneRoots:
   - {fileID: 1395979699}
   - {fileID: 1107773575}
   - {fileID: 269263567}
+  - {fileID: 406838731}

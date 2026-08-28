@@ -4,6 +4,10 @@ using System.IO;
 
 namespace Bae.Data
 {
+    // [DefaultExecutionOrder]: Sin 쪽 SimulationDriver.Awake()가 이 데이터를 바로 필요로
+    // 하는데, 유니티는 서로 다른 오브젝트의 Awake 순서를 기본적으로 보장 안 해준다 —
+    // 그래서 이 Awake가 항상 제일 먼저 돌도록 순서만 강제한다(동작/로직은 그대로).
+    [DefaultExecutionOrder(-1000)]
     public class DataManager : MonoBehaviour
     {
         public static DataManager Instance { get; private set; }
@@ -41,18 +45,27 @@ namespace Bae.Data
             // 1. 모바일 기기(또는 PC)에서 접근 가능한 외부 폴더 경로
             string externalPath = Path.Combine(Application.persistentDataPath, fileName + ".json");
 
+#if !UNITY_EDITOR
             // 2. 외부 폴더에 수정된 JSON 파일이 존재하면 그것을 최우선으로 읽어옵니다. (실시간 수정 기능)
+            // 에디터에서는 이 분기를 아예 타지 않는다 — "사람이 일부러 넣어둔 패치"와
+            // "앱이 3번에서 스스로 구워낸 캐시"를 File.Exists만으로는 구분할 수 없어서,
+            // 한 번 캐시가 생기면 그 뒤로 Resources 원본(=Assets/Bae/Resources/JSON)을
+            // 아무리 고쳐도 계속 옛날 캐시만 읽히는 문제가 있었다. 이 실시간 패치 기능은
+            // 빌드된 앱에서만 의미가 있으므로 에디터에서는 완전히 끈다.
             if (File.Exists(externalPath))
             {
                 return File.ReadAllText(externalPath);
             }
-            
+#endif
+
             // 3. 외부에 파일이 없다면, 앱(APK) 내부에 빌드된 기본 데이터를 읽어옵니다.
             TextAsset jsonAsset = Resources.Load<TextAsset>("JSON/" + fileName);
             if (jsonAsset != null)
             {
+#if !UNITY_EDITOR
                 // 다음번엔 외부에서 수정할 수 있도록 복사본을 밖으로 빼둡니다.
                 File.WriteAllText(externalPath, jsonAsset.text);
+#endif
                 return jsonAsset.text;
             }
 

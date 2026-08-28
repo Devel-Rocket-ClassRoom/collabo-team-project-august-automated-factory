@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Factory.Simulation
 {
-    // 제련로/조립기 등 "레시피를 소비해서 산출한다" 유형 기계 한 대의 런타임 상태.
+    // 제련로/성형기/합성기 등 "레시피를 소비해서 산출한다" 유형 기계 한 대의 런타임 상태.
     // 어떤 레시피인지는 RecipeId(데이터)로만 결정되고, 이 클래스와 ProcessorSystem은
     // 레시피별 분기를 두지 않는다 — 새 레시피 추가가 코드 무변경으로 동작하는 근거.
     //
@@ -25,7 +25,7 @@ namespace Factory.Simulation
         // true면(코어) 고정 포트 대신 4면 전부 입출력 가능.
         public bool UniversalPorts;
 
-        // footprint가 1칸보다 큰 기계(예: 2x2 조립기)의 포트 계산 기준. 어느 footprint 칸을
+        // footprint가 1칸보다 큰 기계(예: 2x2 합성기)의 포트 계산 기준. 어느 footprint 칸을
         // 밟아서 연결하든 항상 이 앵커 기준으로 포트 위치를 계산한다(GridUtility.GetPortCells).
         public Vector2Int Anchor;
         public Vector2Int Footprint = Vector2Int.one;

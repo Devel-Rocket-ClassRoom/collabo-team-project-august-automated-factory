@@ -27,6 +27,7 @@ namespace Factory.Simulation
             segmentsById.Clear();
             for (int i = 0; i < segments.Count; i++)
             {
+                if (segments[i] == null) continue; // 철거로 비워진 슬롯(SimulationWorld.RemoveSegment 참고).
                 segmentsById[segments[i].Id] = segments[i];
             }
         }
@@ -35,6 +36,7 @@ namespace Factory.Simulation
         {
             for (int i = 0; i < segments.Count; i++)
             {
+                if (segments[i] == null) continue;
                 LoadFromSource(segments[i], processors, database);
             }
 
