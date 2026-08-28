@@ -107,7 +107,7 @@ namespace Choi.SaveLoad
             {
                 PowerNodeRuntime node = powerGrid.Nodes[i];
                 float height = node.Kind == PowerNodeKind.Generator ? 0.5f
-                    : node.Kind == PowerNodeKind.TransmissionTower ? 1.15f : 0.22f;
+                    : node.Kind == PowerNodeKind.TransmissionTower ? 1.15f : 0.035f;
                 Vector3 center = GridUtility.CellToWorldCenter(node.Cell, height);
 
                 GameObject visual;
@@ -122,8 +122,9 @@ namespace Choi.SaveLoad
                 {
                     visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     visual.transform.position = center;
-                    visual.transform.localScale = new Vector3(0.28f, 0.42f, 0.28f);
-                    BuildVisuals.Colorize(visual, new Color(0.1f, 0.82f, 1f));
+                    // 전선 접점도 바닥에 붙여 컨베이어 아래로 지나가게 한다.
+                    visual.transform.localScale = new Vector3(0.13f, 0.025f, 0.13f);
+                    BuildVisuals.Colorize(visual, new Color(0.05f, 0.68f, 0.9f));
                 }
                 else
                 {
@@ -175,7 +176,7 @@ namespace Choi.SaveLoad
                         return;
                     }
                     changed = powerGrid.TryAddNode(PowerNodeKind.TransmissionTower, cell);
-                    LastMessage = changed ? $"송신탑 설치: {cell} · 공급 범위 3x3" : "이미 전력 시설이 있는 칸입니다";
+                    LastMessage = changed ? $"송신탑 설치: {cell} · 공급 범위 15x15" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Remove:
                     changed = powerGrid.RemoveNode(cell);
@@ -192,9 +193,11 @@ namespace Choi.SaveLoad
 
         private void CreateWire(Vector2Int fromCell, Vector2Int toCell)
         {
-            Vector3 from = GridUtility.CellToWorldCenter(fromCell, 0.32f);
-            Vector3 to = GridUtility.CellToWorldCenter(toCell, 0.32f);
-            GameObject wire = BuildVisuals.CreateStrip(from, to, 0.09f, new Color(0.05f, 0.65f, 0.9f), null, false);
+            // 컨베이어 및 운반 아이템보다 낮은 높이에 얇은 선으로 그린다.
+            Vector3 from = GridUtility.CellToWorldCenter(fromCell, 0.04f);
+            Vector3 to = GridUtility.CellToWorldCenter(toCell, 0.04f);
+            GameObject wire = BuildVisuals.CreateStrip(from, to, 0.055f,
+                new Color(0.03f, 0.58f, 0.82f), null, false);
             wire.name = "PowerWire";
             visuals.Add(wire);
         }
