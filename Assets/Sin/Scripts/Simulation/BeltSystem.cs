@@ -110,16 +110,21 @@ namespace Factory.Simulation
 
         // 코어는 쌓아둔 걸 아무 벨트에나 무조건 흘려보내지 않는다 — 이 벨트 체인 끝에 실제로
         // 레시피를 지정받은 기계가 있고, 그 레시피가 필요로 하는 자원일 때만 내준다("먼저
-        // 레시피를 지정해서 필요한 자원 정보를 전달받아야 준다"는 설계). 막다른 벨트나 아직
-        // 레시피 미지정인 기계로는 아무것도 내주지 않는다.
+        // 레시피를 지정해서 필요한 자원 정보를 전달받아야 준다"는 설계). 막다른 벨트, 코어
+        // 자기 루프, 아직 레시피 미지정인 기계로는 아무것도 내주지 않는다.
         private void LoadFromCore(BeltSegment segment, ProcessorInstance core, List<ProcessorInstance> processors, GameDatabase database)
         {
             var target = FindTerminalTarget(segment, processors);
             if (target == null) return; // 막다른 벨트 -> 요청하는 대상이 없음
 
+            // 출발지와 도착지가 같은 코어인 자기 루프: 레시피를 지정받은 기계가 없는데도
+            // 코어 내용물이 계속 흘러나와 제자리를 도는 무의미한 순환이 된다(사용자가 보고).
+            // 받을 대상이 없는 것과 같으니 막다른 벨트처럼 아무것도 내주지 않는다.
+            if (ReferenceEquals(target, core)) return;
+
             if (target.UniversalPorts)
             {
-                // 코어->코어(창고 재배치) 같은 특수 케이스는 레시피 개념이 없으니 있는 대로 내준다.
+                // 코어->다른 저장소(창고 재배치) 같은 특수 케이스는 레시피 개념이 없으니 있는 대로 내준다.
                 DispenseAny(segment, core.InputBuffer);
                 return;
             }

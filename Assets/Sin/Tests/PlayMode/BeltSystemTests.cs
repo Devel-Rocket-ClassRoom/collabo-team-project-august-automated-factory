@@ -143,6 +143,29 @@ public class BeltSystemTests
     }
 
     [Test]
+    public void CoreSource_SelfLoopBackToCore_NeverDispenses()
+    {
+        // 사용자가 보고한 버그: 코어에서 뽑은 벨트의 끝을 다시 같은 코어에 연결하면,
+        // 레시피를 지정하지 않았는데도 코어 내용물(석탄 등)이 계속 흘러나와 제자리를 돌았다.
+        // 받을 기계가 없는 자기 루프는 막다른 벨트와 똑같이 아무것도 내주면 안 된다.
+        var db = BuildMinimalDatabase(out int oreId);
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        core.InputBuffer[oreId] = 10;
+
+        var segment = new BeltSegment { Id = 0, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, TargetProcessorId = 0 };
+        var segments = new List<BeltSegment> { segment };
+        var processors = new List<ProcessorInstance> { core };
+
+        var system = new BeltSystem();
+        system.Configure(segments);
+
+        for (int i = 0; i < 50; i++) system.Tick(0.1f, segments, processors, db);
+
+        Assert.AreEqual(0, segment.Items.Count, "코어 자기 루프에는 아무것도 흘려보내면 안 됨");
+        Assert.AreEqual(10, core.InputBuffer[oreId], "재고도 그대로 남아있어야 함");
+    }
+
+    [Test]
     public void CoreSource_TargetWithoutRecipe_NeverDispenses()
     {
         // 목적지 기계는 있지만 아직 레시피를 지정 안 했으면("정보를 전달받기 전") 코어가
