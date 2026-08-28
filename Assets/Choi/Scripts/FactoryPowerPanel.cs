@@ -10,6 +10,8 @@ namespace Choi.SaveLoad
         private PowerGridSystem powerGrid;
         private PowerBuildController powerBuild;
         private Text statusText;
+        private GameObject panelObject;
+        private Text toggleLabel;
         private string saveMessage = "저장 준비됨";
 
         private void Start()
@@ -40,14 +42,17 @@ namespace Choi.SaveLoad
 
             Transform existing = canvas.transform.Find("FactoryPowerPanel");
             if (existing != null) Destroy(existing.gameObject);
+            Transform existingToggle = canvas.transform.Find("FactoryPowerPanelToggle");
+            if (existingToggle != null) Destroy(existingToggle.gameObject);
 
             var panel = new GameObject("FactoryPowerPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            panelObject = panel;
             panel.transform.SetParent(canvas.transform, false);
             RectTransform panelRect = panel.GetComponent<RectTransform>();
             panelRect.anchorMin = Vector2.one;
             panelRect.anchorMax = Vector2.one;
             panelRect.pivot = Vector2.one;
-            panelRect.anchoredPosition = new Vector2(-18f, -18f);
+            panelRect.anchoredPosition = new Vector2(-18f, -66f);
             panelRect.sizeDelta = new Vector2(360f, 390f);
             panel.GetComponent<Image>().color = new Color(0.035f, 0.07f, 0.11f, 0.94f);
 
@@ -66,6 +71,42 @@ namespace Choi.SaveLoad
                 () => powerBuild.SetMode(PowerBuildMode.None));
             CreateButton(panel.transform, "SaveFactoryButton", "SAVE", new Vector2(-88f, -316f), SaveFactory);
             CreateButton(panel.transform, "LoadFactoryButton", "LOAD", new Vector2(88f, -316f), LoadFactory);
+            CreatePanelToggle(canvas.transform);
+        }
+
+        private void CreatePanelToggle(Transform canvas)
+        {
+            var toggleObject = new GameObject("FactoryPowerPanelToggle", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            toggleObject.transform.SetParent(canvas, false);
+
+            RectTransform rect = toggleObject.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.one;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = Vector2.one;
+            rect.anchoredPosition = new Vector2(-18f, -18f);
+            rect.sizeDelta = new Vector2(170f, 40f);
+
+            Image image = toggleObject.GetComponent<Image>();
+            image.color = new Color(0.15f, 0.34f, 0.5f, 1f);
+            Button button = toggleObject.GetComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(TogglePanel);
+
+            toggleLabel = CreateText(toggleObject.transform, "Label", "전력 UI 닫기", Vector2.zero, Vector2.zero, 17);
+            RectTransform textRect = toggleLabel.rectTransform;
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+        }
+
+        private void TogglePanel()
+        {
+            if (panelObject == null) return;
+            bool show = !panelObject.activeSelf;
+            panelObject.SetActive(show);
+            if (toggleLabel != null) toggleLabel.text = show ? "전력 UI 닫기" : "전력 UI 열기";
         }
 
         private void SaveFactory()

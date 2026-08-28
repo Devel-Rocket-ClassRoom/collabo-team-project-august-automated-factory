@@ -22,7 +22,7 @@ namespace Choi.SaveLoad
     }
 
     /// <summary>
-    /// 발전기-전선에 연결된 송신탑의 3x3 공급 범위 안에 있는 기계만 작동시킵니다.
+    /// 발전기-전선에 연결된 송신탑의 15x15 공급 범위 안에 있는 기계만 작동시킵니다.
     /// 기존 시뮬레이션 코드는 수정하지 않고 각 인스턴스의 SpeedMultiplier만 제어합니다.
     /// </summary>
     [DefaultExecutionOrder(-100)]
@@ -292,7 +292,7 @@ namespace Choi.SaveLoad
                     {
                         Vector2Int occupied = new Vector2Int(anchor.x + x, anchor.y + y);
                         Vector2Int distance = occupied - tower.Cell;
-                        if (Mathf.Abs(distance.x) <= 1 && Mathf.Abs(distance.y) <= 1) return component;
+                        if (Mathf.Abs(distance.x) <= 7 && Mathf.Abs(distance.y) <= 7) return component;
                     }
                 }
             }
