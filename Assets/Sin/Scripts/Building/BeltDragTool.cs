@@ -323,6 +323,13 @@ namespace Factory.Building
 
                 SpawnCommittedVisual(entry, exit, bend, createdSegments[i].Id);
             }
+
+            // 옆에 이어붙여서 흐름이 꺾인 기존 벨트의 스트립/화살표를 실제 방향으로 다시 그린다
+            // (스트립은 생성 시점 path로 한 번만 구워지므로, 재배선하면 옛 방향 그대로 남았다 — 사용자 보고).
+            if (startOccupied && startRole == EndpointRole.Source && startOccupant.Type == CellOccupantType.Belt)
+                RerenderSegmentStrip(startOccupant.InstanceIndex);
+            if (endOccupied && endRole == EndpointRole.Target && endOccupant.Type == CellOccupantType.Belt)
+                RerenderSegmentStrip(endOccupant.InstanceIndex);
         }
 
         // 새 벨트 칸 없이 기존 벨트를 기존 제련로/기존 벨트에 직접 연결한다 (둘이 바로 붙어있는 경우).
@@ -344,7 +351,83 @@ namespace Factory.Building
             else if (endOccupant.Type == CellOccupantType.Belt)
             {
                 startSegment.NextSegmentId = endOccupant.InstanceIndex;
+                RerenderSegmentStrip(endOccupant.InstanceIndex);
             }
+
+            RerenderSegmentStrip(startOccupant.InstanceIndex);
+        }
+
+        // 기존 벨트 세그먼트의 스트립/화살표를, 그 세그먼트의 실제 그리드 이웃(상류·하류 벨트)에
+        // 맞춰 다시 그린다. 스트립은 생성 시점의 드래그 path로 한 번만 구워지므로, 나중에
+        // 재배선(옆에 이어붙이기 등)으로 흐름이 꺾이면 옛 방향/화살표가 그대로 남는다.
+        // 기계로만 연결된 경우(포트 칸 규약이 배치 순서마다 달라 방향 추정이 애매함)는 건드리지
+        // 않는다 — 그런 벨트는 보통 포트로 곧장 들어가는 직선이라 어긋남이 눈에 안 띈다.
+        private void RerenderSegmentStrip(int segmentId)
+        {
+            if (segmentId < 0 || segmentId >= driver.World.Segments.Count) return;
+            var segment = driver.World.Segments[segmentId];
+            if (segment == null) return;
+
+            var grid = driver.World.Grid;
+            if (!grid.TryGetCellOf(CellOccupantType.Belt, segmentId, out var cell)) return;
+
+            Vector2Int downCell = default;
+            bool hasDown = segment.NextSegmentId.HasValue
+                && grid.TryGetCellOf(CellOccupantType.Belt, segment.NextSegmentId.Value, out downCell);
+            bool hasUp = TryGetUpstreamCell(segment, cell, out var upCell);
+            if (!hasUp && !hasDown) return; // 방향을 알 수 없으면(양쪽 다 기계/없음) 건드리지 않는다
+
+            var miniPath = new List<Vector2Int>(3);
+            if (hasUp) miniPath.Add(upCell);
+            miniPath.Add(cell);
+            if (hasDown) miniPath.Add(downCell);
+
+            ComputeCellSpan(miniPath, hasUp ? 1 : 0, out Vector3 entry, out Vector3 exit, out Vector3? bend);
+
+            var existing = GameObject.Find($"Belt_{segmentId}");
+            if (existing != null)
+            {
+                // Destroy는 프레임 끝에 처리되는데 바로 아래에서 같은 이름으로 새로 만든다 —
+                // 그 사이 GameObject.Find(철거 도구 등)가 없어질 오브젝트를 집지 않게 이름부터 바꾼다.
+                existing.name = $"Belt_{segmentId}_replaced";
+                Destroy(existing);
+            }
+            SpawnCommittedVisual(entry, exit, bend, segmentId);
+        }
+
+        // 이 세그먼트로 흐름이 들어오는 쪽 칸: 다른 벨트가 먹이면 그 벨트 칸, 아니면 소스 기계의
+        // footprint 칸 중 이 세그먼트에 딱 붙은 칸(코어처럼 Facing 없는 기계까지 포함). 방향 계산에만
+        // 쓰므로 정확한 포트 칸이 아니라 "인접한 몸통 칸"이면 충분하다. Facing 기계인데 벨트가 포트에서
+        // 한 칸 떨어져 있는(인접 아님) 드문 경우는 못 찾고 false — 그럼 직선으로만 다시 그린다.
+        private bool TryGetUpstreamCell(BeltSegment segment, Vector2Int segmentCell, out Vector2Int cell)
+        {
+            var segments = driver.World.Segments;
+            var grid = driver.World.Grid;
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (segments[i] == null || segments[i].NextSegmentId != segment.Id) continue;
+                if (grid.TryGetCellOf(CellOccupantType.Belt, i, out cell)) return true;
+            }
+
+            if (segment.SourceProcessorId.HasValue)
+            {
+                var proc = driver.World.Processors[segment.SourceProcessorId.Value];
+                if (proc != null)
+                {
+                    var body = GridUtility.GetFootprintCells(proc.Anchor, proc.Footprint);
+                    for (int i = 0; i < body.Count; i++)
+                    {
+                        if (Mathf.Abs(body[i].x - segmentCell.x) + Mathf.Abs(body[i].y - segmentCell.y) == 1)
+                        {
+                            cell = body[i];
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            cell = default;
+            return false;
         }
 
         private void SpawnCommittedVisual(Vector3 from, Vector3 to, Vector3? bend, int segmentId)
