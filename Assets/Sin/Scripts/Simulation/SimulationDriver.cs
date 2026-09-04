@@ -17,6 +17,8 @@ namespace Factory.Simulation
 
         private void Awake()
         {
+            Application.targetFrameRate = 60;
+
             // DataManager.Awake()가 JSON을 로드하는데, 유니티는 서로 다른 오브젝트의 Awake
             // 순서를 보장 안 해준다 — DataManager.cs에 [DefaultExecutionOrder]를 붙여서 항상
             // 이보다 먼저 돌게 해뒀다(Bae.Data.DataManager 참고). DataManager가 아예 없는
