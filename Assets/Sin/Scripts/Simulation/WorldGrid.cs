@@ -42,6 +42,21 @@ namespace Factory.Simulation
         public bool IsOccupied(Vector2Int cell) => occupants.ContainsKey(cell);
         public bool TryGetOccupant(Vector2Int cell, out CellOccupant occupant) => occupants.TryGetValue(cell, out occupant);
 
+        // 역방향 조회: (타입, 인덱스)가 차지한 칸을 찾는다. 벨트 세그먼트는 정확히 한 칸만
+        // 차지하므로 첫 번째 일치를 반환한다(멀티칸 건물엔 쓰지 않는다). 벨트를 재배선한 뒤
+        // 그 세그먼트의 스트립을 실제 흐름 방향으로 다시 그릴 때 쓴다(BeltDragTool).
+        public bool TryGetCellOf(CellOccupantType type, int instanceIndex, out Vector2Int cell)
+        {
+            foreach (var kvp in occupants)
+            {
+                if (kvp.Value.Type != type || kvp.Value.InstanceIndex != instanceIndex) continue;
+                cell = kvp.Key;
+                return true;
+            }
+            cell = default;
+            return false;
+        }
+
         public void RegisterOreDeposit(Vector2Int cell, int oreDepositRuntimeId) => oreDepositRuntimeIdByCell[cell] = oreDepositRuntimeId;
         public bool TryGetOreDeposit(Vector2Int cell, out int oreDepositRuntimeId) => oreDepositRuntimeIdByCell.TryGetValue(cell, out oreDepositRuntimeId);
 

@@ -203,41 +203,45 @@ public static class SceneBootstrapper
 
         EnsureEventSystem();
 
-        var minerButton = EnsureButton(canvasGO.transform, "PaletteButton_Miner", "채굴기", new Vector2(20, 40));
+        // 모든 HUD는 노치/홈바를 피하도록 SafeArea 루트 아래에 둔다 — 각 버튼의 앵커 좌표는
+        // 그대로 두고도 안전 영역 기준으로 배치된다(SafeAreaFitter).
+        var hudRoot = EnsureHudRoot(canvasGO).transform;
+
+        var minerButton = EnsureButton(hudRoot, "PaletteButton_Miner", "채굴기", new Vector2(20, 40));
         WirePaletteButton(minerButton, router, machineTool, minerMachineId);
 
-        var smelterButton = EnsureButton(canvasGO.transform, "PaletteButton_Smelter", "제련로", new Vector2(150, 40));
+        var smelterButton = EnsureButton(hudRoot, "PaletteButton_Smelter", "제련로", new Vector2(150, 40));
         WirePaletteButton(smelterButton, router, machineTool, smelterMachineId);
 
-        var formerButton = EnsureButton(canvasGO.transform, "PaletteButton_Former", "성형기", new Vector2(280, 40));
+        var formerButton = EnsureButton(hudRoot, "PaletteButton_Former", "성형기", new Vector2(280, 40));
         WirePaletteButton(formerButton, router, machineTool, formerMachineId);
 
-        var synthesizerButton = EnsureButton(canvasGO.transform, "PaletteButton_Synthesizer", "합성기", new Vector2(410, 40));
+        var synthesizerButton = EnsureButton(hudRoot, "PaletteButton_Synthesizer", "합성기", new Vector2(410, 40));
         WirePaletteButton(synthesizerButton, router, machineTool, synthesizerMachineId);
 
-        var beltButton = EnsureButton(canvasGO.transform, "PaletteButton_Belt", "벨트", new Vector2(540, 40));
+        var beltButton = EnsureButton(hudRoot, "PaletteButton_Belt", "벨트", new Vector2(540, 40));
         WirePaletteButton(beltButton, router, machineTool, null, isBeltButton: true);
 
-        var demolishButton = EnsureButton(canvasGO.transform, "PaletteButton_Demolish", "철거", new Vector2(670, 40));
+        var demolishButton = EnsureButton(hudRoot, "PaletteButton_Demolish", "철거", new Vector2(670, 40));
         WirePaletteButton(demolishButton, router, machineTool, null, isDemolishButton: true);
 
         // 팔레트(1행, y=40)와 같은 줄에 두면 기계 종류가 늘어날 때마다 배치/확정 버튼과
         // 자리다툼이 난다(실제로 조립기 추가하면서 회전 버튼과 겹쳤음) — 그래서 배치 액션
         // 버튼들은 팔레트 위 2행(y=140)에 따로 둬서 팔레트가 늘어나도 절대 안 겹치게 한다.
         // 방향 표시는 화면 글자 대신 기계 위 화살표(OutputArrow)만 쓰기로 해서 별도 라벨 없음.
-        var rotateButton = EnsureButton(canvasGO.transform, "RotateButton", "회전", new Vector2(-270, 140), rightAnchored: true);
+        var rotateButton = EnsureButton(hudRoot, "RotateButton", "회전", new Vector2(-270, 140), rightAnchored: true);
         var rotate = rotateButton.gameObject.GetComponent<RotatePlacementButton>() ?? rotateButton.gameObject.AddComponent<RotatePlacementButton>();
         SetRef(rotate, "machineTool", machineTool);
         SetRef(rotate, "button", rotateButton);
 
-        var confirmButton = EnsureButton(canvasGO.transform, "ConfirmButton", "확정", new Vector2(-140, 140), rightAnchored: true);
+        var confirmButton = EnsureButton(hudRoot, "ConfirmButton", "확정", new Vector2(-140, 140), rightAnchored: true);
         var confirm = confirmButton.gameObject.GetComponent<ConfirmPlacementButton>() ?? confirmButton.gameObject.AddComponent<ConfirmPlacementButton>();
         SetRef(confirm, "machineTool", machineTool);
         SetRef(confirm, "router", router);
         SetRef(confirm, "button", confirmButton);
 
         // 회전/확정과 같은 2행(y=140)이지만 왼쪽에 둬서 팔레트 확장과도, 배치 액션 버튼들과도 안 겹치게.
-        var demolishConfirmButton = EnsureButton(canvasGO.transform, "DemolishConfirmButton", "철거 확정", new Vector2(20, 140));
+        var demolishConfirmButton = EnsureButton(hudRoot, "DemolishConfirmButton", "철거 확정", new Vector2(20, 140));
         var demolishConfirm = demolishConfirmButton.gameObject.GetComponent<DemolishConfirmButton>() ?? demolishConfirmButton.gameObject.AddComponent<DemolishConfirmButton>();
         SetRef(demolishConfirm, "demolishTool", demolishTool);
         SetRef(demolishConfirm, "router", router);
@@ -249,19 +253,24 @@ public static class SceneBootstrapper
         var canvasGO = GameObject.Find("HUDCanvas");
         if (canvasGO == null) return;
 
+        var hudRoot = EnsureHudRoot(canvasGO).transform;
+
         var panelGO = GameObject.Find("RecipeSelectionPanel");
         if (panelGO == null)
         {
             panelGO = new GameObject("RecipeSelectionPanel", typeof(RectTransform), typeof(Image));
-            panelGO.transform.SetParent(canvasGO.transform, false);
-            var rt = panelGO.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.5f, 0.5f);
-            rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = new Vector2(380f, 700f);
             panelGO.GetComponent<Image>().color = new Color(0.1f, 0.1f, 0.1f, 0.92f);
         }
+
+        // 이미 있던 패널이 예전 실행에서 캔버스 루트에 붙어 있었을 수 있으니 매번 SafeArea 루트로
+        // 옮기고 앵커/크기를 다시 맞춘다(EnsureButton/EnsureText와 같은 취지).
+        if (panelGO.transform.parent != hudRoot) panelGO.transform.SetParent(hudRoot, false);
+        var panelRt = panelGO.GetComponent<RectTransform>();
+        panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRt.pivot = new Vector2(0.5f, 0.5f);
+        panelRt.anchoredPosition = Vector2.zero;
+        panelRt.sizeDelta = new Vector2(380f, 700f);
 
         var containerGO = GameObject.Find("RecipeButtonContainer");
         if (containerGO == null)
@@ -342,6 +351,26 @@ public static class SceneBootstrapper
         go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
     }
 
+    // 캔버스를 꽉 채우는 "SafeArea" 자식. 모든 HUD(팔레트/액션 버튼/자원 표시/레시피 패널)의
+    // 부모로 써서 노치·펀치홀·홈버튼바를 피한다. 시작값만 전체 화면이고, 런타임에
+    // SafeAreaFitter가 Screen.safeArea 기준으로 다시 맞춘다(에디터/PC에선 전체 화면 그대로).
+    private static GameObject EnsureHudRoot(GameObject canvasGO)
+    {
+        var existing = canvasGO.transform.Find("SafeArea");
+        GameObject go = existing != null ? existing.gameObject : new GameObject("SafeArea", typeof(RectTransform));
+        if (existing == null) go.transform.SetParent(canvasGO.transform, false);
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.localScale = Vector3.one;
+
+        EnsureComponentOn<SafeAreaFitter>(go);
+        return go;
+    }
+
     private static Button EnsureButton(Transform parent, string name, string label, Vector2 anchoredPos, bool rightAnchored = false)
     {
         var existing = GameObject.Find(name);
@@ -356,6 +385,8 @@ public static class SceneBootstrapper
         else
         {
             go = existing;
+            // 예전 실행에서 캔버스 루트에 붙어 있던 버튼을 SafeArea 루트로 옮긴다.
+            if (go.transform.parent != parent) go.transform.SetParent(parent, false);
         }
 
         // 위치/앵커/크기는 순전히 코드가 결정하는 레이아웃이라, 이미 있는 버튼이어도 매번
@@ -408,11 +439,13 @@ public static class SceneBootstrapper
         var canvasGO = GameObject.Find("HUDCanvas");
         if (canvasGO == null) return;
 
-        var line1 = EnsureText(canvasGO.transform, "HudLine1", new Vector2(40, -60), new Vector2(700f, 50f));
+        var hudRoot = EnsureHudRoot(canvasGO).transform;
+
+        var line1 = EnsureText(hudRoot, "HudLine1", new Vector2(40, -60), new Vector2(700f, 50f));
         // line2는 코어에 쌓인 자원 종류가 늘어날수록 길어지는 목록이라, line1보다 훨씬
         // 넉넉하게 잡는다 — 예전엔 500x60 고정 박스라 자원 종류가 몇 개만 넘어가도
         // (기본 verticalOverflow=Truncate라 에러 없이 조용히) 잘려서 안 보였다.
-        var line2 = EnsureText(canvasGO.transform, "HudLine2", new Vector2(40, -120), new Vector2(1000f, 200f));
+        var line2 = EnsureText(hudRoot, "HudLine2", new Vector2(40, -120), new Vector2(1000f, 200f));
 
         var hudGO = GameObject.Find("ResourceHUD") ?? new GameObject("ResourceHUD");
         var hud = EnsureComponentOn<ResourceHUD>(hudGO);
@@ -432,6 +465,7 @@ public static class SceneBootstrapper
         bool isNew = existing == null;
         var go = isNew ? new GameObject(name, typeof(RectTransform), typeof(Text)) : existing;
         if (isNew) go.transform.SetParent(parent, false);
+        else if (go.transform.parent != parent) go.transform.SetParent(parent, false); // 예전 실행에서 캔버스 루트에 붙어 있던 것을 SafeArea 루트로 옮긴다.
 
         // 버튼 배치와 마찬가지로 이미 있는 오브젝트여도 매번 최신 크기/위치로 맞춘다 —
         // 안 그러면 예전 씬에 남아있던 작은 박스 크기가 그대로 남아 재실행해도 안 고쳐진다.
