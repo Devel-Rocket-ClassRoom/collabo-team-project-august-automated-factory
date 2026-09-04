@@ -16,7 +16,7 @@ using UnityEngine.UI;
 // (예전처럼 하드코딩된 데모 라인이 자동으로 생기지 않음).
 public static class SceneBootstrapper
 {
-    private const string ScenePath = "Assets/Scenes/SampleScene.unity";
+    private const string ScenePath = "Assets/Scenes/Main.unity";
     private const string PrefabsPath = "Assets/Sin/Prefabs";
     private const string VisualLibraryPath = "Assets/Sin/MachineVisualLibrary.asset";
     // 48dp 최소 터치 타겟은 유지하면서(캔버스 스케일 기준 대략 매칭) 예전(160x100)보다 작게.
@@ -100,7 +100,7 @@ public static class SceneBootstrapper
         SetRef(oreDepositSpawner, "oreDepositVisualPrefab", oreDepositVisualPrefab);
 
         // 기계 종류는 이제 애셋이 아니라 Bae님 JSON의 machineID 문자열로만 식별한다.
-        BuildPalette(router, machineTool, demolishTool, "Miner", "Smelter", "Former", "Synthesizer");
+        BuildPalette(router, machineTool, demolishTool, "Miner", "Smelter", "Former", "Synthesizer", "Splitter", "Merger");
         BuildHud(driver);
         BuildRecipePanel(driver);
         BuildGround();
@@ -188,7 +188,7 @@ public static class SceneBootstrapper
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
     }
 
-    private static void BuildPalette(BuildInputRouter router, MachineGhostTool machineTool, DemolishTool demolishTool, string minerMachineId, string smelterMachineId, string formerMachineId, string synthesizerMachineId)
+    private static void BuildPalette(BuildInputRouter router, MachineGhostTool machineTool, DemolishTool demolishTool, string minerMachineId, string smelterMachineId, string formerMachineId, string synthesizerMachineId, string splitterMachineId, string mergerMachineId)
     {
         var canvasGO = GameObject.Find("HUDCanvas");
         if (canvasGO == null)
@@ -219,10 +219,16 @@ public static class SceneBootstrapper
         var synthesizerButton = EnsureButton(hudRoot, "PaletteButton_Synthesizer", "합성기", new Vector2(410, 40));
         WirePaletteButton(synthesizerButton, router, machineTool, synthesizerMachineId);
 
-        var beltButton = EnsureButton(hudRoot, "PaletteButton_Belt", "벨트", new Vector2(540, 40));
+        var splitterButton = EnsureButton(hudRoot, "PaletteButton_Splitter", "분류기", new Vector2(540, 40));
+        WirePaletteButton(splitterButton, router, machineTool, splitterMachineId);
+
+        var mergerButton = EnsureButton(hudRoot, "PaletteButton_Merger", "합류기", new Vector2(670, 40));
+        WirePaletteButton(mergerButton, router, machineTool, mergerMachineId);
+
+        var beltButton = EnsureButton(hudRoot, "PaletteButton_Belt", "벨트", new Vector2(800, 40));
         WirePaletteButton(beltButton, router, machineTool, null, isBeltButton: true);
 
-        var demolishButton = EnsureButton(hudRoot, "PaletteButton_Demolish", "철거", new Vector2(670, 40));
+        var demolishButton = EnsureButton(hudRoot, "PaletteButton_Demolish", "철거", new Vector2(930, 40));
         WirePaletteButton(demolishButton, router, machineTool, null, isDemolishButton: true);
 
         // 팔레트(1행, y=40)와 같은 줄에 두면 기계 종류가 늘어날 때마다 배치/확정 버튼과
@@ -310,7 +316,7 @@ public static class SceneBootstrapper
 
     // Bae님 데이터의 machineID <-> 프리팹({id}Visual.prefab) 매핑을 다시 채운다. 재실행해도
     // 항상 최신 프리팹으로 다시 맞추도록, 매번 항목을 비우고 다시 채운다.
-    private static readonly string[] KnownMachineIds = { "Miner", "Smelter", "Former", "Synthesizer" };
+    private static readonly string[] KnownMachineIds = { "Miner", "Smelter", "Former", "Synthesizer", "Splitter", "Merger" };
 
     private static MachineVisualLibrary EnsureMachineVisualLibrary()
     {

@@ -21,6 +21,16 @@
             "prefabName": ""
         },
         {
+            "machineID": "Merger",
+            "machineName": "합류기",
+            "powerConsumption": 0,
+            "inputSlots": 3,
+            "outputSlots": 1,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": ""
+        },
+        {
             "machineID": "Miner",
             "machineName": "채굴기",
             "powerConsumption": 0,
@@ -36,6 +46,16 @@
             "powerConsumption": 0,
             "inputSlots": 1,
             "outputSlots": 1,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": ""
+        },
+        {
+            "machineID": "Splitter",
+            "machineName": "분류기",
+            "powerConsumption": 0,
+            "inputSlots": 1,
+            "outputSlots": 3,
             "gridWidth": 1,
             "gridHeight": 1,
             "prefabName": ""

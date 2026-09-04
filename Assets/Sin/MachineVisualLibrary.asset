@@ -21,3 +21,7 @@ MonoBehaviour:
     prefab: {fileID: 6297069909021559556, guid: 0f3dcc7b56611b44fad9fbf04d606176, type: 3}
   - machineId: Synthesizer
     prefab: {fileID: 4627544789523760193, guid: 377e782cbf5503b4383c907201380664, type: 3}
+  - machineId: Splitter
+    prefab: {fileID: 3741054067250729150, guid: 20ab1f05ec99b564dae64234c206b7cc, type: 3}
+  - machineId: Merger
+    prefab: {fileID: 7401649739676287535, guid: 1f70cd2cd9104994293795b78f5c1372, type: 3}
