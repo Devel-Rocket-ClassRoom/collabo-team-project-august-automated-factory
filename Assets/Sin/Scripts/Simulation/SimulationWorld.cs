@@ -24,6 +24,7 @@ namespace Factory.Simulation
         private readonly MinerSystem minerSystem = new MinerSystem();
         private readonly ProcessorSystem processorSystem = new ProcessorSystem();
         private readonly BeltSystem beltSystem = new BeltSystem();
+        private readonly RoutingSystem routingSystem = new RoutingSystem();
 
         public SimulationWorld(GameDatabase database)
         {
@@ -128,6 +129,8 @@ namespace Factory.Simulation
             minerSystem.Tick(deltaSeconds, Miners, Processors, CoreProcessorIndex);
             processorSystem.Tick(deltaSeconds, Database, Processors);
             beltSystem.Tick(deltaSeconds, Segments, Processors, Database);
+            // 벨트가 이번 틱에 라우팅 노드 InputBuffer로 배달한 것을, 곧바로 출력 벨트에 분배/병합한다.
+            routingSystem.Tick(Processors, Segments);
         }
     }
 }

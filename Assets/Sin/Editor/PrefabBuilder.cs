@@ -28,6 +28,9 @@ public static class PrefabBuilder
         BuildMachinePrefab("SmelterVisual", new Color(0.6f, 0.15f, 0.1f), hasOutputPort: true);
         BuildMachinePrefab("FormerVisual", new Color(0.2f, 0.5f, 0.55f), hasOutputPort: true);
         BuildMachinePrefab("SynthesizerVisual", new Color(0.45f, 0.25f, 0.65f), hasOutputPort: true);
+        // 분류기/합류기는 출력이 여러 면이거나 방향이 헷갈려서 단일 화살표를 안 붙인다(Facing만 회전 반영).
+        BuildMachinePrefab("SplitterVisual", new Color(0.85f, 0.7f, 0.2f), hasOutputPort: false);
+        BuildMachinePrefab("MergerVisual", new Color(0.5f, 0.75f, 0.35f), hasOutputPort: false);
         BuildCorePrefab();
         BuildOreDepositVisualPrefab();
         BuildGhostPrefab();

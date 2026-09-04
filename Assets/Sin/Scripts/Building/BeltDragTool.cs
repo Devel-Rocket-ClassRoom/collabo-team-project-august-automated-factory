@@ -157,6 +157,19 @@ namespace Factory.Building
                 case CellOccupantType.Processor:
                 {
                     var processor = driver.World.Processors[occupant.InstanceIndex];
+
+                    if (processor.RoutingRole != RoutingRole.None)
+                    {
+                        isFixed = true;
+                        // touchingCell = 노드(1x1)에 딱 붙은 벨트 칸. 방향으로 어느 면인지 판정.
+                        // 분류기: -Facing(뒤)면만 입력, 나머지 3면 출력. 합류기: +Facing(앞)면만 출력, 나머지 3면 입력.
+                        Vector2Int dir = touchingCell - processor.Anchor;
+                        bool inputFace = processor.RoutingRole == RoutingRole.Splitter
+                            ? dir == -processor.Facing
+                            : dir != processor.Facing;
+                        return inputFace ? EndpointRole.Target : EndpointRole.Source;
+                    }
+
                     if (processor.UniversalPorts)
                     {
                         isFixed = false;

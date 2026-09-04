@@ -80,6 +80,10 @@ namespace Factory.Simulation
             if (!segment.SourceProcessorId.HasValue) return;
             var processor = processors[segment.SourceProcessorId.Value];
 
+            // 분류기/합류기가 소스인 벨트는 RoutingSystem이 직접 적재한다 — 여기서 OutputBuffer를
+            // 일반 배출하면 라운드로빈이 깨진다(라우팅 노드는 OutputBuffer를 안 씀).
+            if (processor.RoutingRole != RoutingRole.None) return;
+
             if (processor.UniversalPorts)
             {
                 LoadFromCore(segment, processor, processors, database);
@@ -209,17 +213,45 @@ namespace Factory.Simulation
         // segment의 NextSegmentId를 따라가 최종 목적지(TargetProcessorId가 있는 세그먼트)를
         // 찾는다. 도중에 목적지 없이 끊기면(막다른 벨트) null. 세그먼트 총 개수로 상한을 둬서
         // (있어서는 안 되지만) 순환 연결에도 무한루프에 빠지지 않게 방어한다.
+        //
+        // 분류기/합류기는 "종착"이 아니라 통과 지점이다 — 코어가 "이 벨트가 뭘 원하나"를
+        // 판단할 때 라우팅 노드에서 멈추면 (RecipeId<0라) 아무것도 안 내주게 된다. 그래서
+        // 라우팅 노드를 만나면 그 첫(가장 낮은 id) 출력 벨트로 이어서 따라가, 뒤에 있는 실제
+        // 기계를 목적지로 본다. 분류기가 서로 다른 기계 여럿에 물려 있으면 첫 출력 쪽 기계의
+        // 레시피 기준이 되고(그 자원을 코어가 실어줌 -> 분류기가 모두에게 분배), 다른 재료는
+        // 별도 벨트로 대야 한다.
         private ProcessorInstance FindTerminalTarget(BeltSegment segment, List<ProcessorInstance> processors)
         {
             var current = segment;
             int guard = segmentsById.Count + 1;
             while (current != null && guard-- > 0)
             {
-                if (current.TargetProcessorId.HasValue) return processors[current.TargetProcessorId.Value];
+                if (current.TargetProcessorId.HasValue)
+                {
+                    var proc = processors[current.TargetProcessorId.Value];
+                    if (proc != null && proc.RoutingRole != RoutingRole.None)
+                    {
+                        current = FirstOutputBelt(current.TargetProcessorId.Value);
+                        continue;
+                    }
+                    return proc;
+                }
                 if (!current.NextSegmentId.HasValue) return null;
                 segmentsById.TryGetValue(current.NextSegmentId.Value, out current);
             }
             return null;
+        }
+
+        // 라우팅 노드(인덱스)의 출력 벨트 중 가장 낮은 id. 없으면 null(연결 안 된 노드).
+        private BeltSegment FirstOutputBelt(int routingNodeIndex)
+        {
+            BeltSegment best = null;
+            foreach (var other in segmentsById.Values)
+            {
+                if (other.SourceProcessorId != routingNodeIndex) continue;
+                if (best == null || other.Id < best.Id) best = other;
+            }
+            return best;
         }
 
         private void AdvanceSegment(BeltSegment segment, float deltaSeconds, List<ProcessorInstance> processors)

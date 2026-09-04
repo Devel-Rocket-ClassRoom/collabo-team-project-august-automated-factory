@@ -20,6 +20,21 @@ namespace Factory.Building
         // 전송, 광물 노드 위에만 지을 수 있음) — Bae님 데이터엔 이걸 구분할 필드가 없어서
         // 문자열 id로 직접 비교한다.
         private const string MinerMachineId = "Miner";
+        // 분류기/합류기도 데이터에 구분 필드가 없어 id로 판정한다(RoutingRole은 배치 시 인스턴스에 심는다).
+        private const string SplitterMachineId = "Splitter";
+        private const string MergerMachineId = "Merger";
+
+        private static readonly Vector2Int[] FourDirs =
+        {
+            new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1),
+        };
+
+        private static RoutingRole RoutingRoleFor(string machineId)
+        {
+            if (machineId == SplitterMachineId) return RoutingRole.Splitter;
+            if (machineId == MergerMachineId) return RoutingRole.Merger;
+            return RoutingRole.None;
+        }
 
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SimulationDriver driver;
@@ -199,9 +214,12 @@ namespace Factory.Building
             else
             {
                 // 레시피는 자동 배정하지 않는다 — 배치 후 탭해서 직접 고른다(RecipeSelectionPanel).
+                // 분류기/합류기면 RoutingRole을 심는다 — ProcessorSystem은 RecipeId<0라 안 건드리고,
+                // RoutingSystem이 이 값으로 분배/병합한다.
                 var processor = new ProcessorInstance(db.ResourceCount)
                 {
                     MachineId = machineId,
+                    RoutingRole = RoutingRoleFor(selectedMachineId),
                     Facing = currentFacing,
                     Anchor = currentCell,
                     Footprint = runtime.Footprint,
@@ -229,6 +247,12 @@ namespace Factory.Building
         // 채굴기는 포트가 없어서(원격 전송) 여기서 다루지 않는다 — Processor(제련로 등)만 해당.
         private void TryAutoConnectAdjacentBelts(ProcessorInstance processor, int index)
         {
+            if (processor.RoutingRole != RoutingRole.None)
+            {
+                TryAutoConnectRoutingNode(processor, index);
+                return;
+            }
+
             var grid = driver.World.Grid;
             var segments = driver.World.Segments;
 
@@ -249,6 +273,36 @@ namespace Factory.Building
 
                 var segment = segments[outOccupant.InstanceIndex];
                 if (IsChainStart(segments, segment)) segment.SourceProcessorId = index;
+            }
+        }
+
+        // 라우팅 노드(1x1)는 포트 규약이 다르다 — 분류기는 -Facing(뒤) 1면이 입력, 나머지 3면이
+        // 출력. 합류기는 +Facing(앞) 1면이 출력, 나머지 3면이 입력. 4방향 이웃 벨트를 훑어
+        // 역할대로 이어준다(BeltDragTool.ResolveEndpointRole의 라우팅 분기와 같은 규칙).
+        private void TryAutoConnectRoutingNode(ProcessorInstance node, int index)
+        {
+            var grid = driver.World.Grid;
+            var segments = driver.World.Segments;
+
+            for (int d = 0; d < FourDirs.Length; d++)
+            {
+                Vector2Int dir = FourDirs[d];
+                if (!grid.TryGetOccupant(node.Anchor + dir, out var occ) || occ.Type != CellOccupantType.Belt) continue;
+
+                var seg = segments[occ.InstanceIndex];
+                bool inputFace = node.RoutingRole == RoutingRole.Splitter
+                    ? dir == -node.Facing
+                    : dir != node.Facing;
+
+                if (inputFace)
+                {
+                    bool isDeadEnd = seg.NextSegmentId == null && seg.TargetProcessorId == null;
+                    if (isDeadEnd) seg.TargetProcessorId = index;
+                }
+                else if (IsChainStart(segments, seg))
+                {
+                    seg.SourceProcessorId = index;
+                }
             }
         }
 

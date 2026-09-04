@@ -50,6 +50,10 @@ public static class BaeDataSeeder
         // 합성기(구 조립기): 2x2에 입력 포트가 2칸이라 서로 다른 두 자원을 각각 다른 벨트로
         // 받아 합금으로 합성한다.
         CreateOrLoadMachine("Synthesizer", "합성기", 2, 2, inputSlots: 2, outputSlots: 1);
+        // 분류기/합류기: 레시피 없는 벨트 라우팅 노드(RoutingSystem). 슬롯 수는 문서용이고
+        // 실제 연결 개수는 벨트를 몇 개 잇느냐로 정해진다(최대 3).
+        CreateOrLoadMachine("Splitter", "분류기", 1, 1, inputSlots: 1, outputSlots: 3);
+        CreateOrLoadMachine("Merger", "합류기", 1, 1, inputSlots: 3, outputSlots: 1);
         // 코어는 레시피 개념이 없는 순수 저장소(UniversalPorts, CoreSpawner.cs에서 하드코딩)라
         // 여기 슬롯 수는 실제로 안 쓰이지만, machineID 조회는 돼야 하니 등록은 해둔다.
         CreateOrLoadMachine("Core", "코어", 2, 2, inputSlots: 0, outputSlots: 0);

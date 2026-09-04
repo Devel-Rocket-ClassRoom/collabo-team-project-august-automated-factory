@@ -2,6 +2,15 @@ using UnityEngine;
 
 namespace Factory.Simulation
 {
+    // 레시피 없는 벨트 라우팅 노드. None = 일반 기계/코어. Splitter는 입력 1개를 출력 여러
+    // 벨트에 라운드로빈 분배, Merger는 입력 여러 벨트를 출력 1개로 병합한다(RoutingSystem 참고).
+    public enum RoutingRole
+    {
+        None,
+        Splitter,
+        Merger,
+    }
+
     // 제련로/성형기/합성기 등 "레시피를 소비해서 산출한다" 유형 기계 한 대의 런타임 상태.
     // 어떤 레시피인지는 RecipeId(데이터)로만 결정되고, 이 클래스와 ProcessorSystem은
     // 레시피별 분기를 두지 않는다 — 새 레시피 추가가 코드 무변경으로 동작하는 근거.
@@ -14,6 +23,12 @@ namespace Factory.Simulation
         public int MachineId;
         public int RecipeId = -1;
         public float SpeedMultiplier = 1f;
+
+        // 벨트 라우팅 노드(분류기/합류기)면 None이 아니다. RoutingSystem이 이 값으로 분기하고,
+        // ProcessorSystem은 RecipeId<0라 어차피 건드리지 않는다. RoutingCursor는 라운드로빈
+        // 위치(분류기 = 다음 출력 벨트 인덱스, 합류기 = 마지막으로 내보낸 자원 id).
+        public RoutingRole RoutingRole = RoutingRole.None;
+        public int RoutingCursor;
 
         // 현재 진행 중인 사이클이 실제로 재료를 소비한 레시피. RecipeId는 사용자가 언제든
         // (처리 도중에도) 바꿀 수 있지만, 이미 시작된 사이클은 끝까지 이 값 기준으로
