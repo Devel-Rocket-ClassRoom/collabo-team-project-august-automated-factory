@@ -166,7 +166,7 @@ namespace Seo.UI
             MovePaletteButton("PaletteButton_Belt", logisticsPage.transform, 0, 4);
             MovePaletteButton("PaletteButton_Splitter", logisticsPage.transform, 1, 4);
             MovePaletteButton("PaletteButton_Merger", logisticsPage.transform, 2, 4);
-            MovePaletteButton("PaletteButton_Demolish", logisticsPage.transform, 3, 4, SeoUITheme.Current.Danger);
+            MovePaletteButton("PaletteButton_Demolish", logisticsPage.transform, 3, 4, tint: SeoUITheme.Current.Danger);
 
             BuildPowerButtons();
             BuildContextBar(dock.transform);
@@ -320,7 +320,7 @@ namespace Seo.UI
 
             bool shortage = grid.RequestedPower > grid.AvailablePower;
             powerText.color = shortage ? SeoUITheme.Current.Warning : SeoUITheme.Current.Text;
-            powerText.text = $"POWER  {grid.UsedPower} / {grid.AvailablePower}\n가동 기계  {grid.PoweredMachineCount} / {grid.TotalMachineCount}";
+            powerText.text = $"POWER  {grid.UsedPower} / {grid.AvailablePower} MW\n가동 기계  {grid.PoweredMachineCount} / {grid.TotalMachineCount}";
         }
 
         private void DecorateRecipePanel()

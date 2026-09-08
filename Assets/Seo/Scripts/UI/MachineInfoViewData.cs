@@ -8,6 +8,7 @@ namespace Seo.UI
         public readonly string Title;
         public readonly string Status;
         public readonly string Recipe;
+        public readonly string Power;
         public readonly string Input;
         public readonly string Output;
         public readonly string Progress;
@@ -20,6 +21,7 @@ namespace Seo.UI
             string title,
             string status,
             string recipe,
+            string power,
             string input,
             string output,
             string progress,
@@ -31,6 +33,7 @@ namespace Seo.UI
             Title = title;
             Status = status;
             Recipe = recipe;
+            Power = power;
             Input = input;
             Output = output;
             Progress = progress;

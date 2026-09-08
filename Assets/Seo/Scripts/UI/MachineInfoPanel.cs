@@ -10,6 +10,7 @@ namespace Seo.UI
         private Text titleText;
         private Text statusText;
         private Text recipeText;
+        private Text powerText;
         private Text inputText;
         private Text outputText;
         private Text progressText;
@@ -26,6 +27,7 @@ namespace Seo.UI
             titleText.text = data.Title;
             statusText.text = "상태 · " + data.Status;
             recipeText.text = "레시피 · " + data.Recipe;
+            powerText.text = data.Power;
             inputText.text = data.Input;
             outputText.text = data.Output;
             progressText.text = data.Progress;
@@ -64,13 +66,15 @@ namespace Seo.UI
             panel.statusText.rectTransform.offsetMax = new Vector2(-8f, -2f);
             panel.statusText.alignment = TextAnchor.MiddleCenter;
 
-            panel.recipeText = CreateText(root.transform, "Recipe", new Vector2(26f, -88f), new Vector2(460f, 44f), 22, FontStyle.Bold);
+            panel.powerText = CreateText(root.transform, "Power", new Vector2(26f, -66f), new Vector2(330f, 28f), 18, FontStyle.Bold);
+            panel.powerText.color = SeoUITheme.Current.Warning;
+            panel.recipeText = CreateText(root.transform, "Recipe", new Vector2(26f, -98f), new Vector2(460f, 44f), 22, FontStyle.Bold);
 
-            var inputCard = CreateImage(root.transform, "InputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -146f), new Vector2(222f, 142f));
+            var inputCard = CreateImage(root.transform, "InputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -152f), new Vector2(222f, 142f));
             inputCard.color = new Color(0.02f, 0.16f, 0.24f, 0.94f);
             panel.inputText = CreateText(inputCard.transform, "Input", new Vector2(16f, -14f), new Vector2(190f, 112f), 19);
 
-            var outputCard = CreateImage(root.transform, "OutputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(268f, -146f), new Vector2(226f, 142f));
+            var outputCard = CreateImage(root.transform, "OutputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(268f, -152f), new Vector2(226f, 142f));
             outputCard.color = new Color(0.2f, 0.1f, 0.03f, 0.94f);
             panel.outputText = CreateText(outputCard.transform, "Output", new Vector2(16f, -14f), new Vector2(194f, 112f), 19);
 
