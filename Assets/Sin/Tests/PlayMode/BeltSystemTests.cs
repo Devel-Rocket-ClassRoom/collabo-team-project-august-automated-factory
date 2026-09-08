@@ -97,7 +97,9 @@ public class BeltSystemTests
 
         var source = new ProcessorInstance(db.ResourceCount);
         source.OutputBuffer[resourceId] = 20;
-        var target = new ProcessorInstance(db.ResourceCount);
+        // 저장고(UniversalPorts)를 종착으로 둔다 — 레시피 없는 일반 기계는 이제 벨트 배달을
+        // 거부하므로(요청 안 한 기계엔 안 넣음), 벨트 자체의 무유실/무중복만 보려면 코어형 종착이 필요.
+        var target = new ProcessorInstance(db.ResourceCount) { UniversalPorts = true };
 
         var segment0 = new BeltSegment { Id = 0, Length = 1f, SpeedUnitsPerSecond = 2f, SourceProcessorId = 0, NextSegmentId = 1 };
         var segment1 = new BeltSegment { Id = 1, Length = 1f, SpeedUnitsPerSecond = 2f, TargetProcessorId = 1 };
@@ -186,6 +188,33 @@ public class BeltSystemTests
 
         Assert.AreEqual(0, segment.Items.Count, "레시피 미지정 기계로는 코어가 아무것도 흘려보내면 안 됨");
         Assert.AreEqual(10, core.InputBuffer[oreId]);
+    }
+
+    [Test]
+    public void ItemsOnBelt_DoNotEnterRecipelessMachine_EvenWhenConnected()
+    {
+        // 사용자 보고: 벨트 끝에 아이템이 쌓여 있는데 그 끝에 기계를 놓아 연결되면, 레시피를
+        // 지정 안 했는데도 아이템이 그냥 입력 버퍼로 빨려 들어간다. 요청 안 한 기계는 안 받아야 한다.
+        var db = BuildMinimalDatabase(out int resourceId);
+        var machine = new ProcessorInstance(db.ResourceCount); // RecipeId 기본값 -1(미지정)
+        var segment = new BeltSegment { Id = 0, Length = 1f, SpeedUnitsPerSecond = 2f, TargetProcessorId = 0 };
+        for (int i = 0; i < 3; i++) segment.Items.Add(new BeltItem(resourceId, 1f - i * 0.3f)); // 벨트 위에 이미 얹혀 있는 아이템들
+
+        var segments = new List<BeltSegment> { segment };
+        var processors = new List<ProcessorInstance> { machine };
+        var system = new BeltSystem();
+        system.Configure(segments);
+
+        for (int i = 0; i < 50; i++) system.Tick(0.1f, segments, processors, db);
+
+        Assert.AreEqual(0, machine.InputBuffer[resourceId], "레시피 미지정 기계는 벨트 아이템을 받지 않아야 함");
+        Assert.AreEqual(3, segment.Items.Count, "아이템은 벨트 끝에서 그대로 대기해야 함(유실 없음)");
+
+        // 레시피를 지정하면 그때부터 정상적으로 받아들인다.
+        machine.RecipeId = 0;
+        for (int i = 0; i < 50; i++) system.Tick(0.1f, segments, processors, db);
+        Assert.AreEqual(3, machine.InputBuffer[resourceId], "레시피 지정 후에는 대기하던 아이템이 들어와야 함");
+        Assert.AreEqual(0, segment.Items.Count);
     }
 
     [Test]

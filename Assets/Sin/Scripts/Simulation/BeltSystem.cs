@@ -37,7 +37,7 @@ namespace Factory.Simulation
             for (int i = 0; i < segments.Count; i++)
             {
                 if (segments[i] == null) continue;
-                LoadFromSource(segments[i], processors, database);
+                LoadFromSource(segments[i], segments, processors, database);
             }
 
             BuildDownstreamFirstOrder(segments);
@@ -72,7 +72,7 @@ namespace Factory.Simulation
             processingOrder.Add(segment);
         }
 
-        private void LoadFromSource(BeltSegment segment, List<ProcessorInstance> processors, GameDatabase database)
+        private void LoadFromSource(BeltSegment segment, List<BeltSegment> segments, List<ProcessorInstance> processors, GameDatabase database)
         {
             bool headFree = segment.Items.Count == 0 || segment.Items[0].Position > segment.ItemSpacing;
             if (!headFree) return;
@@ -86,7 +86,7 @@ namespace Factory.Simulation
 
             if (processor.UniversalPorts)
             {
-                LoadFromCore(segment, processor, processors, database);
+                LoadFromCore(segment, segments, processor, processors, database);
                 return;
             }
 
@@ -116,9 +116,9 @@ namespace Factory.Simulation
         // 레시피를 지정받은 기계가 있고, 그 레시피가 필요로 하는 자원일 때만 내준다("먼저
         // 레시피를 지정해서 필요한 자원 정보를 전달받아야 준다"는 설계). 막다른 벨트, 코어
         // 자기 루프, 아직 레시피 미지정인 기계로는 아무것도 내주지 않는다.
-        private void LoadFromCore(BeltSegment segment, ProcessorInstance core, List<ProcessorInstance> processors, GameDatabase database)
+        private void LoadFromCore(BeltSegment segment, List<BeltSegment> segments, ProcessorInstance core, List<ProcessorInstance> processors, GameDatabase database)
         {
-            var target = FindTerminalTarget(segment, processors);
+            var target = BeltRouting.ResolveTerminal(segment, processors, segments);
             if (target == null) return; // 막다른 벨트 -> 요청하는 대상이 없음
 
             // 출발지와 도착지가 같은 코어인 자기 루프: 레시피를 지정받은 기계가 없는데도
@@ -153,7 +153,7 @@ namespace Factory.Simulation
             // 다른 자원을 대신 나르지 않고 그냥 빈 채로 기다린다.
             if (!segment.LockedSourceResourceId.HasValue)
             {
-                AssignLaneResource(segment, target, database.Recipes[target.RecipeId].Inputs, processors);
+                AssignLaneResource(segment, segments, target, database.Recipes[target.RecipeId].Inputs, processors);
                 segment.LockedForRecipeId = target.RecipeId;
             }
 
@@ -170,14 +170,14 @@ namespace Factory.Simulation
         // 정하면 다들 똑같은 순서로 시도해서 전부 하나로 몰렸다). 재료 종류보다 라인 수가 더
         // 많아서 전부 이미 다른 라인이 맡고 있으면, 남는 라인은 어쩔 수 없이 첫 재료를 중복으로
         // 맡는다(안 맡는 것보단 낫다).
-        private void AssignLaneResource(BeltSegment segment, ProcessorInstance target, ResourceAmount[] inputs, List<ProcessorInstance> processors)
+        private void AssignLaneResource(BeltSegment segment, List<BeltSegment> segments, ProcessorInstance target, ResourceAmount[] inputs, List<ProcessorInstance> processors)
         {
             if (inputs.Length == 0) return;
 
             for (int i = 0; i < inputs.Length; i++)
             {
                 int resourceId = inputs[i].ResourceId;
-                if (IsClaimedByAnotherLane(segment, target, resourceId, processors)) continue;
+                if (IsClaimedByAnotherLane(segment, segments, target, resourceId, processors)) continue;
                 segment.LockedSourceResourceId = resourceId;
                 return;
             }
@@ -185,15 +185,16 @@ namespace Factory.Simulation
             segment.LockedSourceResourceId = inputs[0].ResourceId;
         }
 
-        // segmentsById 전체를 훑어서, "같은 목적지로 흘러가는 다른 라인"이 이미 이 자원으로
+        // 세그먼트 전체를 훑어서, "같은 목적지로 흘러가는 다른 라인"이 이미 이 자원으로
         // 굳어져 있는지 확인한다. 세그먼트 수가 적은 프로토타입 규모라 매번 O(N) 스캔이어도 무방.
-        private bool IsClaimedByAnotherLane(BeltSegment self, ProcessorInstance target, int resourceId, List<ProcessorInstance> processors)
+        private bool IsClaimedByAnotherLane(BeltSegment self, List<BeltSegment> segments, ProcessorInstance target, int resourceId, List<ProcessorInstance> processors)
         {
-            foreach (var other in segmentsById.Values)
+            for (int i = 0; i < segments.Count; i++)
             {
-                if (other == self) continue;
+                var other = segments[i];
+                if (other == null || other == self) continue;
                 if (other.LockedSourceResourceId != resourceId) continue;
-                if (FindTerminalTarget(other, processors) != target) continue;
+                if (BeltRouting.ResolveTerminal(other, processors, segments) != target) continue;
                 return true;
             }
             return false;
@@ -208,50 +209,6 @@ namespace Factory.Simulation
                 segment.Items.Insert(0, new BeltItem(resourceId, 0f));
                 return;
             }
-        }
-
-        // segment의 NextSegmentId를 따라가 최종 목적지(TargetProcessorId가 있는 세그먼트)를
-        // 찾는다. 도중에 목적지 없이 끊기면(막다른 벨트) null. 세그먼트 총 개수로 상한을 둬서
-        // (있어서는 안 되지만) 순환 연결에도 무한루프에 빠지지 않게 방어한다.
-        //
-        // 분류기/합류기는 "종착"이 아니라 통과 지점이다 — 코어가 "이 벨트가 뭘 원하나"를
-        // 판단할 때 라우팅 노드에서 멈추면 (RecipeId<0라) 아무것도 안 내주게 된다. 그래서
-        // 라우팅 노드를 만나면 그 첫(가장 낮은 id) 출력 벨트로 이어서 따라가, 뒤에 있는 실제
-        // 기계를 목적지로 본다. 분류기가 서로 다른 기계 여럿에 물려 있으면 첫 출력 쪽 기계의
-        // 레시피 기준이 되고(그 자원을 코어가 실어줌 -> 분류기가 모두에게 분배), 다른 재료는
-        // 별도 벨트로 대야 한다.
-        private ProcessorInstance FindTerminalTarget(BeltSegment segment, List<ProcessorInstance> processors)
-        {
-            var current = segment;
-            int guard = segmentsById.Count + 1;
-            while (current != null && guard-- > 0)
-            {
-                if (current.TargetProcessorId.HasValue)
-                {
-                    var proc = processors[current.TargetProcessorId.Value];
-                    if (proc != null && proc.RoutingRole != RoutingRole.None)
-                    {
-                        current = FirstOutputBelt(current.TargetProcessorId.Value);
-                        continue;
-                    }
-                    return proc;
-                }
-                if (!current.NextSegmentId.HasValue) return null;
-                segmentsById.TryGetValue(current.NextSegmentId.Value, out current);
-            }
-            return null;
-        }
-
-        // 라우팅 노드(인덱스)의 출력 벨트 중 가장 낮은 id. 없으면 null(연결 안 된 노드).
-        private BeltSegment FirstOutputBelt(int routingNodeIndex)
-        {
-            BeltSegment best = null;
-            foreach (var other in segmentsById.Values)
-            {
-                if (other.SourceProcessorId != routingNodeIndex) continue;
-                if (best == null || other.Id < best.Id) best = other;
-            }
-            return best;
         }
 
         private void AdvanceSegment(BeltSegment segment, float deltaSeconds, List<ProcessorInstance> processors)
@@ -309,6 +266,14 @@ namespace Factory.Simulation
             if (segment.TargetProcessorId.HasValue)
             {
                 var processor = processors[segment.TargetProcessorId.Value];
+                // 레시피도 없고 저장고(코어)도 라우팅 노드(분류기/합류기)도 아닌 기계 = 아무것도
+                // 요청하지 않았다. 벨트가 여기로 밀어넣으면 입력 버퍼에 죽은 재고로 쌓이기만 한다
+                // ("기계만 놓으면 레시피 없이도 자동으로 빨려 들어간다"는 사용자 보고). 안 받는다 —
+                // 아이템은 벨트 끝에서 대기하고, 상류로 역압이 전파된다.
+                if (processor.RecipeId < 0 && !processor.UniversalPorts && processor.RoutingRole == RoutingRole.None)
+                {
+                    return false;
+                }
                 return processor.TryAcceptInput(item.ResourceId, 1);
             }
 

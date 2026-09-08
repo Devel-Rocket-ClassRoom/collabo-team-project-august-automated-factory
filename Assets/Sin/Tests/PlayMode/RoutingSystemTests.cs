@@ -13,11 +13,12 @@ public class RoutingSystemTests
         var splitter = new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter };
         splitter.InputBuffer[oreId] = 30;
 
-        var outA = new BeltSegment { Id = 0, SourceProcessorId = 0 };
-        var outB = new BeltSegment { Id = 1, SourceProcessorId = 0 };
-        var outC = new BeltSegment { Id = 2, SourceProcessorId = 0 };
+        // 각 출력 벨트는 "요청하는 기계"(레시피 지정됨)로 이어져야 분류기가 보낸다.
+        var processors = new List<ProcessorInstance> { splitter, Sink(db), Sink(db), Sink(db) };
+        var outA = new BeltSegment { Id = 0, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var outB = new BeltSegment { Id = 1, SourceProcessorId = 0, TargetProcessorId = 2 };
+        var outC = new BeltSegment { Id = 2, SourceProcessorId = 0, TargetProcessorId = 3 };
 
-        var processors = new List<ProcessorInstance> { splitter };
         var segments = new List<BeltSegment> { outA, outB, outC };
         var system = new RoutingSystem();
 
@@ -45,13 +46,13 @@ public class RoutingSystemTests
         var splitter = new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter };
         splitter.InputBuffer[oreId] = 20;
 
-        var outA = new BeltSegment { Id = 0, SourceProcessorId = 0 };
-        var outBlocked = new BeltSegment { Id = 1, SourceProcessorId = 0 };
-        var outC = new BeltSegment { Id = 2, SourceProcessorId = 0 };
+        var processors = new List<ProcessorInstance> { splitter, Sink(db), Sink(db), Sink(db) };
+        var outA = new BeltSegment { Id = 0, SourceProcessorId = 0, TargetProcessorId = 1 };
+        var outBlocked = new BeltSegment { Id = 1, SourceProcessorId = 0, TargetProcessorId = 2 };
+        var outC = new BeltSegment { Id = 2, SourceProcessorId = 0, TargetProcessorId = 3 };
         // outBlocked 입구에 아이템을 박아두고 절대 안 비운다 -> 항상 HeadFree=false -> 건너뛰어야 함.
         outBlocked.Items.Add(new BeltItem(oreId, 0f));
 
-        var processors = new List<ProcessorInstance> { splitter };
         var segments = new List<BeltSegment> { outA, outBlocked, outC };
         var system = new RoutingSystem();
 
@@ -77,9 +78,9 @@ public class RoutingSystemTests
         merger.InputBuffer[oreId] = 15;
         merger.InputBuffer[coalId] = 15;
 
-        var output = new BeltSegment { Id = 0, SourceProcessorId = 0 };
+        var processors = new List<ProcessorInstance> { merger, Sink(db) };
+        var output = new BeltSegment { Id = 0, SourceProcessorId = 0, TargetProcessorId = 1 };
 
-        var processors = new List<ProcessorInstance> { merger };
         var segments = new List<BeltSegment> { output };
         var system = new RoutingSystem();
 
@@ -133,6 +134,41 @@ public class RoutingSystemTests
     }
 
     [Test]
+    public void CoreToSplitterToThreeMachines_OnlyMiddleHasRecipe_CoreStillDispenses()
+    {
+        // 사용자 보고: 분류기 출력 3개에 제련로 3대를 물리고 "가운데만" 레시피를 지정하면
+        // 코어가 아무것도 안 나왔다 — FindTerminalTarget이 분류기 첫 출력 갈래(레시피 없음)만
+        // 보고 멈췄기 때문. 이제 모든 갈래를 훑어 레시피 있는 갈래를 목적지로 삼는다.
+        var db = BuildChainDatabase(out int ironId, out _, out int plateId, out int formRecipeId, out _);
+        var world = new SimulationWorld(db);
+
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        int coreIndex = world.AddProcessor(core);
+        world.CoreProcessorIndex = coreIndex;
+        core.InputBuffer[ironId] = 30;
+
+        int splitterIndex = world.AddProcessor(new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter });
+        var top = new ProcessorInstance(db.ResourceCount) { RecipeId = -1 };       // 레시피 미지정
+        var middle = new ProcessorInstance(db.ResourceCount) { RecipeId = formRecipeId };
+        var bottom = new ProcessorInstance(db.ResourceCount) { RecipeId = -1 };    // 레시피 미지정
+        int topIndex = world.AddProcessor(top);
+        int middleIndex = world.AddProcessor(middle);
+        int bottomIndex = world.AddProcessor(bottom);
+
+        world.AddBeltSegment(new BeltSegment { Id = 0, SourceProcessorId = coreIndex, TargetProcessorId = splitterIndex });
+        world.AddBeltSegment(new BeltSegment { Id = 1, SourceProcessorId = splitterIndex, TargetProcessorId = topIndex });
+        world.AddBeltSegment(new BeltSegment { Id = 2, SourceProcessorId = splitterIndex, TargetProcessorId = middleIndex });
+        world.AddBeltSegment(new BeltSegment { Id = 3, SourceProcessorId = splitterIndex, TargetProcessorId = bottomIndex });
+
+        for (int i = 0; i < 1200; i++) world.Tick(0.05f);
+
+        Assert.Greater(middle.OutputBuffer[plateId], 0, "레시피를 지정한 가운데 제련로에서 철판이 나와야 함");
+        Assert.Less(core.InputBuffer[ironId], 30, "코어가 철 주괴를 실제로 내보냈어야 함");
+        Assert.AreEqual(0, top.InputBuffer[ironId], "레시피 미지정 제련로에는 아무것도 보내지 않아야 함");
+        Assert.AreEqual(0, bottom.InputBuffer[ironId], "레시피 미지정 제련로에는 아무것도 보내지 않아야 함");
+    }
+
+    [Test]
     public void CoreToMergerToTwoInputMachine_CombinesBothMaterialsIntoOnePort()
     {
         // 합류기가 종류별로 섞어 한 벨트에 실은 걸, 입력 2개짜리 기계가 한 포트로 받아도
@@ -160,6 +196,11 @@ public class RoutingSystemTests
 
         Assert.Greater(synth.OutputBuffer[steelId], 0, "합류기가 섞어 보낸 철+석탄을 합성기가 한 포트로 받아 강철 주괴를 만들어야 함");
     }
+
+    // 라우팅 노드 출력 벨트의 "요청하는 종착 기계" 역할. RoutingSystem은 RecipeId>=0인지만
+    // 보므로(레시피 내용은 안 봄) 실제 레시피 없이 RecipeId=0으로 충분하다.
+    private static ProcessorInstance Sink(GameDatabase db)
+        => new ProcessorInstance(db.ResourceCount) { RecipeId = 0 };
 
     private static int Drain(BeltSegment belt)
     {
