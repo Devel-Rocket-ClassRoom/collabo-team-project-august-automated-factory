@@ -20,21 +20,11 @@ namespace Factory.Building
         // 전송, 광물 노드 위에만 지을 수 있음) — Bae님 데이터엔 이걸 구분할 필드가 없어서
         // 문자열 id로 직접 비교한다.
         private const string MinerMachineId = "Miner";
-        // 분류기/합류기도 데이터에 구분 필드가 없어 id로 판정한다(RoutingRole은 배치 시 인스턴스에 심는다).
-        private const string SplitterMachineId = "Splitter";
-        private const string MergerMachineId = "Merger";
 
         private static readonly Vector2Int[] FourDirs =
         {
             new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1),
         };
-
-        private static RoutingRole RoutingRoleFor(string machineId)
-        {
-            if (machineId == SplitterMachineId) return RoutingRole.Splitter;
-            if (machineId == MergerMachineId) return RoutingRole.Merger;
-            return RoutingRole.None;
-        }
 
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SimulationDriver driver;
@@ -219,7 +209,7 @@ namespace Factory.Building
                 var processor = new ProcessorInstance(db.ResourceCount)
                 {
                     MachineId = machineId,
-                    RoutingRole = RoutingRoleFor(selectedMachineId),
+                    RoutingRole = RoutingRoles.For(selectedMachineId),
                     Facing = currentFacing,
                     Anchor = currentCell,
                     Footprint = runtime.Footprint,

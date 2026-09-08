@@ -44,6 +44,9 @@ namespace Choi.SaveLoad
         public bool isProcessing;
         public float progress;
         public int capacity;
+        // 분류기/합류기 라운드로빈 위치. RoutingRole은 machineKey로 다시 유도하지만(RoutingRoles.For),
+        // 이 커서는 런타임에만 존재하는 값이라 저장해야 로드 후 분배 순서가 안 튄다.
+        public int routingCursor;
         public List<ResourceStackData> input = new List<ResourceStackData>();
         public List<ResourceStackData> output = new List<ResourceStackData>();
     }
