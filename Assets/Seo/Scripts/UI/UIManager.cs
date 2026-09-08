@@ -182,7 +182,24 @@ namespace Seo.UI
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             }
 
-            machineInfoPanel = MachineInfoPanel.CreateRuntime(canvas.transform);
+            // 런타임 생성 패널도 씬 HUD와 동일한 SafeArea 아래에 둔다. Canvas 바로 아래에
+            // 붙이면 노치/홈 인디케이터가 있는 기기에서 우측 패널과 닫기 버튼이 잘릴 수 있다.
+            Transform panelParent = canvas.transform;
+            var safeArea = canvas.transform.Find("SafeArea");
+            if (safeArea == null)
+            {
+                var safeAreaObject = new GameObject("SafeArea", typeof(RectTransform));
+                safeAreaObject.transform.SetParent(canvas.transform, false);
+                var safeRect = safeAreaObject.GetComponent<RectTransform>();
+                safeRect.anchorMin = Vector2.zero;
+                safeRect.anchorMax = Vector2.one;
+                safeRect.offsetMin = Vector2.zero;
+                safeRect.offsetMax = Vector2.zero;
+                safeAreaObject.AddComponent<SafeAreaFitter>();
+                safeArea = safeAreaObject.transform;
+            }
+            panelParent = safeArea;
+            machineInfoPanel = MachineInfoPanel.CreateRuntime(panelParent);
             machineInfoPanel.CloseRequested += CloseMachineInfo;
             machineInfoPanel.RecipeRequested += OpenRecipeSelection;
         }

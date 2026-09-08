@@ -17,6 +17,12 @@ namespace Seo.UI
         private SimulationDriver driver;
         private Camera targetCamera;
         private WorldBadge nameBadge;
+        private string machineKey;
+
+        private static readonly Vector2Int[] FourDirs =
+        {
+            Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down,
+        };
 
         public bool IsInitialized => driver != null;
 
@@ -63,8 +69,8 @@ namespace Seo.UI
             }
 
             string title = MachineInfoPresenter.GetMachineDisplayName(driver.World, machineId);
-            string key = driver.World.Database.Machines[machineId].Key;
-            nameBadge = CreateBadge(title, MachineInfoPresenter.GetMachineColor(key), new Vector2(150f, 34f), 18);
+            machineKey = driver.World.Database.Machines[machineId].Key;
+            nameBadge = CreateBadge(title, MachineInfoPresenter.GetMachineColor(machineKey), new Vector2(150f, 34f), 18);
 
             if (kind == MachineInstanceKind.Miner)
             {
@@ -79,10 +85,25 @@ namespace Seo.UI
                 return;
             }
 
+            if (processor.RoutingRole != RoutingRole.None)
+            {
+                for (int i = 0; i < FourDirs.Length; i++)
+                {
+                    bool input = processor.RoutingRole == RoutingRole.Splitter
+                        ? FourDirs[i] == -processor.Facing
+                        : FourDirs[i] != processor.Facing;
+                    portBadges.Add(CreateBadge(input ? "IN" : "OUT",
+                        input ? new Color(0.2f, 0.72f, 1f) : new Color(1f, 0.58f, 0.12f),
+                        input ? new Vector2(48f, 28f) : new Vector2(58f, 28f), 14));
+                }
+                return;
+            }
+
             var inputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
             var outputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
             for (int i = 0; i < inputCells.Count; i++) portBadges.Add(CreateBadge("IN", new Color(0.2f, 0.72f, 1f), new Vector2(48f, 28f), 14));
-            for (int i = 0; i < outputCells.Count; i++) portBadges.Add(CreateBadge("OUT", new Color(1f, 0.58f, 0.12f), new Vector2(58f, 28f), 14));
+            int visibleOutputs = machineKey == "Synthesizer" ? Mathf.Min(1, outputCells.Count) : outputCells.Count;
+            for (int i = 0; i < visibleOutputs; i++) portBadges.Add(CreateBadge("OUT", new Color(1f, 0.58f, 0.12f), new Vector2(58f, 28f), 14));
         }
 
         private void UpdatePositions()
@@ -113,6 +134,16 @@ namespace Seo.UI
                 return;
             }
 
+            if (processor.RoutingRole != RoutingRole.None)
+            {
+                for (int i = 0; i < FourDirs.Length && i < portBadges.Count; i++)
+                {
+                    Vector2Int cell = processor.Anchor + FourDirs[i];
+                    SetBadgeTransform(portBadges[i], GridUtility.CellToWorldCenter(cell, bounds.max.y + 0.12f), 0.0045f);
+                }
+                return;
+            }
+
             var inputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
             var outputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
             int badgeIndex = 0;
@@ -120,9 +151,14 @@ namespace Seo.UI
             {
                 SetBadgeTransform(portBadges[badgeIndex++], GridUtility.CellToWorldCenter(inputs[i], bounds.max.y + 0.12f), 0.0045f);
             }
-            for (int i = 0; i < outputs.Count; i++)
+            int visibleOutputs = machineKey == "Synthesizer" ? Mathf.Min(1, outputs.Count) : outputs.Count;
+            for (int i = 0; i < visibleOutputs; i++)
             {
-                SetBadgeTransform(portBadges[badgeIndex++], GridUtility.CellToWorldCenter(outputs[i], bounds.max.y + 0.12f), 0.0045f);
+                Vector3 position = machineKey == "Synthesizer"
+                    ? GridUtility.GetFootprintCenter(processor.Anchor, processor.Footprint, bounds.max.y + 0.12f)
+                        + new Vector3(processor.Facing.x, 0f, processor.Facing.y) * (GridUtility.CellSize * 1.5f)
+                    : GridUtility.CellToWorldCenter(outputs[i], bounds.max.y + 0.12f);
+                SetBadgeTransform(portBadges[badgeIndex++], position, 0.0045f);
             }
         }
 
