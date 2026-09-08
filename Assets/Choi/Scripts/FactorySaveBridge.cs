@@ -124,6 +124,7 @@ namespace Choi.SaveLoad
                     anchor = ToData(processor.Anchor),
                     footprint = ToData(processor.Footprint),
                     universalPorts = processor.UniversalPorts,
+                    routingCursor = processor.RoutingCursor,
                     isProcessing = processor.IsProcessing,
                     progress = processor.Progress,
                     capacity = processor.Capacity,
@@ -252,6 +253,10 @@ namespace Choi.SaveLoad
                     Anchor = ToVector(saved.anchor),
                     Footprint = ToVector(saved.footprint),
                     UniversalPorts = saved.universalPorts,
+                    // 분류기/합류기 표시는 machineKey로 다시 유도한다 — 배치 코드(MachineGhostTool)와
+                    // 같은 규칙(RoutingRoles.For). 안 그러면 로드 후 None이 되어 라우팅/포트 표시가 죽는다.
+                    RoutingRole = RoutingRoles.For(saved.machineKey),
+                    RoutingCursor = saved.routingCursor,
                     IsProcessing = saved.isProcessing,
                     Progress = saved.progress,
                     Capacity = saved.capacity,
