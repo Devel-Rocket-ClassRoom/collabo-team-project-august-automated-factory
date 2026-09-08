@@ -50,42 +50,78 @@ namespace Optimization
         {
             if (viewCamera == null || chunkManager == null) return;
 
-            // 1. Raycast to find where the camera is looking on the ground (Y=0)
-            // If the camera is angled, the center of the screen is a better reference than the camera's raw position.
             Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
-            Ray ray = viewCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            Vector3 focusPoint = viewCamera.transform.position;
             
-            if (groundPlane.Raycast(ray, out float enter))
+            // Get screen corners
+            Ray blRay = viewCamera.ViewportPointToRay(new Vector3(0, 0, 0));
+            Ray trRay = viewCamera.ViewportPointToRay(new Vector3(1, 1, 0));
+            Ray brRay = viewCamera.ViewportPointToRay(new Vector3(1, 0, 0));
+            Ray tlRay = viewCamera.ViewportPointToRay(new Vector3(0, 1, 0));
+
+            Vector3[] hitPoints = new Vector3[4];
+            bool hitAny = false;
+
+            if (groundPlane.Raycast(blRay, out float d1)) { hitPoints[0] = blRay.GetPoint(d1); hitAny = true; }
+            if (groundPlane.Raycast(trRay, out float d2)) { hitPoints[1] = trRay.GetPoint(d2); hitAny = true; }
+            if (groundPlane.Raycast(brRay, out float d3)) { hitPoints[2] = brRay.GetPoint(d3); hitAny = true; }
+            if (groundPlane.Raycast(tlRay, out float d4)) { hitPoints[3] = tlRay.GetPoint(d4); hitAny = true; }
+
+            // If looking at the horizon or invalid, fallback to center point
+            if (!hitAny)
             {
-                focusPoint = ray.GetPoint(enter);
+                Ray centerRay = viewCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+                if (groundPlane.Raycast(centerRay, out float centerD))
+                {
+                    hitPoints[0] = centerRay.GetPoint(centerD);
+                    hitPoints[1] = hitPoints[0];
+                    hitPoints[2] = hitPoints[0];
+                    hitPoints[3] = hitPoints[0];
+                }
+                else return;
             }
 
-            // 2. Map offsets
+            float minX = float.MaxValue; float maxX = float.MinValue;
+            float minZ = float.MaxValue; float maxZ = float.MinValue;
+
+            for (int i = 0; i < 4; i++)
+            {
+                // If a corner didn't hit (e.g. looking at sky), skip it, but we handle it by clamping
+                if (hitPoints[i] != Vector3.zero || hitAny) 
+                {
+                    if (hitPoints[i].x < minX) minX = hitPoints[i].x;
+                    if (hitPoints[i].x > maxX) maxX = hitPoints[i].x;
+                    if (hitPoints[i].z < minZ) minZ = hitPoints[i].z;
+                    if (hitPoints[i].z > maxZ) maxZ = hitPoints[i].z;
+                }
+            }
+
+            // Map offsets
             float offsetX = chunkManager.mapWidth * chunkManager.tileSize / 2f;
             float offsetZ = chunkManager.mapLength * chunkManager.tileSize / 2f;
 
-            // 3. Focus position relative to grid origin (0,0 is bottom-left)
-            float localX = focusPoint.x + offsetX;
-            float localZ = focusPoint.z + offsetZ;
+            // Apply offsets to bounds
+            minX += offsetX; maxX += offsetX;
+            minZ += offsetZ; maxZ += offsetZ;
 
-            // 4. Convert to chunk coordinates
+            // Extra padding to prevent seeing the edge when panning fast (add viewRadius as padding)
+            minX -= viewRadius; maxX += viewRadius;
+            minZ -= viewRadius; maxZ += viewRadius;
+
+            // Convert to chunk coordinates
             float chunkWorldSize = chunkManager.chunkSize * chunkManager.tileSize;
-            int currentChunkX = Mathf.FloorToInt(localX / chunkWorldSize);
-            int currentChunkZ = Mathf.FloorToInt(localZ / chunkWorldSize);
-
-            int chunksVisibleInRadius = Mathf.CeilToInt(viewRadius / chunkWorldSize);
+            
+            int startChunkX = Mathf.FloorToInt(minX / chunkWorldSize);
+            int endChunkX = Mathf.FloorToInt(maxX / chunkWorldSize);
+            int startChunkZ = Mathf.FloorToInt(minZ / chunkWorldSize);
+            int endChunkZ = Mathf.FloorToInt(maxZ / chunkWorldSize);
 
             HashSet<Vector2Int> newVisibleChunks = new HashSet<Vector2Int>();
 
-            for (int x = currentChunkX - chunksVisibleInRadius; x <= currentChunkX + chunksVisibleInRadius; x++)
+            for (int x = startChunkX; x <= endChunkX; x++)
             {
-                for (int z = currentChunkZ - chunksVisibleInRadius; z <= currentChunkZ + chunksVisibleInRadius; z++)
+                for (int z = startChunkZ; z <= endChunkZ; z++)
                 {
-                    Vector2Int chunkCoord = new Vector2Int(x, z);
-                    
-                    // Square culling (반듯한 정사각형 모양 유지)
-                    newVisibleChunks.Add(chunkCoord);
+                    newVisibleChunks.Add(new Vector2Int(x, z));
                 }
             }
 
