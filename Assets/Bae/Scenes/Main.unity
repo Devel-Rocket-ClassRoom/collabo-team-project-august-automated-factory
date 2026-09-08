@@ -3146,109 +3146,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1603784943}
   m_CullTransparentMesh: 1
---- !u!1 &1665077901
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1665077902}
-  - component: {fileID: 1665077906}
-  - component: {fileID: 1665077905}
-  - component: {fileID: 1665077904}
-  - component: {fileID: 1665077903}
-  m_Layer: 0
-  m_Name: FloorManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1665077902
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1665077901}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.02, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1665077903
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1665077901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 046896c155d204348afefb410a65d3a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Bae::Optimization.FloorSystemManager
-  floorPrefab: {fileID: 6065586685817831276, guid: 4fa8d796c41b0314c84fb49010da9f00, type: 3}
-  targetCamera: {fileID: 0}
-  tileSize: 1
-  chunkSize: 16
-  mapWidth: 2500
-  mapLength: 2500
-  globalOffset: {x: 0.5, y: 0, z: 0.5}
-  viewRadius: 30
-  updateInterval: 0.05
-  tilesPerFrame: 150
---- !u!114 &1665077904
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1665077901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5778964699eb7764884b27eb0812011d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Bae::Optimization.FloorViewportCuller
-  viewCamera: {fileID: 0}
-  chunkManager: {fileID: 0}
-  viewRadius: 30
-  updateInterval: 0.05
---- !u!114 &1665077905
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1665077901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b1b72d9646e1c5a4c8939addd91ce933, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Bae::Optimization.FloorChunkManager
-  mapWidth: 2500
-  mapLength: 2500
-  chunkSize: 16
-  tileSize: 1
-  globalOffset: {x: 0.5, y: 0, z: 0.5}
-  tilesPerFrame: 150
---- !u!114 &1665077906
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1665077901}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c698d933413426c4286be491beaea104, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Bae::Optimization.FloorObjectPool
 --- !u!1 &1714820422
 GameObject:
   m_ObjectHideFlags: 0
@@ -4050,6 +3947,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2130735165}
   m_CullTransparentMesh: 1
+--- !u!1001 &3135289892445603895
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515985715351559221, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
+      propertyPath: m_Name
+      value: FloorManager
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -4068,4 +4022,4 @@ SceneRoots:
   - {fileID: 269263567}
   - {fileID: 406838731}
   - {fileID: 1175110620}
-  - {fileID: 1665077902}
+  - {fileID: 3135289892445603895}
