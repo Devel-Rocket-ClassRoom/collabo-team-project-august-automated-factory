@@ -45,22 +45,39 @@ namespace Seo.UI
             rootRt.anchorMin = new Vector2(1f, 0.5f);
             rootRt.anchorMax = new Vector2(1f, 0.5f);
             rootRt.pivot = new Vector2(1f, 0.5f);
-            rootRt.anchoredPosition = new Vector2(-32f, 30f);
-            rootRt.sizeDelta = new Vector2(430f, 590f);
-            root.GetComponent<Image>().color = new Color(0.075f, 0.085f, 0.1f, 0.96f);
+            rootRt.anchoredPosition = new Vector2(-28f, 12f);
+            rootRt.sizeDelta = new Vector2(520f, 620f);
+            SeoUIFactory.ApplyPanel(root.GetComponent<Image>());
 
             var panel = root.AddComponent<MachineInfoPanel>();
-            panel.accentBar = CreateImage(root.transform, "AccentBar", new Vector2(0f, 0f), new Vector2(0f, 1f), Vector2.zero, new Vector2(8f, 0f));
+            panel.accentBar = CreateImage(root.transform, "AccentBar", new Vector2(0f, 0f), new Vector2(0f, 1f), Vector2.zero, new Vector2(7f, 0f));
             panel.accentBar.rectTransform.pivot = new Vector2(0f, 0.5f);
-            panel.titleText = CreateText(root.transform, "Title", new Vector2(24f, -22f), new Vector2(320f, 46f), 30, FontStyle.Bold);
-            panel.statusText = CreateText(root.transform, "Status", new Vector2(24f, -78f), new Vector2(370f, 34f), 20);
-            panel.recipeText = CreateText(root.transform, "Recipe", new Vector2(24f, -128f), new Vector2(370f, 46f), 22, FontStyle.Bold);
-            panel.inputText = CreateText(root.transform, "Input", new Vector2(24f, -188f), new Vector2(180f, 120f), 19);
-            panel.outputText = CreateText(root.transform, "Output", new Vector2(220f, -188f), new Vector2(185f, 120f), 19);
-            panel.progressText = CreateText(root.transform, "Progress", new Vector2(24f, -326f), new Vector2(370f, 32f), 18);
-            panel.portsText = CreateText(root.transform, "Ports", new Vector2(24f, -400f), new Vector2(370f, 74f), 19);
+            panel.titleText = CreateText(root.transform, "Title", new Vector2(26f, -20f), new Vector2(330f, 44f), 30, FontStyle.Bold);
 
-            var progressBackground = CreateImage(root.transform, "ProgressBackground", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -365f), new Vector2(370f, 18f));
+            var statusCard = CreateImage(root.transform, "StatusCard", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-22f, -22f), new Vector2(150f, 40f));
+            statusCard.rectTransform.pivot = new Vector2(1f, 1f);
+            statusCard.color = new Color(0f, 0.46f, 0.58f, 0.72f);
+            panel.statusText = CreateText(statusCard.transform, "Status", Vector2.zero, Vector2.zero, 18, FontStyle.Bold);
+            panel.statusText.rectTransform.anchorMin = Vector2.zero;
+            panel.statusText.rectTransform.anchorMax = Vector2.one;
+            panel.statusText.rectTransform.offsetMin = new Vector2(8f, 2f);
+            panel.statusText.rectTransform.offsetMax = new Vector2(-8f, -2f);
+            panel.statusText.alignment = TextAnchor.MiddleCenter;
+
+            panel.recipeText = CreateText(root.transform, "Recipe", new Vector2(26f, -88f), new Vector2(460f, 44f), 22, FontStyle.Bold);
+
+            var inputCard = CreateImage(root.transform, "InputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -146f), new Vector2(222f, 142f));
+            inputCard.color = new Color(0.02f, 0.16f, 0.24f, 0.94f);
+            panel.inputText = CreateText(inputCard.transform, "Input", new Vector2(16f, -14f), new Vector2(190f, 112f), 19);
+
+            var outputCard = CreateImage(root.transform, "OutputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(268f, -146f), new Vector2(226f, 142f));
+            outputCard.color = new Color(0.2f, 0.1f, 0.03f, 0.94f);
+            panel.outputText = CreateText(outputCard.transform, "Output", new Vector2(16f, -14f), new Vector2(194f, 112f), 19);
+
+            panel.progressText = CreateText(root.transform, "Progress", new Vector2(24f, -310f), new Vector2(470f, 32f), 18, FontStyle.Bold);
+            panel.portsText = CreateText(root.transform, "Ports", new Vector2(24f, -390f), new Vector2(470f, 70f), 18);
+
+            var progressBackground = CreateImage(root.transform, "ProgressBackground", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -350f), new Vector2(470f, 16f));
             progressBackground.color = new Color(1f, 1f, 1f, 0.12f);
             panel.progressFill = CreateImage(progressBackground.transform, "Fill", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var fillRt = panel.progressFill.rectTransform;
@@ -77,7 +94,7 @@ namespace Seo.UI
                 Vector2.zero,
                 new Vector2(1f, 0f),
                 Vector2.zero,
-                new Vector2(0f, 94f));
+                new Vector2(0f, 100f));
             actionFooter.color = new Color(0.035f, 0.045f, 0.06f, 0.98f);
 
             var footerLine = CreateImage(
@@ -93,16 +110,16 @@ namespace Seo.UI
                 actionFooter.transform,
                 "RecipeButton",
                 "레시피 설정",
-                new Vector2(24f, 18f),
-                new Vector2(250f, 58f),
+                new Vector2(24f, 20f),
+                new Vector2(310f, 58f),
                 false,
                 new Color(0.1f, 0.38f, 0.62f, 1f));
             var closeButton = CreateButton(
                 actionFooter.transform,
                 "CloseButton",
                 "닫기",
-                new Vector2(-24f, 18f),
-                new Vector2(112f, 58f),
+                new Vector2(-24f, 20f),
+                new Vector2(132f, 58f),
                 true,
                 new Color(0.38f, 0.16f, 0.18f, 1f));
             closeButton.onClick.AddListener(() => panel.CloseRequested?.Invoke());
@@ -179,7 +196,9 @@ namespace Seo.UI
             textRt.sizeDelta = Vector2.zero;
             text.alignment = TextAnchor.MiddleCenter;
             text.text = label;
-            return go.GetComponent<Button>();
+            var button = go.GetComponent<Button>();
+            SeoUIFactory.ApplyButton(button, backgroundColor);
+            return button;
         }
     }
 }

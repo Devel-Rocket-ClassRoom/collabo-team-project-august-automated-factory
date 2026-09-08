@@ -1,4 +1,5 @@
 using Factory.Building;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,8 +11,15 @@ namespace Seo.UI
         private MachineGhostTool tool;
         private Camera targetCamera;
         private GameObject inputBadge;
+        private GameObject secondInputBadge;
         private GameObject outputBadge;
         private GameObject autoBadge;
+        private readonly List<GameObject> routingBadges = new List<GameObject>();
+
+        private static readonly Vector2Int[] FourDirs =
+        {
+            Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down,
+        };
 
         public void Initialize(MachineGhostTool machineGhostTool)
         {
@@ -26,6 +34,7 @@ namespace Seo.UI
             if (!MachineGhostAdapter.TryRead(tool, out var selection))
             {
                 SetBadgeVisibility(false, false);
+                SetRoutingVisibility(false);
                 return;
             }
 
@@ -35,40 +44,98 @@ namespace Seo.UI
             if (selection.MachineId == "Miner")
             {
                 SetBadgeVisibility(false, true);
+                SetRoutingVisibility(false);
                 SetBadgeTransform(autoBadge, center, 0.005f);
                 return;
             }
 
+            if (selection.MachineId == "Splitter" || selection.MachineId == "Merger")
+            {
+                SetBadgeVisibility(false, false);
+                SetRoutingVisibility(true);
+                bool splitter = selection.MachineId == "Splitter";
+                for (int i = 0; i < FourDirs.Length; i++)
+                {
+                    Vector2Int dir = FourDirs[i];
+                    bool input = splitter ? dir == -selection.Facing : dir != selection.Facing;
+                    SetBadgeLabel(routingBadges[i], input ? "IN" : "OUT", input);
+                    float offset = dir.x != 0 ? bounds.extents.x + 0.22f : bounds.extents.z + 0.22f;
+                    SetBadgeTransform(routingBadges[i], center + new Vector3(dir.x, 0f, dir.y) * offset, 0.0045f);
+                }
+                return;
+            }
+
             SetBadgeVisibility(true, false);
+            SetRoutingVisibility(false);
             Vector3 direction = new Vector3(selection.Facing.x, 0f, selection.Facing.y).normalized;
             float sideOffset = Mathf.Abs(direction.x) > 0.5f
                 ? bounds.extents.x + 0.22f
                 : bounds.extents.z + 0.22f;
 
-            SetBadgeTransform(inputBadge, center - direction * sideOffset, 0.0045f);
+            if (selection.MachineId == "Synthesizer")
+            {
+                secondInputBadge.SetActive(true);
+                Vector3 perpendicular = new Vector3(-direction.z, 0f, direction.x) * (GridHalfCell(bounds, direction));
+                SetBadgeTransform(inputBadge, center - direction * sideOffset - perpendicular, 0.0045f);
+                SetBadgeTransform(secondInputBadge, center - direction * sideOffset + perpendicular, 0.0045f);
+            }
+            else
+            {
+                secondInputBadge.SetActive(false);
+                SetBadgeTransform(inputBadge, center - direction * sideOffset, 0.0045f);
+            }
             SetBadgeTransform(outputBadge, center + direction * sideOffset, 0.0045f);
         }
 
         private void OnDestroy()
         {
             if (inputBadge != null) Destroy(inputBadge);
+            if (secondInputBadge != null) Destroy(secondInputBadge);
             if (outputBadge != null) Destroy(outputBadge);
             if (autoBadge != null) Destroy(autoBadge);
+            for (int i = 0; i < routingBadges.Count; i++) if (routingBadges[i] != null) Destroy(routingBadges[i]);
         }
 
         private void EnsureBadges()
         {
             if (inputBadge == null) inputBadge = CreateBadge("Ghost_IN", "IN", new Color(0.2f, 0.72f, 1f), new Vector2(54f, 30f));
+            if (secondInputBadge == null) secondInputBadge = CreateBadge("Ghost_IN_2", "IN", new Color(0.2f, 0.72f, 1f), new Vector2(54f, 30f));
             if (outputBadge == null) outputBadge = CreateBadge("Ghost_OUT", "OUT", new Color(1f, 0.58f, 0.12f), new Vector2(64f, 30f));
             if (autoBadge == null) autoBadge = CreateBadge("Ghost_AUTO", "AUTO → CORE", new Color(0.95f, 0.72f, 0.15f), new Vector2(130f, 30f));
+            if (routingBadges.Count == 0)
+            {
+                for (int i = 0; i < 4; i++) routingBadges.Add(CreateBadge("Ghost_ROUTE_" + i, "I/O", new Color(0.35f, 0.75f, 1f), new Vector2(62f, 30f)));
+            }
             SetBadgeVisibility(false, false);
+            SetRoutingVisibility(false);
         }
 
         private void SetBadgeVisibility(bool showPorts, bool showAuto)
         {
             if (inputBadge != null) inputBadge.SetActive(showPorts);
+            if (secondInputBadge != null) secondInputBadge.SetActive(false);
             if (outputBadge != null) outputBadge.SetActive(showPorts);
             if (autoBadge != null) autoBadge.SetActive(showAuto);
+        }
+
+        private void SetRoutingVisibility(bool visible)
+        {
+            for (int i = 0; i < routingBadges.Count; i++) routingBadges[i].SetActive(visible);
+        }
+
+        private static void SetBadgeLabel(GameObject badge, string label, bool input)
+        {
+            var text = badge.GetComponentInChildren<Text>();
+            if (text != null) text.text = label;
+            var image = badge.transform.Find("Background")?.GetComponent<Image>();
+            Color color = input ? new Color(0.2f, 0.72f, 1f) : new Color(1f, 0.58f, 0.12f);
+            if (image != null) image.color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.96f);
+        }
+
+        private static float GridHalfCell(Bounds bounds, Vector3 direction)
+        {
+            float width = Mathf.Abs(direction.x) > 0.5f ? bounds.size.z : bounds.size.x;
+            return Mathf.Max(0.2f, width * 0.25f);
         }
 
         private void SetBadgeTransform(GameObject badge, Vector3 position, float scale)

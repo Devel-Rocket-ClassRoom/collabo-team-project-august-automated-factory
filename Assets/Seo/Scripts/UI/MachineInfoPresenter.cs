@@ -40,6 +40,8 @@ namespace Seo.UI
                 case "Smelter": return "제련로";
                 case "Former": return "성형기";
                 case "Synthesizer": return "합성기";
+                case "Splitter": return "분류기";
+                case "Merger": return "합류기";
                 case "Core": return "코어";
                 default: return string.IsNullOrEmpty(machineKey) ? "기계" : machineKey;
             }
@@ -53,6 +55,8 @@ namespace Seo.UI
                 case "Smelter": return new Color(0.85f, 0.2f, 0.14f);
                 case "Former": return new Color(0.25f, 0.72f, 0.78f);
                 case "Synthesizer": return new Color(0.62f, 0.35f, 0.82f);
+                case "Splitter": return new Color(0.96f, 0.72f, 0.16f);
+                case "Merger": return new Color(0.45f, 0.78f, 0.32f);
                 case "Core": return new Color(0.32f, 0.58f, 0.78f);
                 default: return new Color(0.35f, 0.75f, 0.45f);
             }
@@ -108,6 +112,31 @@ namespace Seo.UI
                     "저장 용량 " + Sum(processor.InputBuffer) + " / " + processor.Capacity,
                     "상·하·좌·우 4방향 공용 입출력 포트",
                     (float)Sum(processor.InputBuffer) / Mathf.Max(1, processor.Capacity),
+                    false,
+                    accent);
+                return true;
+            }
+
+            // 분류기/합류기는 레시피 기계가 아니라 물류 노드다. 일반 프로세서 분기로 보내면
+            // "레시피를 선택하세요"와 빈 레시피 창이 노출되므로 전용 상태로 표현한다.
+            if (processor.RoutingRole != RoutingRole.None)
+            {
+                bool splitter = processor.RoutingRole == RoutingRole.Splitter;
+                CountConnections(world, index, out int inputs, out int outputs);
+                string buffered = FormatNonZeroBuffer(db, processor.InputBuffer);
+                string portRule = splitter
+                    ? $"뒤쪽 입력 1 · 나머지 3방향 출력  |  연결 {inputs} IN / {outputs} OUT"
+                    : $"앞쪽 출력 1 · 나머지 3방향 입력  |  연결 {inputs} IN / {outputs} OUT";
+
+                data = new MachineInfoViewData(
+                    title,
+                    splitter ? "균등 분배 중" : "물류 합류 중",
+                    splitter ? "입력 자원을 출력 벨트에 순서대로 분배" : "여러 입력 벨트를 하나로 병합",
+                    "대기 자원\n" + buffered,
+                    splitter ? "출력\n최대 3개 벨트" : "출력\n1개 벨트",
+                    $"연결 상태  {inputs + outputs} / 4",
+                    portRule,
+                    (inputs + outputs) / 4f,
                     false,
                     accent);
                 return true;
@@ -221,6 +250,19 @@ namespace Seo.UI
             int total = 0;
             for (int i = 0; i < values.Length; i++) total += values[i];
             return total;
+        }
+
+        private static void CountConnections(SimulationWorld world, int processorIndex, out int inputs, out int outputs)
+        {
+            inputs = 0;
+            outputs = 0;
+            for (int i = 0; i < world.Segments.Count; i++)
+            {
+                var segment = world.Segments[i];
+                if (segment == null) continue;
+                if (segment.TargetProcessorId == processorIndex) inputs++;
+                if (segment.SourceProcessorId == processorIndex) outputs++;
+            }
         }
     }
 }
