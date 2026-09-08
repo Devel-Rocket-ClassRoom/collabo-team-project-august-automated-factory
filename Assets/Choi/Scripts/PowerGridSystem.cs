@@ -12,6 +12,7 @@ namespace Choi.SaveLoad
         Generator = 0,
         Cable = 1,
         TransmissionTower = 2,
+        Junction = 3,
     }
 
     public sealed class PowerNodeRuntime
@@ -19,6 +20,14 @@ namespace Choi.SaveLoad
         public int Id;
         public PowerNodeKind Kind;
         public Vector2Int Cell;
+    }
+
+    public sealed class PowerConnectionRuntime
+    {
+        public int Id;
+        public int FromNodeId;
+        public int ToNodeId;
+        public List<Vector2Int> Path = new List<Vector2Int>();
     }
 
     /// <summary>
@@ -30,14 +39,9 @@ namespace Choi.SaveLoad
     {
         public const int GeneratorOutput = 120;
 
-        private static readonly Vector2Int[] Directions =
-        {
-            new Vector2Int(1, 0), new Vector2Int(-1, 0),
-            new Vector2Int(0, 1), new Vector2Int(0, -1),
-        };
-
         private readonly List<PowerNodeRuntime> nodes = new List<PowerNodeRuntime>();
         private readonly Dictionary<Vector2Int, PowerNodeRuntime> nodeByCell = new Dictionary<Vector2Int, PowerNodeRuntime>();
+        private readonly List<PowerConnectionRuntime> connections = new List<PowerConnectionRuntime>();
         private readonly Dictionary<MinerInstance, float> minerBaseSpeed = new Dictionary<MinerInstance, float>();
         private readonly Dictionary<ProcessorInstance, float> processorBaseSpeed = new Dictionary<ProcessorInstance, float>();
         private readonly Dictionary<ProcessorInstance, int> processorDesiredRecipe = new Dictionary<ProcessorInstance, int>();
@@ -46,8 +50,10 @@ namespace Choi.SaveLoad
         private SimulationDriver driver;
         private float evaluationTimer;
         private int nextNodeId;
+        private int nextConnectionId;
 
         public IReadOnlyList<PowerNodeRuntime> Nodes => nodes;
+        public IReadOnlyList<PowerConnectionRuntime> Connections => connections;
         public int AvailablePower { get; private set; }
         public int RequestedPower { get; private set; }
         public int UsedPower { get; private set; }
@@ -70,7 +76,7 @@ namespace Choi.SaveLoad
 
         public bool TryAddNode(PowerNodeKind kind, Vector2Int cell)
         {
-            if (nodeByCell.ContainsKey(cell)) return false;
+            if (kind == PowerNodeKind.Cable || nodeByCell.ContainsKey(cell)) return false;
 
             var node = new PowerNodeRuntime { Id = nextNodeId++, Kind = kind, Cell = cell };
             nodes.Add(node);
@@ -79,26 +85,172 @@ namespace Choi.SaveLoad
             return true;
         }
 
+        public bool TryGetNode(Vector2Int cell, out PowerNodeRuntime node)
+        {
+            return nodeByCell.TryGetValue(cell, out node);
+        }
+
+        public bool TryAddConnection(PowerNodeRuntime from, PowerNodeRuntime to, List<Vector2Int> path)
+        {
+            if (from == null || to == null
+                || !nodes.Contains(from) || !nodes.Contains(to)
+                || to.Kind == PowerNodeKind.Cable
+                || from.Kind == PowerNodeKind.Cable
+                || from.Id == to.Id) return false;
+
+            for (int i = 0; i < connections.Count; i++)
+            {
+                PowerConnectionRuntime connection = connections[i];
+                if ((connection.FromNodeId == from.Id && connection.ToNodeId == to.Id)
+                    || (connection.FromNodeId == to.Id && connection.ToNodeId == from.Id)) return false;
+            }
+
+            connections.Add(new PowerConnectionRuntime
+            {
+                Id = nextConnectionId++,
+                FromNodeId = from.Id,
+                ToNodeId = to.Id,
+                Path = NormalizePath(path, from.Cell, to.Cell),
+            });
+            evaluationTimer = 0f;
+            return true;
+        }
+
+        public bool TryResolveConnectionPoint(Vector2Int cell, out PowerNodeRuntime node)
+        {
+            if (nodeByCell.TryGetValue(cell, out node) && node.Kind != PowerNodeKind.Cable) return true;
+
+            for (int i = connections.Count - 1; i >= 0; i--)
+            {
+                if (!TryFindPathSegment(connections[i].Path, cell, out int segmentIndex)) continue;
+                node = CreateJunctionAndSplit(i, segmentIndex, cell);
+                return node != null;
+            }
+
+            node = null;
+            return false;
+        }
+
+        private PowerNodeRuntime CreateJunctionAndSplit(int connectionIndex, int segmentIndex, Vector2Int cell)
+        {
+            PowerConnectionRuntime original = connections[connectionIndex];
+            PowerNodeRuntime from = FindNodeById(original.FromNodeId);
+            PowerNodeRuntime to = FindNodeById(original.ToNodeId);
+            if (from == null || to == null) return null;
+            if (cell == from.Cell) return from;
+            if (cell == to.Cell) return to;
+
+            var junction = new PowerNodeRuntime
+            {
+                Id = nextNodeId++,
+                Kind = PowerNodeKind.Junction,
+                Cell = cell,
+            };
+            nodes.Add(junction);
+            nodeByCell[cell] = junction;
+
+            List<Vector2Int> fullPath = new List<Vector2Int>(original.Path);
+            if (fullPath[segmentIndex] != cell && fullPath[segmentIndex + 1] != cell)
+                fullPath.Insert(segmentIndex + 1, cell);
+            int splitIndex = fullPath.IndexOf(cell);
+            List<Vector2Int> firstPath = fullPath.GetRange(0, splitIndex + 1);
+            List<Vector2Int> secondPath = fullPath.GetRange(splitIndex, fullPath.Count - splitIndex);
+
+            connections.RemoveAt(connectionIndex);
+            connections.Add(new PowerConnectionRuntime
+            {
+                Id = nextConnectionId++, FromNodeId = from.Id, ToNodeId = junction.Id, Path = firstPath,
+            });
+            connections.Add(new PowerConnectionRuntime
+            {
+                Id = nextConnectionId++, FromNodeId = junction.Id, ToNodeId = to.Id, Path = secondPath,
+            });
+            evaluationTimer = 0f;
+            return junction;
+        }
+
         public bool RemoveNode(Vector2Int cell)
         {
             if (!nodeByCell.TryGetValue(cell, out PowerNodeRuntime node)) return false;
             nodeByCell.Remove(cell);
             nodes.Remove(node);
+            connections.RemoveAll(connection => connection.FromNodeId == node.Id || connection.ToNodeId == node.Id);
             evaluationTimer = 0f;
             return true;
+        }
+
+        public bool RemoveConnectionAt(Vector2Int cell)
+        {
+            for (int i = connections.Count - 1; i >= 0; i--)
+            {
+                if (!TryFindPathSegment(connections[i].Path, cell, out _)) continue;
+                connections.RemoveAt(i);
+                RemoveUnusedJunctions();
+                evaluationTimer = 0f;
+                return true;
+            }
+            return false;
+        }
+
+        private static bool TryFindPathSegment(List<Vector2Int> path, Vector2Int cell, out int segmentIndex)
+        {
+            if (path != null)
+            {
+                for (int i = 0; i < path.Count - 1; i++)
+                {
+                    Vector2Int from = path[i];
+                    Vector2Int to = path[i + 1];
+                    long segmentX = to.x - from.x;
+                    long segmentY = to.y - from.y;
+                    long pointX = cell.x - from.x;
+                    long pointY = cell.y - from.y;
+                    bool onLine = segmentX * pointY == segmentY * pointX;
+                    bool inBounds = cell.x >= Mathf.Min(from.x, to.x) && cell.x <= Mathf.Max(from.x, to.x)
+                        && cell.y >= Mathf.Min(from.y, to.y) && cell.y <= Mathf.Max(from.y, to.y);
+                    if (onLine && inBounds)
+                    {
+                        segmentIndex = i;
+                        return true;
+                    }
+                }
+            }
+            segmentIndex = -1;
+            return false;
+        }
+
+        private void RemoveUnusedJunctions()
+        {
+            for (int i = nodes.Count - 1; i >= 0; i--)
+            {
+                PowerNodeRuntime node = nodes[i];
+                if (node.Kind != PowerNodeKind.Junction || HasConnection(node.Id)) continue;
+                nodeByCell.Remove(node.Cell);
+                nodes.RemoveAt(i);
+            }
+        }
+
+        private static List<Vector2Int> NormalizePath(List<Vector2Int> requested, Vector2Int from, Vector2Int to)
+        {
+            var result = requested == null ? new List<Vector2Int>() : new List<Vector2Int>(requested);
+            if (result.Count == 0 || result[0] != from) result.Insert(0, from);
+            if (result[result.Count - 1] != to) result.Add(to);
+            return result;
         }
 
         public void ReplaceNodes(List<PowerNodeData> savedNodes)
         {
             nodes.Clear();
             nodeByCell.Clear();
+            connections.Clear();
             nextNodeId = 0;
+            nextConnectionId = 0;
 
             if (savedNodes != null)
             {
                 for (int i = 0; i < savedNodes.Count; i++)
                 {
                     PowerNodeData saved = savedNodes[i];
+                    if ((PowerNodeKind)saved.kind == PowerNodeKind.Cable) continue;
                     var cell = new Vector2Int(saved.cell.x, saved.cell.y);
                     if (nodeByCell.ContainsKey(cell)) continue;
 
@@ -117,6 +269,28 @@ namespace Choi.SaveLoad
             evaluationTimer = 0f;
         }
 
+        public void ReplaceConnections(List<PowerConnectionData> savedConnections)
+        {
+            connections.Clear();
+            nextConnectionId = 0;
+            if (savedConnections == null) return;
+
+            for (int i = 0; i < savedConnections.Count; i++)
+            {
+                PowerConnectionData saved = savedConnections[i];
+                if (saved == null || FindNodeById(saved.fromNodeId) == null || FindNodeById(saved.toNodeId) == null) continue;
+                connections.Add(new PowerConnectionRuntime
+                {
+                    Id = saved.id,
+                    FromNodeId = saved.fromNodeId,
+                    ToNodeId = saved.toNodeId,
+                    Path = RestorePath(saved.path, saved.fromNodeId, saved.toNodeId),
+                });
+                nextConnectionId = Mathf.Max(nextConnectionId, saved.id + 1);
+            }
+            evaluationTimer = 0f;
+        }
+
         public List<PowerNodeData> CaptureNodes()
         {
             var result = new List<PowerNodeData>(nodes.Count);
@@ -130,6 +304,51 @@ namespace Choi.SaveLoad
                 });
             }
             return result;
+        }
+
+        public List<PowerConnectionData> CaptureConnections()
+        {
+            var result = new List<PowerConnectionData>(connections.Count);
+            for (int i = 0; i < connections.Count; i++)
+            {
+                result.Add(new PowerConnectionData
+                {
+                    id = connections[i].Id,
+                    fromNodeId = connections[i].FromNodeId,
+                    toNodeId = connections[i].ToNodeId,
+                    path = CapturePath(connections[i].Path),
+                });
+            }
+            return result;
+        }
+
+        private List<Vector2Int> RestorePath(List<Int2Data> savedPath, int fromNodeId, int toNodeId)
+        {
+            var path = new List<Vector2Int>();
+            if (savedPath != null)
+            {
+                for (int i = 0; i < savedPath.Count; i++) path.Add(new Vector2Int(savedPath[i].x, savedPath[i].y));
+            }
+            PowerNodeRuntime from = FindNodeById(fromNodeId);
+            PowerNodeRuntime to = FindNodeById(toNodeId);
+            return from != null && to != null ? NormalizePath(path, from.Cell, to.Cell) : path;
+        }
+
+        private static List<Int2Data> CapturePath(List<Vector2Int> path)
+        {
+            var result = new List<Int2Data>();
+            if (path == null) return result;
+            for (int i = 0; i < path.Count; i++) result.Add(new Int2Data(path[i].x, path[i].y));
+            return result;
+        }
+
+        public PowerNodeRuntime FindNodeById(int id)
+        {
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                if (nodes[i].Id == id) return nodes[i];
+            }
+            return null;
         }
 
         public float GetBaseSpeed(MinerInstance miner)
@@ -173,7 +392,7 @@ namespace Choi.SaveLoad
             if (driver == null) driver = FindAnyObjectByType<SimulationDriver>();
             if (driver == null || driver.World == null) return;
 
-            BuildComponents(out Dictionary<Vector2Int, int> componentByCell, out List<int> remainingByComponent);
+            BuildComponents(out Dictionary<int, int> componentByNodeId, out List<int> remainingByComponent);
             AvailablePower = 0;
             for (int i = 0; i < remainingByComponent.Count; i++) AvailablePower += remainingByComponent[i];
 
@@ -181,7 +400,7 @@ namespace Choi.SaveLoad
             UsedPower = 0;
             PoweredMachineCount = 0;
             TotalMachineCount = 0;
-            ActiveTowerCount = CountActiveTowers(componentByCell, remainingByComponent);
+            ActiveTowerCount = CountActiveTowers(componentByNodeId, remainingByComponent);
             var liveIndicatorKeys = new HashSet<string>();
             Dictionary<(CellOccupantType type, int index), Vector2Int> cells = ScanOccupants(driver.World);
 
@@ -198,7 +417,7 @@ namespace Choi.SaveLoad
                 if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
                 else cells.TryGetValue((CellOccupantType.Miner, i), out anchor);
                 int component = FindSupplyingTowerComponent(anchor, Vector2Int.one, demand,
-                    componentByCell, remainingByComponent);
+                    componentByNodeId, remainingByComponent);
                 bool powered = TryConsumePower(component, demand, remainingByComponent);
                 miner.SpeedMultiplier = powered ? minerBaseSpeed[miner] : 0f;
                 AccumulateMachineStatus(CellOccupantType.Miner, i, demand, powered, anchor, Vector2Int.one, liveIndicatorKeys);
@@ -224,7 +443,7 @@ namespace Choi.SaveLoad
                 string machineKey = driver.World.Database.Machines[processor.MachineId].Key;
                 int demand = GetPowerConsumption(machineKey);
                 int component = FindSupplyingTowerComponent(processor.Anchor, processor.Footprint, demand,
-                    componentByCell, remainingByComponent);
+                    componentByNodeId, remainingByComponent);
                 bool powered = TryConsumePower(component, demand, remainingByComponent);
                 processor.SpeedMultiplier = powered ? processorBaseSpeed[processor] : 0f;
                 processor.RecipeId = powered ? desiredRecipe : -1;
@@ -234,36 +453,47 @@ namespace Choi.SaveLoad
             RemoveDeadIndicators(liveIndicatorKeys);
         }
 
-        private void BuildComponents(out Dictionary<Vector2Int, int> componentByCell, out List<int> capacityByComponent)
+        private void BuildComponents(out Dictionary<int, int> componentByNodeId, out List<int> capacityByComponent)
         {
-            componentByCell = new Dictionary<Vector2Int, int>();
+            componentByNodeId = new Dictionary<int, int>();
             capacityByComponent = new List<int>();
+            var neighbors = new Dictionary<int, List<int>>();
+
+            for (int i = 0; i < nodes.Count; i++) neighbors[nodes[i].Id] = new List<int>();
+            for (int i = 0; i < connections.Count; i++)
+            {
+                PowerConnectionRuntime connection = connections[i];
+                if (!neighbors.TryGetValue(connection.FromNodeId, out List<int> fromNeighbors)
+                    || !neighbors.TryGetValue(connection.ToNodeId, out List<int> toNeighbors)) continue;
+                fromNeighbors.Add(connection.ToNodeId);
+                toNeighbors.Add(connection.FromNodeId);
+            }
 
             for (int i = 0; i < nodes.Count; i++)
             {
-                Vector2Int start = nodes[i].Cell;
-                if (componentByCell.ContainsKey(start)) continue;
+                int start = nodes[i].Id;
+                if (componentByNodeId.ContainsKey(start)) continue;
 
                 int component = capacityByComponent.Count;
                 int capacity = 0;
-                var queue = new Queue<Vector2Int>();
+                var queue = new Queue<int>();
                 queue.Enqueue(start);
-                componentByCell[start] = component;
+                componentByNodeId[start] = component;
 
                 while (queue.Count > 0)
                 {
-                    Vector2Int cell = queue.Dequeue();
-                    PowerNodeRuntime node = nodeByCell[cell];
+                    int nodeId = queue.Dequeue();
+                    PowerNodeRuntime node = FindNodeById(nodeId);
+                    if (node == null) continue;
                     if (node.Kind == PowerNodeKind.Generator) capacity += GeneratorOutput;
 
-                    for (int d = 0; d < Directions.Length; d++)
+                    List<int> adjacent = neighbors[nodeId];
+                    for (int d = 0; d < adjacent.Count; d++)
                     {
-                        Vector2Int neighbor = cell + Directions[d];
-                        if (!nodeByCell.TryGetValue(neighbor, out PowerNodeRuntime neighborNode)
-                            || componentByCell.ContainsKey(neighbor)
-                            || (node.Kind != PowerNodeKind.Cable && neighborNode.Kind != PowerNodeKind.Cable)) continue;
-                        componentByCell[neighbor] = component;
-                        queue.Enqueue(neighbor);
+                        int neighborId = adjacent[d];
+                        if (componentByNodeId.ContainsKey(neighborId)) continue;
+                        componentByNodeId[neighborId] = component;
+                        queue.Enqueue(neighborId);
                     }
                 }
 
@@ -272,16 +502,16 @@ namespace Choi.SaveLoad
         }
 
         private int FindSupplyingTowerComponent(Vector2Int anchor, Vector2Int footprint, int demand,
-            Dictionary<Vector2Int, int> componentByCell, List<int> capacityByComponent)
+            Dictionary<int, int> componentByNodeId, List<int> capacityByComponent)
         {
             for (int n = 0; n < nodes.Count; n++)
             {
                 PowerNodeRuntime tower = nodes[n];
                 if (tower.Kind != PowerNodeKind.TransmissionTower
-                    || !componentByCell.TryGetValue(tower.Cell, out int component)
+                    || !componentByNodeId.TryGetValue(tower.Id, out int component)
                     || component < 0 || component >= capacityByComponent.Count
                     || capacityByComponent[component] < demand
-                    || !HasAdjacentCable(tower.Cell, component, componentByCell))
+                    || !HasConnection(tower.Id))
                 {
                     continue;
                 }
@@ -299,32 +529,27 @@ namespace Choi.SaveLoad
             return -1;
         }
 
-        private int CountActiveTowers(Dictionary<Vector2Int, int> componentByCell, List<int> capacityByComponent)
+        private int CountActiveTowers(Dictionary<int, int> componentByNodeId, List<int> capacityByComponent)
         {
             int count = 0;
             for (int i = 0; i < nodes.Count; i++)
             {
                 PowerNodeRuntime tower = nodes[i];
                 if (tower.Kind != PowerNodeKind.TransmissionTower
-                    || !componentByCell.TryGetValue(tower.Cell, out int component)
+                    || !componentByNodeId.TryGetValue(tower.Id, out int component)
                     || component < 0 || component >= capacityByComponent.Count
                     || capacityByComponent[component] <= 0
-                    || !HasAdjacentCable(tower.Cell, component, componentByCell)) continue;
+                    || !HasConnection(tower.Id)) continue;
                 count++;
             }
             return count;
         }
 
-        private bool HasAdjacentCable(Vector2Int towerCell, int component,
-            Dictionary<Vector2Int, int> componentByCell)
+        private bool HasConnection(int nodeId)
         {
-            for (int i = 0; i < Directions.Length; i++)
+            for (int i = 0; i < connections.Count; i++)
             {
-                Vector2Int neighbor = towerCell + Directions[i];
-                if (nodeByCell.TryGetValue(neighbor, out PowerNodeRuntime node)
-                    && node.Kind == PowerNodeKind.Cable
-                    && componentByCell.TryGetValue(neighbor, out int neighborComponent)
-                    && neighborComponent == component) return true;
+                if (connections[i].FromNodeId == nodeId || connections[i].ToNodeId == nodeId) return true;
             }
             return false;
         }
