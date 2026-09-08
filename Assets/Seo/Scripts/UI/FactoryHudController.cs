@@ -128,6 +128,7 @@ namespace Seo.UI
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             powerText.rectTransform.offsetMin = new Vector2(22f, 12f);
             powerText.rectTransform.offsetMax = new Vector2(-22f, -12f);
+            powerText.supportRichText = true;
 
             var toastPanel = SeoUIFactory.CreatePanel(safeRoot, "SeoToast", new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f), new Vector2(0f, -32f), new Vector2(460f, 52f),
@@ -319,8 +320,16 @@ namespace Seo.UI
             }
 
             bool shortage = grid.RequestedPower > grid.AvailablePower;
-            powerText.color = shortage ? SeoUITheme.Current.Warning : SeoUITheme.Current.Text;
-            powerText.text = $"POWER  {grid.UsedPower} / {grid.AvailablePower} MW\n가동 기계  {grid.PoweredMachineCount} / {grid.TotalMachineCount}";
+            const string warningColor = "#FF3028";
+            string warningLight = shortage ? $"<color={warningColor}>●</color>" : "<color=#5CD99A>●</color>";
+            string powerAmount = shortage
+                ? $"<color={warningColor}>{grid.RequestedPower} / {grid.AvailablePower}</color>"
+                : $"{grid.RequestedPower} / {grid.AvailablePower}";
+
+            powerText.color = SeoUITheme.Current.Text;
+            powerText.text =
+                $"{warningLight} POWER  {powerAmount} MW\n" +
+                $"가동 기계  {grid.PoweredMachineCount} / {grid.TotalMachineCount}";
         }
 
         private void DecorateRecipePanel()
