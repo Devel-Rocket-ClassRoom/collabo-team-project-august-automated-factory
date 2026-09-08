@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 namespace Choi.SaveLoad
 {
-    /// <summary>발전기/전선/송신탑 배치와 공장 전체 SAVE/LOAD를 확인하는 런타임 패널입니다.</summary>
+    /// <summary>발전기/전선/송전탑 배치와 공장 전체 SAVE/LOAD를 확인하는 런타임 패널입니다.</summary>
     public sealed class FactoryPowerPanel : MonoBehaviour
     {
         private PowerSaveManager saveManager;
@@ -46,7 +46,7 @@ namespace Choi.SaveLoad
                 : powerGrid.RequestedPower.ToString();
             statusText.text =
                 $"총 전력량 {powerGrid.AvailablePower} / 사용 전력량 {usedPower}\n" +
-                $"가동 기계 {powerGrid.PoweredMachineCount}/{powerGrid.TotalMachineCount} · 작동 송신탑 {powerGrid.ActiveTowerCount}\n" +
+                $"가동 기계 {powerGrid.PoweredMachineCount}/{powerGrid.TotalMachineCount} · 작동 송전탑 {powerGrid.ActiveTowerCount}\n" +
                 $"모드: {ModeLabel(powerBuild.Mode)} · {powerBuild.LastMessage}\n{saveMessage}";
         }
 
@@ -84,7 +84,7 @@ namespace Choi.SaveLoad
                 () => powerBuild.SetMode(PowerBuildMode.Generator));
             CreateButton(panel.transform, "CableButton", "전선 배치", new Vector2(88f, -160f),
                 () => powerBuild.SetMode(PowerBuildMode.Cable));
-            CreateButton(panel.transform, "TowerButton", "송신탑 배치", new Vector2(-88f, -208f),
+            CreateButton(panel.transform, "TowerButton", "송전탑 배치", new Vector2(-88f, -208f),
                 () => powerBuild.SetMode(PowerBuildMode.TransmissionTower));
             CreateButton(panel.transform, "RemovePowerButton", "전력 철거", new Vector2(88f, -208f),
                 () => powerBuild.SetMode(PowerBuildMode.Remove));
@@ -166,7 +166,7 @@ namespace Choi.SaveLoad
             {
                 case PowerBuildMode.Generator: return "발전기";
                 case PowerBuildMode.Cable: return "전선";
-                case PowerBuildMode.TransmissionTower: return "송신탑";
+                case PowerBuildMode.TransmissionTower: return "송전탑";
                 case PowerBuildMode.Remove: return "전력 철거";
                 default: return "없음";
             }
