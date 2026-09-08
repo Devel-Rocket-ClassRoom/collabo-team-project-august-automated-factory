@@ -60,6 +60,7 @@ namespace Choi.SaveLoad
         public int PoweredMachineCount { get; private set; }
         public int TotalMachineCount { get; private set; }
         public int ActiveTowerCount { get; private set; }
+        public bool IsBlackout { get; private set; }
 
         private void Awake()
         {
@@ -96,6 +97,7 @@ namespace Choi.SaveLoad
                 || !nodes.Contains(from) || !nodes.Contains(to)
                 || to.Kind == PowerNodeKind.Cable
                 || from.Kind == PowerNodeKind.Cable
+                || !CanConnect(from, to)
                 || from.Id == to.Id) return false;
 
             for (int i = 0; i < connections.Count; i++)
@@ -114,6 +116,30 @@ namespace Choi.SaveLoad
             });
             evaluationTimer = 0f;
             return true;
+        }
+
+        public bool CanConnect(PowerNodeRuntime from, PowerNodeRuntime to)
+        {
+            if (from == null || to == null || from.Id == to.Id) return false;
+            PowerNodeRuntime tower = from.Kind == PowerNodeKind.TransmissionTower ? from
+                : to.Kind == PowerNodeKind.TransmissionTower ? to : null;
+            PowerNodeRuntime generator = from.Kind == PowerNodeKind.Generator ? from
+                : to.Kind == PowerNodeKind.Generator ? to : null;
+            return tower == null || generator == null || !HasDirectGeneratorConnection(tower.Id);
+        }
+
+        private bool HasDirectGeneratorConnection(int towerId)
+        {
+            for (int i = 0; i < connections.Count; i++)
+            {
+                PowerConnectionRuntime connection = connections[i];
+                int otherId = connection.FromNodeId == towerId ? connection.ToNodeId
+                    : connection.ToNodeId == towerId ? connection.FromNodeId : -1;
+                if (otherId < 0) continue;
+                PowerNodeRuntime other = FindNodeById(otherId);
+                if (other != null && other.Kind == PowerNodeKind.Generator) return true;
+            }
+            return false;
         }
 
         public bool TryResolveConnectionPoint(Vector2Int cell, out PowerNodeRuntime node)
@@ -278,7 +304,11 @@ namespace Choi.SaveLoad
             for (int i = 0; i < savedConnections.Count; i++)
             {
                 PowerConnectionData saved = savedConnections[i];
-                if (saved == null || FindNodeById(saved.fromNodeId) == null || FindNodeById(saved.toNodeId) == null) continue;
+                if (saved == null) continue;
+                PowerNodeRuntime from = FindNodeById(saved.fromNodeId);
+                PowerNodeRuntime to = FindNodeById(saved.toNodeId);
+                if (from == null || to == null
+                    || !CanConnect(from, to)) continue;
                 connections.Add(new PowerConnectionRuntime
                 {
                     Id = saved.id,
@@ -395,6 +425,8 @@ namespace Choi.SaveLoad
             BuildComponents(out Dictionary<int, int> componentByNodeId, out List<int> remainingByComponent);
             AvailablePower = 0;
             for (int i = 0; i < remainingByComponent.Count; i++) AvailablePower += remainingByComponent[i];
+            int ratedCapacity = AvailablePower;
+            IsBlackout = false;
 
             RequestedPower = 0;
             UsedPower = 0;
@@ -450,7 +482,41 @@ namespace Choi.SaveLoad
                 AccumulateMachineStatus(CellOccupantType.Processor, i, demand, powered, processor.Anchor, processor.Footprint, liveIndicatorKeys);
             }
 
+            if (RequestedPower > ratedCapacity)
+            {
+                TriggerGlobalBlackout(liveIndicatorKeys);
+            }
+
             RemoveDeadIndicators(liveIndicatorKeys);
+        }
+
+        private void TriggerGlobalBlackout(HashSet<string> liveIndicatorKeys)
+        {
+            IsBlackout = true;
+            UsedPower = 0;
+            PoweredMachineCount = 0;
+            ActiveTowerCount = 0;
+
+            for (int i = 0; i < driver.World.Miners.Count; i++)
+            {
+                MinerInstance miner = driver.World.Miners[i];
+                if (miner != null) miner.SpeedMultiplier = 0f;
+            }
+
+            for (int i = 0; i < driver.World.Processors.Count; i++)
+            {
+                ProcessorInstance processor = driver.World.Processors[i];
+                if (processor == null || processor.UniversalPorts) continue;
+                processor.SpeedMultiplier = 0f;
+                processor.RecipeId = -1;
+            }
+
+            foreach (string key in liveIndicatorKeys)
+            {
+                if (!indicators.TryGetValue(key, out GameObject indicator) || indicator == null) continue;
+                indicator.name = key + "_OFF";
+                BuildVisuals.Colorize(indicator, new Color(1f, 0.12f, 0.08f));
+            }
         }
 
         private void BuildComponents(out Dictionary<int, int> componentByNodeId, out List<int> capacityByComponent)

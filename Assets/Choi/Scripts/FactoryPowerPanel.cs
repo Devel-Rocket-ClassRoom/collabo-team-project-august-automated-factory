@@ -10,6 +10,8 @@ namespace Choi.SaveLoad
         private PowerGridSystem powerGrid;
         private PowerBuildController powerBuild;
         private Text statusText;
+        private Image overloadLight;
+        private Text overloadLabel;
         private GameObject panelObject;
         private Text toggleLabel;
         private string saveMessage = "저장 준비됨";
@@ -25,8 +27,25 @@ namespace Choi.SaveLoad
         private void Update()
         {
             if (statusText == null || powerGrid == null || powerBuild == null) return;
+            bool overloaded = powerGrid.IsBlackout;
+            if (overloadLight != null)
+            {
+                float pulse = overloaded ? 0.65f + Mathf.PingPong(Time.unscaledTime * 0.7f, 0.35f) : 0.22f;
+                overloadLight.color = overloaded
+                    ? new Color(1f, 0.08f, 0.04f, pulse)
+                    : new Color(0.18f, 0.3f, 0.34f, 0.65f);
+            }
+            if (overloadLabel != null)
+            {
+                overloadLabel.text = overloaded ? "OVERLOAD" : "NORMAL";
+                overloadLabel.color = overloaded ? new Color(1f, 0.18f, 0.12f) : new Color(0.45f, 0.9f, 0.65f);
+            }
+
+            string usedPower = overloaded
+                ? $"<color=#FF3028>{powerGrid.RequestedPower}</color>"
+                : powerGrid.RequestedPower.ToString();
             statusText.text =
-                $"발전 {powerGrid.AvailablePower} / 사용 {powerGrid.UsedPower} / 요구 {powerGrid.RequestedPower}\n" +
+                $"총 전력량 {powerGrid.AvailablePower} / 사용 전력량 {usedPower}\n" +
                 $"가동 기계 {powerGrid.PoweredMachineCount}/{powerGrid.TotalMachineCount} · 작동 송신탑 {powerGrid.ActiveTowerCount}\n" +
                 $"모드: {ModeLabel(powerBuild.Mode)} · {powerBuild.LastMessage}\n{saveMessage}";
         }
@@ -57,7 +76,9 @@ namespace Choi.SaveLoad
             panel.GetComponent<Image>().color = new Color(0.035f, 0.07f, 0.11f, 0.94f);
 
             CreateText(panel.transform, "Title", "POWER & FACTORY SAVE", new Vector2(0f, -15f), new Vector2(330f, 35f), 23);
+            CreateOverloadIndicator(panel.transform);
             statusText = CreateText(panel.transform, "Status", string.Empty, new Vector2(0f, -52f), new Vector2(330f, 100f), 17);
+            statusText.supportRichText = true;
 
             CreateButton(panel.transform, "GeneratorButton", "발전기 배치", new Vector2(-88f, -160f),
                 () => powerBuild.SetMode(PowerBuildMode.Generator));
@@ -72,6 +93,23 @@ namespace Choi.SaveLoad
             CreateButton(panel.transform, "SaveFactoryButton", "SAVE", new Vector2(-88f, -316f), SaveFactory);
             CreateButton(panel.transform, "LoadFactoryButton", "LOAD", new Vector2(88f, -316f), LoadFactory);
             CreatePanelToggle(canvas.transform);
+        }
+
+        private void CreateOverloadIndicator(Transform parent)
+        {
+            var lightObject = new GameObject("OverloadLight", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            lightObject.transform.SetParent(parent, false);
+            RectTransform lightRect = lightObject.GetComponent<RectTransform>();
+            lightRect.anchorMin = new Vector2(0.5f, 1f);
+            lightRect.anchorMax = new Vector2(0.5f, 1f);
+            lightRect.pivot = new Vector2(0.5f, 0.5f);
+            lightRect.anchoredPosition = new Vector2(-57f, -45f);
+            lightRect.sizeDelta = new Vector2(16f, 16f);
+            overloadLight = lightObject.GetComponent<Image>();
+            overloadLight.raycastTarget = false;
+
+            overloadLabel = CreateText(parent, "OverloadLabel", "NORMAL", new Vector2(14f, -34f), new Vector2(105f, 24f), 14);
+            overloadLabel.alignment = TextAnchor.MiddleLeft;
         }
 
         private void CreatePanelToggle(Transform canvas)
