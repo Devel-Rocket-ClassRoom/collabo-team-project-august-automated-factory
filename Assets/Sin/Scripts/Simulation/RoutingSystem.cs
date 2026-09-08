@@ -22,17 +22,17 @@ namespace Factory.Simulation
                 var node = processors[i];
                 if (node == null) continue;
 
-                if (node.RoutingRole == RoutingRole.Splitter) TickSplitter(node, i, segments);
-                else if (node.RoutingRole == RoutingRole.Merger) TickMerger(node, i, segments);
+                if (node.RoutingRole == RoutingRole.Splitter) TickSplitter(node, i, processors, segments);
+                else if (node.RoutingRole == RoutingRole.Merger) TickMerger(node, i, processors, segments);
             }
         }
 
         // 입력 벨트가 InputBuffer로 배달해준 것을, 연결된 출력 벨트에 라운드로빈으로 하나씩
         // 얹는다. 커서 벨트의 입구가 막혀 있으면 건너뛰고 다음 빈 벨트로 보낸다(비율은 잠깐
         // 깨지지만 전체가 멈추지 않음 — 설계 결정).
-        private void TickSplitter(ProcessorInstance splitter, int splitterIndex, List<BeltSegment> segments)
+        private void TickSplitter(ProcessorInstance splitter, int splitterIndex, List<ProcessorInstance> processors, List<BeltSegment> segments)
         {
-            CollectOutputBelts(segments, splitterIndex);
+            CollectOutputBelts(processors, segments, splitterIndex);
             int n = outputBelts.Count;
             if (n == 0) return;
 
@@ -56,9 +56,9 @@ namespace Factory.Simulation
         // 여러 입력 벨트가 InputBuffer로 배달해준 것을, 단일 출력 벨트에 얹는다. 자원 종류가
         // 섞여 있으면 종류를 번갈아 내보낸다(RoutingCursor = 마지막으로 내보낸 자원 id) — 한
         // 종류만 몰아 내보내면 다운스트림 2입력 기계가 한쪽 재료만 받아 굶는다.
-        private void TickMerger(ProcessorInstance merger, int mergerIndex, List<BeltSegment> segments)
+        private void TickMerger(ProcessorInstance merger, int mergerIndex, List<ProcessorInstance> processors, List<BeltSegment> segments)
         {
-            CollectOutputBelts(segments, mergerIndex);
+            CollectOutputBelts(processors, segments, mergerIndex);
             if (outputBelts.Count == 0) return;
 
             var output = outputBelts[0]; // 합류기는 출력 1개
@@ -72,13 +72,18 @@ namespace Factory.Simulation
             merger.RoutingCursor = resourceId;
         }
 
-        private void CollectOutputBelts(List<BeltSegment> segments, int nodeIndex)
+        private void CollectOutputBelts(List<ProcessorInstance> processors, List<BeltSegment> segments, int nodeIndex)
         {
             outputBelts.Clear();
             for (int i = 0; i < segments.Count; i++)
             {
                 var s = segments[i];
                 if (s == null || s.SourceProcessorId != nodeIndex) continue;
+
+                // 이 갈래 끝에 "요청하는 기계"(레시피 지정 or 저장고)가 없으면 후보에서 제외한다.
+                // 요청하지 않은 기계로는 아예 보내지 않는다 — 라운드로빈 비율에서도 빠지므로,
+                // 나머지 갈래가 그만큼 더 받는다("가운데만 레시피 지정" 케이스에서 가운데가 100%).
+                if (!BeltRouting.IsRequestingConsumer(BeltRouting.ResolveTerminal(s, processors, segments))) continue;
 
                 // id 오름차순 삽입 정렬 — 실행마다 동일한 순서가 되도록(결정적 라운드로빈).
                 // 목록이 최대 3개라 O(n^2)도 무의미하고, List.Sort(Comparison) 델리게이트

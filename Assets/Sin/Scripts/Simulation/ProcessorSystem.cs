@@ -17,7 +17,12 @@ namespace Factory.Simulation
                 if (!processor.IsProcessing)
                 {
                     if (processor.RecipeId < 0) continue;
-                    if (!TryConsumeInputs(processor, database.Recipes[processor.RecipeId])) continue;
+                    var recipe = database.Recipes[processor.RecipeId];
+                    // 산출물을 담을 자리가 없으면 사이클을 시작조차 하지 않는다 — 시작하면
+                    // TryConsumeInputs가 입력을 소비해버리는데, 산출은 Capacity에서 잘려
+                    // 증발하기 때문(출력 벨트 없음/막힘으로 OutputBuffer가 꽉 찬 상황).
+                    if (!HasOutputSpace(processor, recipe)) continue;
+                    if (!TryConsumeInputs(processor, recipe)) continue;
                     processor.ActiveRecipeId = processor.RecipeId;
                     processor.IsProcessing = true;
                     processor.Progress = 0f;
@@ -35,12 +40,23 @@ namespace Factory.Simulation
                     var activeRecipe = database.Recipes[processor.ActiveRecipeId];
                     if (processor.Progress < activeRecipe.ProcessSeconds) break;
 
+                    // 사이클은 끝났지만 산출물 자리가 없다 — 완성품을 들고 대기한다.
+                    // Progress를 사이클 길이에 고정해(계속 쌓이면 자리 났을 때 폭발적으로
+                    // 밀어내므로) 다음 틱에 자리가 나는 즉시 배출하게 둔다.
+                    if (!HasOutputSpace(processor, activeRecipe))
+                    {
+                        processor.Progress = activeRecipe.ProcessSeconds;
+                        break;
+                    }
+
                     processor.Progress -= activeRecipe.ProcessSeconds;
                     ProduceOutputs(processor, activeRecipe);
                     processor.IsProcessing = false;
 
                     if (processor.RecipeId < 0) break;
-                    if (!TryConsumeInputs(processor, database.Recipes[processor.RecipeId])) break;
+                    var nextRecipe = database.Recipes[processor.RecipeId];
+                    if (!HasOutputSpace(processor, nextRecipe)) break;
+                    if (!TryConsumeInputs(processor, nextRecipe)) break;
                     processor.ActiveRecipeId = processor.RecipeId;
                     processor.IsProcessing = true;
                 }
@@ -58,6 +74,21 @@ namespace Factory.Simulation
             for (int i = 0; i < inputs.Length; i++)
             {
                 processor.InputBuffer[inputs[i].ResourceId] -= inputs[i].Amount;
+            }
+            return true;
+        }
+
+        // 이 레시피의 산출물을 전부 담을 자리가 OutputBuffer에 있는지. 하나라도 Capacity를
+        // 넘기면 false — 그 사이클은 시작하지 않거나(입력 보존), 완성품을 들고 대기한다.
+        private static bool HasOutputSpace(ProcessorInstance processor, in RecipeRuntime recipe)
+        {
+            var outputs = recipe.Outputs;
+            for (int i = 0; i < outputs.Length; i++)
+            {
+                if (processor.OutputBuffer[outputs[i].ResourceId] + outputs[i].Amount > processor.Capacity)
+                {
+                    return false;
+                }
             }
             return true;
         }
