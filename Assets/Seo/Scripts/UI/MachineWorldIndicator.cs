@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Choi.SaveLoad;
 using Factory.Buildings;
 using Factory.Simulation;
 using UnityEngine;
@@ -17,7 +18,10 @@ namespace Seo.UI
         private SimulationDriver driver;
         private Camera targetCamera;
         private WorldBadge nameBadge;
+        private WorldBadge statusBadge;
+        private PowerGridSystem powerGrid;
         private string machineKey;
+        private float nextStatusUpdate;
 
         private static readonly Vector2Int[] FourDirs =
         {
@@ -32,6 +36,7 @@ namespace Seo.UI
             instanceIndex = index;
             driver = simulationDriver;
             targetCamera = Camera.main;
+            powerGrid = FindFirstObjectByType<PowerGridSystem>();
             Rebuild();
         }
 
@@ -39,12 +44,18 @@ namespace Seo.UI
         {
             if (driver == null || driver.World == null) return;
             if (targetCamera == null) targetCamera = Camera.main;
+            if (Time.unscaledTime >= nextStatusUpdate)
+            {
+                UpdateStatus();
+                nextStatusUpdate = Time.unscaledTime + 0.2f;
+            }
             UpdatePositions();
         }
 
         private void OnDestroy()
         {
             DestroyBadge(nameBadge);
+            DestroyBadge(statusBadge);
             for (int i = 0; i < portBadges.Count; i++) DestroyBadge(portBadges[i]);
         }
 
@@ -53,6 +64,7 @@ namespace Seo.UI
             for (int i = 0; i < portBadges.Count; i++) DestroyBadge(portBadges[i]);
             portBadges.Clear();
             DestroyBadge(nameBadge);
+            DestroyBadge(statusBadge);
 
             if (driver == null || driver.World == null) return;
 
@@ -71,6 +83,8 @@ namespace Seo.UI
             string title = MachineInfoPresenter.GetMachineDisplayName(driver.World, machineId);
             machineKey = driver.World.Database.Machines[machineId].Key;
             nameBadge = CreateBadge(title, MachineInfoPresenter.GetMachineColor(machineKey), new Vector2(150f, 34f), 18);
+            statusBadge = CreateBadge("상태 확인 중", SeoUITheme.Current.Muted, new Vector2(130f, 28f), 14);
+            UpdateStatus();
 
             if (kind == MachineInstanceKind.Miner)
             {
@@ -110,7 +124,8 @@ namespace Seo.UI
         {
             if (nameBadge == null) return;
             var bounds = CalculateBounds();
-            SetBadgeTransform(nameBadge, new Vector3(bounds.center.x, bounds.max.y + 0.32f, bounds.center.z), 0.0065f);
+            SetBadgeTransform(statusBadge, new Vector3(bounds.center.x, bounds.max.y + 0.6f, bounds.center.z), 0.0055f);
+            SetBadgeTransform(nameBadge, new Vector3(bounds.center.x, bounds.max.y + 0.3f, bounds.center.z), 0.0065f);
 
             if (kind == MachineInstanceKind.Miner)
             {
@@ -162,6 +177,85 @@ namespace Seo.UI
             }
         }
 
+        private void UpdateStatus()
+        {
+            if (statusBadge == null || driver == null || driver.World == null) return;
+            if (powerGrid == null) powerGrid = FindFirstObjectByType<PowerGridSystem>();
+
+            if (kind == MachineInstanceKind.Miner)
+            {
+                if (instanceIndex < 0 || instanceIndex >= driver.World.Miners.Count) return;
+                var miner = driver.World.Miners[instanceIndex];
+                if (miner == null) return;
+
+                if (powerGrid != null && !powerGrid.IsMachinePowered(CellOccupantType.Miner, instanceIndex))
+                    statusBadge.SetContent("전력 부족", SeoUITheme.Current.Danger);
+                else if (miner.BufferedOutput > 0)
+                    statusBadge.SetContent("전송 대기", SeoUITheme.Current.Warning);
+                else
+                    statusBadge.SetContent("채굴 중", SeoUITheme.Current.Success);
+                return;
+            }
+
+            if (instanceIndex < 0 || instanceIndex >= driver.World.Processors.Count) return;
+            var processor = driver.World.Processors[instanceIndex];
+            if (processor == null) return;
+
+            if (processor.UniversalPorts)
+            {
+                statusBadge.SetContent("중앙 저장소", SeoUITheme.Current.Primary);
+                return;
+            }
+
+            if (powerGrid != null && !powerGrid.IsMachinePowered(CellOccupantType.Processor, instanceIndex))
+            {
+                statusBadge.SetContent("전력 부족", SeoUITheme.Current.Danger);
+                return;
+            }
+
+            if (processor.RoutingRole != RoutingRole.None)
+            {
+                statusBadge.SetContent("물류 가동", SeoUITheme.Current.Success);
+                return;
+            }
+
+            var db = driver.World.Database;
+            if (processor.RecipeId < 0 || processor.RecipeId >= db.Recipes.Count)
+            {
+                statusBadge.SetContent("레시피 없음", SeoUITheme.Current.Muted);
+                return;
+            }
+
+            var recipe = db.Recipes[processor.RecipeId];
+            if (processor.IsProcessing)
+            {
+                statusBadge.SetContent("가동 중", SeoUITheme.Current.Success);
+                return;
+            }
+
+            for (int i = 0; i < recipe.Outputs.Length; i++)
+            {
+                var output = recipe.Outputs[i];
+                if (processor.OutputBuffer[output.ResourceId] >= processor.Capacity)
+                {
+                    statusBadge.SetContent("출력 막힘", new Color(1f, 0.42f, 0.08f));
+                    return;
+                }
+            }
+
+            for (int i = 0; i < recipe.Inputs.Length; i++)
+            {
+                var input = recipe.Inputs[i];
+                if (processor.InputBuffer[input.ResourceId] < input.Amount)
+                {
+                    statusBadge.SetContent("입력 부족", SeoUITheme.Current.Warning);
+                    return;
+                }
+            }
+
+            statusBadge.SetContent("가동 준비", SeoUITheme.Current.Primary);
+        }
+
         private Bounds CalculateBounds()
         {
             var renderers = GetComponentsInChildren<Renderer>();
@@ -195,7 +289,8 @@ namespace Seo.UI
             backgroundRt.anchorMax = Vector2.one;
             backgroundRt.offsetMin = Vector2.zero;
             backgroundRt.offsetMax = Vector2.zero;
-            backgroundGO.GetComponent<Image>().color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.94f);
+            var background = backgroundGO.GetComponent<Image>();
+            background.color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.94f);
 
             var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
             textGO.transform.SetParent(root.transform, false);
@@ -213,7 +308,7 @@ namespace Seo.UI
             text.raycastTarget = false;
             text.text = label;
 
-            return new WorldBadge(root);
+            return new WorldBadge(root, background, text);
         }
 
         private static void DestroyBadge(WorldBadge badge)
@@ -224,7 +319,22 @@ namespace Seo.UI
         private sealed class WorldBadge
         {
             public readonly GameObject Root;
-            public WorldBadge(GameObject root) => Root = root;
+            private readonly Image background;
+            private readonly Text label;
+
+            public WorldBadge(GameObject root, Image background, Text label)
+            {
+                Root = root;
+                this.background = background;
+                this.label = label;
+            }
+
+            public void SetContent(string value, Color color)
+            {
+                if (label != null) label.text = value;
+                if (background != null)
+                    background.color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.96f);
+            }
         }
     }
 }
