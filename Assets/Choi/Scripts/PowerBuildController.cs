@@ -19,14 +19,23 @@ namespace Choi.SaveLoad
     /// <summary>기존 BuildInputRouter를 수정하지 않고, 선택 중에만 잠시 비활성화하는 전력 배치 도구입니다.</summary>
     public sealed class PowerBuildController : MonoBehaviour
     {
+        private const float CableHeight = 1.65f;
+        private const float CableWidth = 0.035f;
+        private const int TowerRangeRadius = 7;
+
         private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly List<GameObject> visuals = new List<GameObject>();
+        private readonly List<GameObject> placementPreview = new List<GameObject>();
+        private readonly List<Vector2Int> cableDragPath = new List<Vector2Int>();
 
         private PowerGridSystem powerGrid;
         private SimulationDriver driver;
         private BuildInputRouter buildRouter;
         private MachineGhostTool machineTool;
         private Camera targetCamera;
+        private bool isCableDragging;
+        private Vector2Int cableStartCell;
+        private PowerNodeRuntime cableStartNode;
 
         public PowerBuildMode Mode { get; private set; }
         public string LastMessage { get; private set; } = "전력 도구 대기";
@@ -55,22 +64,50 @@ namespace Choi.SaveLoad
                 return;
             }
 
-            if (!TryGetPointerPress(out Vector2 screenPosition, out int? pointerId)) return;
-            if (IsOverUi(pointerId)) return;
+            if (!TryGetPointerState(out Vector2 screenPosition, out int? pointerId,
+                    out bool pressed, out bool held, out bool released))
+            {
+                ClearPlacementPreview();
+                return;
+            }
+
+            if (IsOverUi(pointerId) && !isCableDragging)
+            {
+                ClearPlacementPreview();
+                return;
+            }
+
             if (targetCamera == null) targetCamera = Camera.main;
             if (targetCamera == null) return;
 
-            if (!GridUtility.TryRaycastToCell(targetCamera.ScreenPointToRay(screenPosition), groundPlane, out Vector2Int cell)) return;
-            ApplyAt(cell);
+            if (!GridUtility.TryRaycastToCell(targetCamera.ScreenPointToRay(screenPosition), groundPlane,
+                    out Vector2Int cell))
+            {
+                ClearPlacementPreview();
+                return;
+            }
+
+            if (Mode == PowerBuildMode.Cable)
+            {
+                HandleCablePlacement(cell, pressed, held, released);
+                return;
+            }
+
+            if (Mode == PowerBuildMode.TransmissionTower) ShowTowerRange(cell);
+            else ClearPlacementPreview();
+
+            if (pressed) ApplyAt(cell);
         }
 
         private void OnDisable()
         {
+            CancelPlacementPreview();
             RestoreBuildRouter();
         }
 
         public void SetMode(PowerBuildMode mode)
         {
+            CancelPlacementPreview();
             Mode = mode;
             if (mode == PowerBuildMode.None)
             {
@@ -86,8 +123,8 @@ namespace Choi.SaveLoad
                 buildRouter.enabled = false;
             }
             LastMessage = mode == PowerBuildMode.Generator ? "발전기를 놓을 칸을 선택하세요"
-                : mode == PowerBuildMode.Cable ? "전선을 이어 놓으세요"
-                : mode == PowerBuildMode.TransmissionTower ? "송신탑을 놓을 빈 칸을 선택하세요"
+                : mode == PowerBuildMode.Cable ? "시작점에서 끝점까지 드래그해 전선을 이으세요"
+                : mode == PowerBuildMode.TransmissionTower ? "표시되는 15x15 범위를 보고 송신탑을 놓으세요"
                 : "철거할 발전기/전선/송신탑을 선택하세요";
         }
 
@@ -100,9 +137,6 @@ namespace Choi.SaveLoad
             visuals.Clear();
 
             if (powerGrid == null) return;
-            var nodesByCell = new Dictionary<Vector2Int, PowerNodeRuntime>();
-            for (int i = 0; i < powerGrid.Nodes.Count; i++) nodesByCell[powerGrid.Nodes[i].Cell] = powerGrid.Nodes[i];
-
             for (int i = 0; i < powerGrid.Nodes.Count; i++)
             {
                 PowerNodeRuntime node = powerGrid.Nodes[i];
@@ -118,13 +152,10 @@ namespace Choi.SaveLoad
                     visual.transform.localScale = new Vector3(0.72f, 0.5f, 0.72f);
                     BuildVisuals.Colorize(visual, new Color(1f, 0.62f, 0.08f));
                 }
-                else if (node.Kind == PowerNodeKind.Cable)
+                else if (node.Kind == PowerNodeKind.Cable || node.Kind == PowerNodeKind.Junction)
                 {
-                    visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    visual.transform.position = center;
-                    // 전선 접점도 바닥에 붙여 컨베이어 아래로 지나가게 한다.
-                    visual.transform.localScale = new Vector3(0.13f, 0.025f, 0.13f);
-                    BuildVisuals.Colorize(visual, new Color(0.05f, 0.68f, 0.9f));
+                    // 전선은 칸마다 오브젝트를 보이지 않고, 인접 칸 사이의 얇은 선만 렌더링한다.
+                    visual = null;
                 }
                 else
                 {
@@ -134,18 +165,19 @@ namespace Choi.SaveLoad
                     BuildVisuals.Colorize(visual, new Color(0.72f, 0.25f, 1f));
                 }
 
-                Destroy(visual.GetComponent<Collider>());
-                visual.name = $"PowerNode_{node.Id}_{node.Kind}";
-                visuals.Add(visual);
+                if (visual != null)
+                {
+                    Destroy(visual.GetComponent<Collider>());
+                    visual.name = $"PowerNode_{node.Id}_{node.Kind}";
+                    visuals.Add(visual);
+                }
 
-                Vector2Int right = node.Cell + Vector2Int.right;
-                Vector2Int up = node.Cell + Vector2Int.up;
-                if (nodesByCell.TryGetValue(right, out PowerNodeRuntime rightNode)
-                    && (node.Kind == PowerNodeKind.Cable || rightNode.Kind == PowerNodeKind.Cable))
-                    CreateWire(node.Cell, right);
-                if (nodesByCell.TryGetValue(up, out PowerNodeRuntime upNode)
-                    && (node.Kind == PowerNodeKind.Cable || upNode.Kind == PowerNodeKind.Cable))
-                    CreateWire(node.Cell, up);
+            }
+
+            for (int i = 0; i < powerGrid.Connections.Count; i++)
+            {
+                PowerConnectionRuntime connection = powerGrid.Connections[i];
+                CreateConnectionWire(connection.Path);
             }
         }
 
@@ -166,8 +198,7 @@ namespace Choi.SaveLoad
                     LastMessage = changed ? $"발전기 설치: {cell}" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Cable:
-                    changed = powerGrid.TryAddNode(PowerNodeKind.Cable, cell);
-                    LastMessage = changed ? $"전선 설치: {cell}" : "이미 전력 시설이 있는 칸입니다";
+                    LastMessage = "발전기 또는 송신탑에서 드래그해 연결하세요";
                     break;
                 case PowerBuildMode.TransmissionTower:
                     if (driver != null && driver.World != null && driver.World.Grid.IsOccupied(cell))
@@ -179,7 +210,7 @@ namespace Choi.SaveLoad
                     LastMessage = changed ? $"송신탑 설치: {cell} · 공급 범위 15x15" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Remove:
-                    changed = powerGrid.RemoveNode(cell);
+                    changed = powerGrid.RemoveNode(cell) || powerGrid.RemoveConnectionAt(cell);
                     LastMessage = changed ? $"전력 시설 철거: {cell}" : "철거할 전력 시설이 없습니다";
                     break;
             }
@@ -193,13 +224,152 @@ namespace Choi.SaveLoad
 
         private void CreateWire(Vector2Int fromCell, Vector2Int toCell)
         {
-            // 컨베이어 및 운반 아이템보다 낮은 높이에 얇은 선으로 그린다.
-            Vector3 from = GridUtility.CellToWorldCenter(fromCell, 0.04f);
-            Vector3 to = GridUtility.CellToWorldCenter(toCell, 0.04f);
-            GameObject wire = BuildVisuals.CreateStrip(from, to, 0.055f,
+            // 탑뷰에서 건물 위를 가로지르는 가는 전선처럼 보이게 한다.
+            Vector3 from = GridUtility.CellToWorldCenter(fromCell, CableHeight);
+            Vector3 to = GridUtility.CellToWorldCenter(toCell, CableHeight);
+            GameObject wire = BuildVisuals.CreateStrip(from, to, CableWidth,
                 new Color(0.03f, 0.58f, 0.82f), null, false);
             wire.name = "PowerWire";
             visuals.Add(wire);
+        }
+
+        private void CreateConnectionWire(List<Vector2Int> path)
+        {
+            if (path == null) return;
+            for (int i = 1; i < path.Count; i++)
+            {
+                if (path[i - 1] != path[i]) CreateWire(path[i - 1], path[i]);
+            }
+        }
+
+        private void HandleCablePlacement(Vector2Int cell, bool pressed, bool held, bool released)
+        {
+            if (pressed && !isCableDragging)
+            {
+                if (powerGrid == null || !powerGrid.TryResolveConnectionPoint(cell, out cableStartNode))
+                {
+                    LastMessage = "발전기, 송신탑 또는 기존 전선에서 드래그를 시작하세요";
+                    ClearPlacementPreview();
+                    return;
+                }
+
+                isCableDragging = true;
+                cableStartCell = cell;
+                cableDragPath.Clear();
+                cableDragPath.Add(cell);
+            }
+
+            if (isCableDragging && (held || released))
+            {
+                AppendDragCell(cell);
+                ShowCablePreview(cell);
+            }
+            if (!isCableDragging || !released) return;
+
+            if (cableStartCell == cell || !powerGrid.TryResolveConnectionPoint(cell, out PowerNodeRuntime endNode))
+            {
+                isCableDragging = false;
+                ClearPlacementPreview();
+                cableDragPath.Clear();
+                cableStartNode = null;
+                LastMessage = "다른 발전기, 송신탑 또는 기존 전선에서 드래그를 끝내세요";
+                return;
+            }
+
+            List<Vector2Int> finalPath = IsGeneratorTowerPair(cableStartNode, endNode)
+                ? new List<Vector2Int> { cableStartNode.Cell, endNode.Cell }
+                : new List<Vector2Int>(cableDragPath);
+            bool installed = powerGrid.TryAddConnection(cableStartNode, endNode, finalPath);
+
+            isCableDragging = false;
+            ClearPlacementPreview();
+            cableDragPath.Clear();
+            cableStartNode = null;
+            if (installed)
+            {
+                LastMessage = $"전력 시설 연결: {cableStartCell} → {cell}";
+                RebuildVisuals();
+                powerGrid.EvaluatePower();
+            }
+            else
+            {
+                LastMessage = "두 전력 시설은 이미 직접 연결되어 있습니다";
+            }
+        }
+
+        private void AppendDragCell(Vector2Int cell)
+        {
+            if (cableDragPath.Count == 0 || cableDragPath[cableDragPath.Count - 1] != cell)
+                cableDragPath.Add(cell);
+        }
+
+        private void ShowCablePreview(Vector2Int currentCell)
+        {
+            ClearPlacementPreview();
+            List<Vector2Int> previewPath = cableDragPath;
+            if (powerGrid.TryGetNode(currentCell, out PowerNodeRuntime targetNode)
+                && IsGeneratorTowerPair(cableStartNode, targetNode))
+            {
+                previewPath = new List<Vector2Int> { cableStartNode.Cell, targetNode.Cell };
+            }
+
+            for (int i = 1; i < previewPath.Count; i++)
+            {
+                Vector3 from = GridUtility.CellToWorldCenter(previewPath[i - 1], CableHeight + 0.02f);
+                Vector3 to = GridUtility.CellToWorldCenter(previewPath[i], CableHeight + 0.02f);
+                GameObject wire = BuildVisuals.CreateStrip(from, to, CableWidth * 1.7f,
+                    new Color(0.2f, 0.95f, 1f), null, false);
+                wire.name = "PowerWirePreview";
+                placementPreview.Add(wire);
+            }
+        }
+
+        private static bool IsGeneratorTowerPair(PowerNodeRuntime first, PowerNodeRuntime second)
+        {
+            if (first == null || second == null) return false;
+            return (first.Kind == PowerNodeKind.Generator && second.Kind == PowerNodeKind.TransmissionTower)
+                || (first.Kind == PowerNodeKind.TransmissionTower && second.Kind == PowerNodeKind.Generator);
+        }
+
+        private void ShowTowerRange(Vector2Int centerCell)
+        {
+            ClearPlacementPreview();
+            float minX = centerCell.x - TowerRangeRadius;
+            float maxX = centerCell.x + TowerRangeRadius + 1f;
+            float minZ = centerCell.y - TowerRangeRadius;
+            float maxZ = centerCell.y + TowerRangeRadius + 1f;
+            const float height = 0.09f;
+            const float width = 0.075f;
+            Color color = new Color(0.35f, 0.9f, 1f);
+
+            CreatePreviewStrip(new Vector3(minX, height, minZ), new Vector3(maxX, height, minZ), width, color);
+            CreatePreviewStrip(new Vector3(maxX, height, minZ), new Vector3(maxX, height, maxZ), width, color);
+            CreatePreviewStrip(new Vector3(maxX, height, maxZ), new Vector3(minX, height, maxZ), width, color);
+            CreatePreviewStrip(new Vector3(minX, height, maxZ), new Vector3(minX, height, minZ), width, color);
+        }
+
+        private void CreatePreviewStrip(Vector3 from, Vector3 to, float width, Color color)
+        {
+            GameObject strip = BuildVisuals.CreateStrip(from, to, width, color, null, false);
+            strip.name = "PowerPlacementPreview";
+            placementPreview.Add(strip);
+        }
+
+        private void CancelPlacementPreview()
+        {
+            isCableDragging = false;
+            cableStartNode = null;
+            cableDragPath.Clear();
+            ClearPlacementPreview();
+        }
+
+        private void ClearPlacementPreview()
+        {
+            for (int i = 0; i < placementPreview.Count; i++)
+            {
+                if (placementPreview[i] != null) Destroy(placementPreview[i]);
+            }
+            placementPreview.Clear();
         }
 
         private void RestoreBuildRouter()
@@ -207,29 +377,42 @@ namespace Choi.SaveLoad
             if (buildRouter != null) buildRouter.enabled = true;
         }
 
-        private static bool TryGetPointerPress(out Vector2 position, out int? pointerId)
+        private static bool TryGetPointerState(out Vector2 position, out int? pointerId,
+            out bool pressed, out bool held, out bool released)
         {
             if (Touchscreen.current != null)
             {
                 var touches = Touchscreen.current.touches;
                 for (int i = 0; i < touches.Count; i++)
                 {
-                    if (!touches[i].press.wasPressedThisFrame) continue;
+                    bool touchPressed = touches[i].press.wasPressedThisFrame;
+                    bool touchHeld = touches[i].press.isPressed;
+                    bool touchReleased = touches[i].press.wasReleasedThisFrame;
+                    if (!touchPressed && !touchHeld && !touchReleased) continue;
                     position = touches[i].position.ReadValue();
                     pointerId = touches[i].touchId.ReadValue();
+                    pressed = touchPressed;
+                    held = touchHeld;
+                    released = touchReleased;
                     return true;
                 }
             }
 
-            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            if (Mouse.current != null)
             {
                 position = Mouse.current.position.ReadValue();
                 pointerId = null;
+                pressed = Mouse.current.leftButton.wasPressedThisFrame;
+                held = Mouse.current.leftButton.isPressed;
+                released = Mouse.current.leftButton.wasReleasedThisFrame;
                 return true;
             }
 
             position = default;
             pointerId = null;
+            pressed = false;
+            held = false;
+            released = false;
             return false;
         }
 

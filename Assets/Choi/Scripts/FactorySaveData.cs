@@ -12,6 +12,7 @@ namespace Choi.SaveLoad
         public List<ProcessorProgressData> processors = new List<ProcessorProgressData>();
         public List<BeltProgressData> belts = new List<BeltProgressData>();
         public List<PowerNodeData> powerNodes = new List<PowerNodeData>();
+        public List<PowerConnectionData> powerConnections = new List<PowerConnectionData>();
     }
 
     [Serializable]
@@ -90,6 +91,15 @@ namespace Choi.SaveLoad
         public int id;
         public int kind;
         public Int2Data cell;
+    }
+
+    [Serializable]
+    public sealed class PowerConnectionData
+    {
+        public int id;
+        public int fromNodeId;
+        public int toNodeId;
+        public List<Int2Data> path = new List<Int2Data>();
     }
 
     [Serializable]

@@ -37,6 +37,7 @@ namespace Choi.SaveLoad
             {
                 coreProcessorIndex = world.CoreProcessorIndex,
                 powerNodes = powerGrid.CaptureNodes(),
+                powerConnections = powerGrid.CaptureConnections(),
             };
 
             Dictionary<(CellOccupantType type, int index), Vector2Int> cells = ScanOccupants(world);
@@ -64,6 +65,7 @@ namespace Choi.SaveLoad
             world.CoreProcessorIndex = data.coreProcessorIndex;
             RestoreBelts(world, data.belts);
             powerGrid.ReplaceNodes(data.powerNodes);
+            powerGrid.ReplaceConnections(data.powerConnections);
             powerBuild?.RebuildVisuals();
             powerGrid.EvaluatePower();
         }
