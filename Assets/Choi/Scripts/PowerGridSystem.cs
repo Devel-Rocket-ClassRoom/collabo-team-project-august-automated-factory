@@ -31,7 +31,7 @@ namespace Choi.SaveLoad
     }
 
     /// <summary>
-    /// 발전기-전선에 연결된 송신탑의 15x15 공급 범위 안에 있는 기계만 작동시킵니다.
+    /// 발전기-전선에 연결된 송전탑의 15x15 공급 범위 안에 있는 기계만 작동시킵니다.
     /// 기존 시뮬레이션 코드는 수정하지 않고 각 인스턴스의 SpeedMultiplier만 제어합니다.
     /// </summary>
     [DefaultExecutionOrder(-100)]
@@ -448,11 +448,12 @@ namespace Choi.SaveLoad
                 GameObject minerVisual = GameObject.Find($"Miner_{i}");
                 if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
                 else cells.TryGetValue((CellOccupantType.Miner, i), out anchor);
-                int component = FindSupplyingTowerComponent(anchor, Vector2Int.one, demand,
+                int component = FindSupplyingTowerComponent(anchor, Vector2Int.one,
                     componentByNodeId, remainingByComponent);
-                bool powered = TryConsumePower(component, demand, remainingByComponent);
+                bool powered = component >= 0;
                 miner.SpeedMultiplier = powered ? minerBaseSpeed[miner] : 0f;
-                AccumulateMachineStatus(CellOccupantType.Miner, i, demand, powered, anchor, Vector2Int.one, liveIndicatorKeys);
+                AccumulateMachineStatus(CellOccupantType.Miner, i, demand, powered, powered,
+                    anchor, Vector2Int.one, liveIndicatorKeys);
             }
 
             for (int i = 0; i < driver.World.Processors.Count; i++)
@@ -474,12 +475,13 @@ namespace Choi.SaveLoad
 
                 string machineKey = driver.World.Database.Machines[processor.MachineId].Key;
                 int demand = GetPowerConsumption(machineKey);
-                int component = FindSupplyingTowerComponent(processor.Anchor, processor.Footprint, demand,
+                int component = FindSupplyingTowerComponent(processor.Anchor, processor.Footprint,
                     componentByNodeId, remainingByComponent);
-                bool powered = TryConsumePower(component, demand, remainingByComponent);
+                bool powered = component >= 0;
                 processor.SpeedMultiplier = powered ? processorBaseSpeed[processor] : 0f;
                 processor.RecipeId = powered ? desiredRecipe : -1;
-                AccumulateMachineStatus(CellOccupantType.Processor, i, demand, powered, processor.Anchor, processor.Footprint, liveIndicatorKeys);
+                AccumulateMachineStatus(CellOccupantType.Processor, i, demand, powered, powered,
+                    processor.Anchor, processor.Footprint, liveIndicatorKeys);
             }
 
             if (RequestedPower > ratedCapacity)
@@ -567,7 +569,7 @@ namespace Choi.SaveLoad
             }
         }
 
-        private int FindSupplyingTowerComponent(Vector2Int anchor, Vector2Int footprint, int demand,
+        private int FindSupplyingTowerComponent(Vector2Int anchor, Vector2Int footprint,
             Dictionary<int, int> componentByNodeId, List<int> capacityByComponent)
         {
             for (int n = 0; n < nodes.Count; n++)
@@ -576,7 +578,7 @@ namespace Choi.SaveLoad
                 if (tower.Kind != PowerNodeKind.TransmissionTower
                     || !componentByNodeId.TryGetValue(tower.Id, out int component)
                     || component < 0 || component >= capacityByComponent.Count
-                    || capacityByComponent[component] < demand
+                    || capacityByComponent[component] <= 0
                     || !HasConnection(tower.Id))
                 {
                     continue;
@@ -620,18 +622,12 @@ namespace Choi.SaveLoad
             return false;
         }
 
-        private static bool TryConsumePower(int component, int demand, List<int> remaining)
-        {
-            if (component < 0 || component >= remaining.Count || remaining[component] < demand) return false;
-            remaining[component] -= demand;
-            return true;
-        }
-
         private void AccumulateMachineStatus(CellOccupantType type, int index, int demand, bool powered,
+            bool countsTowardLoad,
             Vector2Int anchor, Vector2Int footprint, HashSet<string> liveKeys)
         {
             TotalMachineCount++;
-            RequestedPower += demand;
+            if (countsTowardLoad) RequestedPower += demand;
             if (powered)
             {
                 PoweredMachineCount++;

@@ -144,8 +144,8 @@ namespace Choi.SaveLoad
             }
             LastMessage = mode == PowerBuildMode.Generator ? "발전기를 놓을 칸을 선택하세요"
                 : mode == PowerBuildMode.Cable ? "시작점에서 끝점까지 드래그해 전선을 이으세요"
-                : mode == PowerBuildMode.TransmissionTower ? "표시되는 15x15 범위를 보고 송신탑을 놓으세요"
-                : "철거할 발전기/전선/송신탑을 선택하세요";
+                : mode == PowerBuildMode.TransmissionTower ? "표시되는 15x15 범위를 보고 송전탑을 놓으세요"
+                : "철거할 발전기/전선/송전탑을 선택하세요";
         }
 
         public void RebuildVisuals()
@@ -220,16 +220,16 @@ namespace Choi.SaveLoad
                     LastMessage = changed ? $"발전기 설치: {cell}" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Cable:
-                    LastMessage = "발전기 또는 송신탑에서 드래그해 연결하세요";
+                    LastMessage = "발전기 또는 송전탑에서 드래그해 연결하세요";
                     break;
                 case PowerBuildMode.TransmissionTower:
                     if (driver != null && driver.World != null && driver.World.Grid.IsOccupied(cell))
                     {
-                        LastMessage = "송신탑은 빈 칸에만 놓을 수 있습니다";
+                        LastMessage = "송전탑은 빈 칸에만 놓을 수 있습니다";
                         return;
                     }
                     changed = powerGrid.TryAddNode(PowerNodeKind.TransmissionTower, cell);
-                    LastMessage = changed ? $"송신탑 설치: {cell} · 공급 범위 15x15" : "이미 전력 시설이 있는 칸입니다";
+                    LastMessage = changed ? $"송전탑 설치: {cell} · 공급 범위 15x15" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Remove:
                     changed = powerGrid.RemoveNode(cell) || powerGrid.RemoveConnectionAt(cell);
@@ -278,7 +278,7 @@ namespace Choi.SaveLoad
             {
                 if (powerGrid == null || !powerGrid.TryResolveConnectionPoint(cell, out cableStartNode))
                 {
-                    LastMessage = "발전기, 송신탑 또는 기존 전선에서 드래그를 시작하세요";
+                    LastMessage = "발전기, 송전탑 또는 기존 전선에서 드래그를 시작하세요";
                     ClearPlacementPreview();
                     return;
                 }
@@ -301,7 +301,7 @@ namespace Choi.SaveLoad
                 ClearPlacementPreview();
                 cableDragPath.Clear();
                 cableStartNode = null;
-                LastMessage = "다른 발전기, 송신탑 또는 기존 전선에서 드래그를 끝내세요";
+                LastMessage = "다른 발전기, 송전탑 또는 기존 전선에서 드래그를 끝내세요";
                 return;
             }
             if (!powerGrid.CanConnect(cableStartNode, endNode))
@@ -310,7 +310,7 @@ namespace Choi.SaveLoad
                 ClearPlacementPreview();
                 cableDragPath.Clear();
                 cableStartNode = null;
-                LastMessage = "이 송신탑에는 이미 발전기 하나가 직접 연결되어 있습니다";
+                LastMessage = "이 송전탑에는 이미 발전기 하나가 직접 연결되어 있습니다";
                 return;
             }
 
@@ -390,14 +390,14 @@ namespace Choi.SaveLoad
             if (selectedTowerId == node.Id && towerSelectionPreview.Count > 0)
             {
                 ClearTowerSelectionPreview();
-                LastMessage = "송신탑 범위 표시 종료";
+                LastMessage = "송전탑 범위 표시 종료";
                 return;
             }
 
             ClearTowerSelectionPreview();
             selectedTowerId = node.Id;
             CreateTowerRange(cell, towerSelectionPreview, new Color(0.72f, 0.35f, 1f));
-            LastMessage = $"송신탑 선택: {cell} · 공급 범위 15x15";
+            LastMessage = $"송전탑 선택: {cell} · 공급 범위 15x15";
         }
 
         private void CreateTowerRange(Vector2Int centerCell, List<GameObject> target, Color color)

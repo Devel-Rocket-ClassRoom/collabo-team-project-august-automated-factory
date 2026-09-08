@@ -210,7 +210,7 @@ namespace Seo.UI
 
         private void BuildPowerButtons()
         {
-            string[] labels = { "발전기", "전선", "송신탑", "전력 철거", "SAVE", "LOAD" };
+            string[] labels = { "발전기", "전선", "송전탑", "전력 철거", "SAVE", "LOAD" };
             PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
                 PowerBuildMode.TransmissionTower, PowerBuildMode.Remove };
 

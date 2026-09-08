@@ -15,8 +15,6 @@ namespace Choi.SaveLoad
 
         [SerializeField] private string fileName = "power_save.json";
         [SerializeField] private bool prettyPrint = true;
-        [SerializeField] private bool saveOnApplicationPause = true;
-        [SerializeField] private bool saveOnApplicationQuit = true;
 
         public string SavePath => Path.Combine(Application.persistentDataPath, SanitizeFileName(fileName));
         public string BackupPath => SavePath + ".bak";
@@ -25,8 +23,6 @@ namespace Choi.SaveLoad
         public event Action AfterSave;
         public event Action BeforeLoad;
         public event Action AfterLoad;
-
-        private bool isQuitting;
 
         public void Save()
         {
@@ -129,17 +125,6 @@ namespace Choi.SaveLoad
         public bool HasSave()
         {
             return File.Exists(SavePath) || File.Exists(BackupPath);
-        }
-
-        private void OnApplicationPause(bool paused)
-        {
-            if (paused && saveOnApplicationPause && !isQuitting) Save();
-        }
-
-        private void OnApplicationQuit()
-        {
-            isQuitting = true;
-            if (saveOnApplicationQuit) Save();
         }
 
         private bool TryReadSave(out PowerSaveFile saveFile, out string loadedPath)
