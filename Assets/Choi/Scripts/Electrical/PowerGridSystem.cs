@@ -38,6 +38,8 @@ namespace Choi.SaveLoad
     public sealed class PowerGridSystem : MonoBehaviour
     {
         public const int GeneratorOutput = 120;
+        public const int CoreOutput = 100;
+        public const int CoreRangeSize = 12;
 
         private readonly List<PowerNodeRuntime> nodes = new List<PowerNodeRuntime>();
         private readonly Dictionary<Vector2Int, PowerNodeRuntime> nodeByCell = new Dictionary<Vector2Int, PowerNodeRuntime>();
@@ -404,6 +406,25 @@ namespace Choi.SaveLoad
             return indicators.TryGetValue(key, out GameObject indicator) && indicator != null && indicator.name.EndsWith("_ON", StringComparison.Ordinal);
         }
 
+        public bool TryGetCorePowerCenter(out Vector2 center)
+        {
+            if (TryGetCore(out ProcessorInstance core))
+            {
+                center = new Vector2(core.Anchor.x + core.Footprint.x * 0.5f,
+                    core.Anchor.y + core.Footprint.y * 0.5f);
+                return true;
+            }
+            center = default;
+            return false;
+        }
+
+        public bool IsCoreCell(Vector2Int cell)
+        {
+            if (!TryGetCore(out ProcessorInstance core)) return false;
+            return cell.x >= core.Anchor.x && cell.x < core.Anchor.x + core.Footprint.x
+                && cell.y >= core.Anchor.y && cell.y < core.Anchor.y + core.Footprint.y;
+        }
+
         public void ResetRuntimeTracking()
         {
             minerBaseSpeed.Clear();
@@ -423,6 +444,7 @@ namespace Choi.SaveLoad
             if (driver == null || driver.World == null) return;
 
             BuildComponents(out Dictionary<int, int> componentByNodeId, out List<int> remainingByComponent);
+            int coreComponent = AddCorePowerComponent(remainingByComponent);
             AvailablePower = 0;
             for (int i = 0; i < remainingByComponent.Count; i++) AvailablePower += remainingByComponent[i];
             int ratedCapacity = AvailablePower;
@@ -448,8 +470,8 @@ namespace Choi.SaveLoad
                 GameObject minerVisual = GameObject.Find($"Miner_{i}");
                 if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
                 else cells.TryGetValue((CellOccupantType.Miner, i), out anchor);
-                int component = FindSupplyingTowerComponent(anchor, Vector2Int.one,
-                    componentByNodeId, remainingByComponent);
+                int component = FindSupplyingPowerComponent(anchor, Vector2Int.one,
+                    coreComponent, componentByNodeId, remainingByComponent);
                 bool powered = component >= 0;
                 miner.SpeedMultiplier = powered ? minerBaseSpeed[miner] : 0f;
                 AccumulateMachineStatus(CellOccupantType.Miner, i, demand, powered, powered,
@@ -475,8 +497,8 @@ namespace Choi.SaveLoad
 
                 string machineKey = driver.World.Database.Machines[processor.MachineId].Key;
                 int demand = GetPowerConsumption(machineKey);
-                int component = FindSupplyingTowerComponent(processor.Anchor, processor.Footprint,
-                    componentByNodeId, remainingByComponent);
+                int component = FindSupplyingPowerComponent(processor.Anchor, processor.Footprint,
+                    coreComponent, componentByNodeId, remainingByComponent);
                 bool powered = component >= 0;
                 processor.SpeedMultiplier = powered ? processorBaseSpeed[processor] : 0f;
                 processor.RecipeId = powered ? desiredRecipe : -1;
@@ -595,6 +617,55 @@ namespace Choi.SaveLoad
                 }
             }
             return -1;
+        }
+
+        private int AddCorePowerComponent(List<int> capacityByComponent)
+        {
+            if (!TryGetCore(out _)) return -1;
+            int component = capacityByComponent.Count;
+            capacityByComponent.Add(CoreOutput);
+            return component;
+        }
+
+        private int FindSupplyingPowerComponent(Vector2Int anchor, Vector2Int footprint, int coreComponent,
+            Dictionary<int, int> componentByNodeId, List<int> capacityByComponent)
+        {
+            if (coreComponent >= 0 && IsInCorePowerRange(anchor, footprint)) return coreComponent;
+            return FindSupplyingTowerComponent(anchor, footprint, componentByNodeId, capacityByComponent);
+        }
+
+        private bool IsInCorePowerRange(Vector2Int anchor, Vector2Int footprint)
+        {
+            if (!TryGetCore(out ProcessorInstance core)) return false;
+
+            Vector2 coreCenter = new Vector2(core.Anchor.x + core.Footprint.x * 0.5f,
+                core.Anchor.y + core.Footprint.y * 0.5f);
+            float halfRange = CoreRangeSize * 0.5f;
+
+            // 2x2 코어 전체의 기하학적 중심을 기준으로 정확히 12x12 영역에 공급한다.
+            for (int x = 0; x < footprint.x; x++)
+            {
+                for (int y = 0; y < footprint.y; y++)
+                {
+                    Vector2Int occupied = new Vector2Int(anchor.x + x, anchor.y + y);
+                    Vector2 occupiedCenter = new Vector2(occupied.x + 0.5f, occupied.y + 0.5f);
+                    if (occupiedCenter.x >= coreCenter.x - halfRange
+                        && occupiedCenter.x < coreCenter.x + halfRange
+                        && occupiedCenter.y >= coreCenter.y - halfRange
+                        && occupiedCenter.y < coreCenter.y + halfRange) return true;
+                }
+            }
+            return false;
+        }
+
+        private bool TryGetCore(out ProcessorInstance core)
+        {
+            core = null;
+            if (driver == null || driver.World == null) return false;
+            int index = driver.World.CoreProcessorIndex;
+            if (index < 0 || index >= driver.World.Processors.Count) return false;
+            core = driver.World.Processors[index];
+            return core != null;
         }
 
         private int CountActiveTowers(Dictionary<int, int> componentByNodeId, List<int> capacityByComponent)

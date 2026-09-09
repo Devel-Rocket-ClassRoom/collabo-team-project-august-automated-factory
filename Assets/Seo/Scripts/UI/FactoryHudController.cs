@@ -29,6 +29,8 @@ namespace Seo.UI
         private float toastUntil;
         private float nextDiscovery;
         private bool built;
+        private readonly Button[] powerModeButtons = new Button[4];
+        private readonly Color[] powerModeButtonColors = new Color[4];
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateRuntimeInstance()
@@ -48,6 +50,7 @@ namespace Seo.UI
             if (!built) return;
             UpdateContextActions();
             UpdatePowerStatus();
+            UpdatePowerButtonStates();
             DecorateRecipePanel();
             HideLegacyPowerPanel();
 
@@ -223,8 +226,13 @@ namespace Seo.UI
                     if (captured < 4)
                     {
                         var controller = FindFirstObjectByType<PowerBuildController>();
-                        if (controller != null) controller.SetMode(modes[captured]);
-                        ShowToast(labels[captured] + " 모드");
+                        if (controller != null)
+                        {
+                            controller.ToggleMode(modes[captured]);
+                            ShowToast(controller.Mode == modes[captured]
+                                ? labels[captured] + " 모드"
+                                : labels[captured] + " 모드 종료");
+                        }
                     }
                     else
                     {
@@ -238,6 +246,11 @@ namespace Seo.UI
                         else ShowToast(save.Load() ? "공장을 불러왔습니다" : "저장 파일이 없습니다");
                     }
                 }, color);
+                if (i < 4)
+                {
+                    powerModeButtons[i] = button;
+                    powerModeButtonColors[i] = color ?? Color.white;
+                }
 
                 float width = 148f;
                 float spacing = 14f;
@@ -330,6 +343,29 @@ namespace Seo.UI
             powerText.text =
                 $"{warningLight} POWER  {powerAmount} MW\n" +
                 $"가동 기계  {grid.PoweredMachineCount} / {grid.TotalMachineCount}";
+        }
+
+        private void UpdatePowerButtonStates()
+        {
+            var controller = FindFirstObjectByType<PowerBuildController>();
+            PowerBuildMode activeMode = controller != null ? controller.Mode : PowerBuildMode.None;
+            PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
+                PowerBuildMode.TransmissionTower, PowerBuildMode.Remove };
+
+            for (int i = 0; i < powerModeButtons.Length; i++)
+            {
+                Button button = powerModeButtons[i];
+                if (button == null) continue;
+                bool selected = activeMode == modes[i];
+                Image image = button.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.color = selected
+                        ? Color.Lerp(SeoUITheme.Current.Primary, Color.white, 0.78f)
+                        : powerModeButtonColors[i];
+                }
+                button.transform.localScale = selected ? Vector3.one * 1.07f : Vector3.one;
+            }
         }
 
         private void DecorateRecipePanel()

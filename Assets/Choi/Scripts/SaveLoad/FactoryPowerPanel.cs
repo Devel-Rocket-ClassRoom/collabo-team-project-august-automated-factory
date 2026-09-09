@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 namespace Choi.SaveLoad
 {
@@ -15,6 +16,8 @@ namespace Choi.SaveLoad
         private GameObject panelObject;
         private Text toggleLabel;
         private string saveMessage = "저장 준비됨";
+        private readonly Dictionary<PowerBuildMode, Button> modeButtons = new Dictionary<PowerBuildMode, Button>();
+        private static readonly Color NormalButtonColor = new Color(0.11f, 0.43f, 0.68f, 1f);
 
         private void Start()
         {
@@ -40,6 +43,7 @@ namespace Choi.SaveLoad
                 overloadLabel.text = overloaded ? "OVERLOAD" : "NORMAL";
                 overloadLabel.color = overloaded ? new Color(1f, 0.18f, 0.12f) : new Color(0.45f, 0.9f, 0.65f);
             }
+            UpdateModeButtonHighlights();
 
             string usedPower = overloaded
                 ? $"<color=#FF3028>{powerGrid.RequestedPower}</color>"
@@ -80,14 +84,14 @@ namespace Choi.SaveLoad
             statusText = CreateText(panel.transform, "Status", string.Empty, new Vector2(0f, -52f), new Vector2(330f, 100f), 17);
             statusText.supportRichText = true;
 
-            CreateButton(panel.transform, "GeneratorButton", "발전기 배치", new Vector2(-88f, -160f),
-                () => powerBuild.SetMode(PowerBuildMode.Generator));
-            CreateButton(panel.transform, "CableButton", "전선 배치", new Vector2(88f, -160f),
-                () => powerBuild.SetMode(PowerBuildMode.Cable));
-            CreateButton(panel.transform, "TowerButton", "송전탑 배치", new Vector2(-88f, -208f),
-                () => powerBuild.SetMode(PowerBuildMode.TransmissionTower));
-            CreateButton(panel.transform, "RemovePowerButton", "전력 철거", new Vector2(88f, -208f),
-                () => powerBuild.SetMode(PowerBuildMode.Remove));
+            modeButtons[PowerBuildMode.Generator] = CreateButton(panel.transform, "GeneratorButton", "발전기 배치", new Vector2(-88f, -160f),
+                () => powerBuild.ToggleMode(PowerBuildMode.Generator));
+            modeButtons[PowerBuildMode.Cable] = CreateButton(panel.transform, "CableButton", "전선 배치", new Vector2(88f, -160f),
+                () => powerBuild.ToggleMode(PowerBuildMode.Cable));
+            modeButtons[PowerBuildMode.TransmissionTower] = CreateButton(panel.transform, "TowerButton", "송전탑 배치", new Vector2(-88f, -208f),
+                () => powerBuild.ToggleMode(PowerBuildMode.TransmissionTower));
+            modeButtons[PowerBuildMode.Remove] = CreateButton(panel.transform, "RemovePowerButton", "전력 철거", new Vector2(88f, -208f),
+                () => powerBuild.ToggleMode(PowerBuildMode.Remove));
             CreateButton(panel.transform, "CancelPowerButton", "배치 종료", new Vector2(0f, -256f),
                 () => powerBuild.SetMode(PowerBuildMode.None));
             CreateButton(panel.transform, "SaveFactoryButton", "SAVE", new Vector2(-88f, -316f), SaveFactory);
@@ -172,7 +176,24 @@ namespace Choi.SaveLoad
             }
         }
 
-        private static void CreateButton(Transform parent, string name, string label, Vector2 position,
+        private void UpdateModeButtonHighlights()
+        {
+            foreach (var pair in modeButtons)
+            {
+                if (pair.Value == null) continue;
+                bool selected = powerBuild.Mode == pair.Key;
+                Image image = pair.Value.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.color = selected
+                        ? Color.Lerp(new Color(0.1f, 0.9f, 1f), Color.white, 0.78f)
+                        : NormalButtonColor;
+                }
+                pair.Value.transform.localScale = selected ? Vector3.one * 1.06f : Vector3.one;
+            }
+        }
+
+        private static Button CreateButton(Transform parent, string name, string label, Vector2 position,
             UnityEngine.Events.UnityAction action)
         {
             var buttonObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
@@ -196,6 +217,7 @@ namespace Choi.SaveLoad
             textRect.anchorMax = Vector2.one;
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
+            return button;
         }
 
         private static Text CreateText(Transform parent, string name, string value, Vector2 position, Vector2 size, int fontSize)
