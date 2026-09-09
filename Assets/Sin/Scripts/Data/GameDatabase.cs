@@ -45,11 +45,14 @@ namespace Factory.Data
     {
         public readonly string Key;
         public readonly Vector2Int Footprint;
+        // Addressables 키(예: "Prefab_Smelter"). 비어 있으면 폴백 박스로 그린다.
+        public readonly string PrefabName;
 
-        public MachineRuntime(string key, Vector2Int footprint)
+        public MachineRuntime(string key, Vector2Int footprint, string prefabName)
         {
             Key = key;
             Footprint = footprint;
+            PrefabName = prefabName;
         }
     }
 
@@ -149,7 +152,7 @@ namespace Factory.Data
 
             var (machines, machineIdByKey) = BuildIndexed(
                 machineDataList, m => m.machineID,
-                def => new MachineRuntime(def.machineID, new Vector2Int(Mathf.Max(1, def.gridWidth), Mathf.Max(1, def.gridHeight))));
+                def => new MachineRuntime(def.machineID, new Vector2Int(Mathf.Max(1, def.gridWidth), Mathf.Max(1, def.gridHeight)), def.prefabName));
 
             // 레시피/광물노드는 resourceIdByKey가 먼저 완성되어 있어야 재료를 id로 풀 수 있다.
             var (recipes, recipeIdByKey) = BuildIndexed(

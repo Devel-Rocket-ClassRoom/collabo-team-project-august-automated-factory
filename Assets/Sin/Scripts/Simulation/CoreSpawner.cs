@@ -1,4 +1,6 @@
+using Factory.Building;
 using Factory.Buildings;
+using Factory.Rendering;
 using UnityEngine;
 
 namespace Factory.Simulation
@@ -42,9 +44,29 @@ namespace Factory.Simulation
             grid.RegisterBuildingFootprint(cells, CellOccupantType.Processor, index);
 
             Vector3 worldPos = GridUtility.GetFootprintCenter(Anchor, Footprint, 0.75f);
-            var go = corePrefab != null ? Instantiate(corePrefab, worldPos, Quaternion.identity) : GameObject.CreatePrimitive(PrimitiveType.Cube);
+            string coreKey = db.Machines[machineId].PrefabName; // "Prefab_Core" (AddressablesSetup)
+
+            GameObject go;
+            if (string.IsNullOrEmpty(coreKey) && corePrefab != null)
+            {
+                go = Instantiate(corePrefab, worldPos, Quaternion.identity); // 임시 다리(직접 참조)
+            }
+            else
+            {
+                go = new GameObject();
+                go.transform.position = worldPos;
+
+                var boxCollider = go.AddComponent<BoxCollider>();
+                boxCollider.center = new Vector3(0f, 0.5f, 0f);
+                boxCollider.size = new Vector3(Footprint.x, 1f, Footprint.y);
+
+                var placeholder = BuildVisuals.CreateBox(worldPos, new Vector3(Footprint.x, 1f, Footprint.y),
+                    new Color(0.2f, 0.45f, 0.7f), go.transform, withCollider: false);
+                placeholder.name = "Placeholder";
+
+                go.AddComponent<AddressableModelMount>().Mount(coreKey, placeholder);
+            }
             go.name = "Core";
-            if (corePrefab == null) go.transform.position = worldPos;
 
             var view = go.GetComponent<MachineView>() ?? go.AddComponent<MachineView>();
             view.Initialize(MachineInstanceKind.Processor, index, driver);

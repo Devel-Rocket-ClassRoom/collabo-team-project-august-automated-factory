@@ -1,5 +1,6 @@
 using Factory.Building;
 using Factory.Data;
+using Factory.Rendering;
 using UnityEngine;
 
 namespace Factory.Simulation
@@ -42,20 +43,22 @@ namespace Factory.Simulation
 
         private void SpawnVisual(Vector2Int cell, OreDepositRuntime deposit)
         {
-            Vector3 worldPos = GridUtility.CellToWorldCenter(cell, 0.02f); // 바닥에 거의 붙게(지면 겹침 방지)
-            GameObject go = oreDepositVisualPrefab != null
-                ? Instantiate(oreDepositVisualPrefab, worldPos, Quaternion.identity)
-                : GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Vector3 worldPos = GridUtility.CellToWorldCenter(cell, 0f);
+            var res = driver.World.Database.Resources[deposit.ResourceId];
 
-            if (oreDepositVisualPrefab == null)
-            {
-                Destroy(go.GetComponent<Collider>());
-                go.transform.position = worldPos;
-                go.transform.localScale = new Vector3(0.95f, 0.05f, 0.95f);
-            }
+            var root = new GameObject($"OreDeposit_{deposit.Key}");
+            root.transform.position = worldPos;
 
-            go.name = $"OreDeposit_{deposit.Key}";
-            BuildVisuals.Colorize(go, driver.World.Database.Resources[deposit.ResourceId].Color);
+            // 폴백: 자원 색 얇은 판. Addressables 모델(SM_*_Node)이 로드되면 숨겨진다.
+            // oreDepositVisualPrefab(SceneBootstrapper가 넣어주던 판 프리팹)은 이제 안 쓴다 — Addressables 우선.
+            GameObject placeholder = oreDepositVisualPrefab != null
+                ? Instantiate(oreDepositVisualPrefab, worldPos, Quaternion.identity, root.transform)
+                : BuildVisuals.CreateBox(worldPos, new Vector3(0.95f, 0.08f, 0.95f), res.Color, root.transform, withCollider: false);
+            placeholder.name = "Placeholder";
+            BuildVisuals.Colorize(placeholder, res.Color);
+
+            // 광맥 모델은 resourceId 로 조회한다(컨벤션) — AddressablesSetup 의 Deposits 표.
+            root.AddComponent<AddressableModelMount>().Mount("Prefab_Deposit_" + res.Key, placeholder);
         }
     }
 }

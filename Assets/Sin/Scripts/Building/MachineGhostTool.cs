@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Factory.Buildings;
 using Factory.Data;
+using Factory.Rendering;
 using Factory.Simulation;
 using UnityEngine;
 
@@ -199,7 +200,7 @@ namespace Factory.Building
                 };
                 int index = driver.World.AddMiner(miner);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Miner, index);
-                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), worldPos, rotation, MachineInstanceKind.Miner, index, new Color(0.55f, 0.4f, 0.25f), runtime.Footprint);
+                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), runtime.PrefabName, worldPos, rotation, MachineInstanceKind.Miner, index, new Color(0.55f, 0.4f, 0.25f), runtime.Footprint);
             }
             else
             {
@@ -217,7 +218,7 @@ namespace Factory.Building
                 int index = driver.World.AddProcessor(processor);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Processor, index);
                 TryAutoConnectAdjacentBelts(processor, index);
-                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), worldPos, rotation, MachineInstanceKind.Processor, index, new Color(0.6f, 0.15f, 0.1f), runtime.Footprint);
+                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), runtime.PrefabName, worldPos, rotation, MachineInstanceKind.Processor, index, new Color(0.6f, 0.15f, 0.1f), runtime.Footprint);
             }
 
             CancelPlacement();
@@ -313,26 +314,35 @@ namespace Factory.Building
             return false;
         }
 
-        private void SpawnMachineVisual(GameObject prefab, Vector3 position, Quaternion rotation, MachineInstanceKind kind, int index, Color color, Vector2Int footprint)
+        // 우선순위: Addressables 키(있으면) > 임시 다리(MachineVisualLibrary 직접 참조) > 폴백 박스.
+        // Addressables 경로는 루트에 폴백 박스를 먼저 띄우고 AddressableModelMount가 모델을 비동기로
+        // 얹는다(로드 실패 시 박스 유지). 탭 판정 콜라이더는 항상 루트에 footprint 크기로 붙는다.
+        private void SpawnMachineVisual(GameObject libraryPrefab, string addressableKey, Vector3 position, Quaternion rotation, MachineInstanceKind kind, int index, Color color, Vector2Int footprint)
         {
             GameObject go;
-            if (prefab != null)
+            if (!string.IsNullOrEmpty(addressableKey) || libraryPrefab == null)
             {
-                go = Instantiate(prefab, position, rotation);
+                go = new GameObject();
+                go.transform.SetPositionAndRotation(position, rotation);
+
+                var boxCollider = go.AddComponent<BoxCollider>();
+                boxCollider.center = new Vector3(0f, 0.5f, 0f);
+                boxCollider.size = new Vector3(footprint.x, 1f, footprint.y);
+
+                var placeholder = BuildVisuals.CreateBox(position, new Vector3(footprint.x, 1f, footprint.y), color, go.transform, withCollider: false);
+                placeholder.name = "Placeholder";
+
+                go.AddComponent<AddressableModelMount>().Mount(addressableKey, placeholder);
             }
             else
             {
-                go = BuildVisuals.CreateBox(position, Vector3.one, color, null);
-                go.transform.rotation = rotation;
-                go.AddComponent<MachineView>();
+                go = Instantiate(libraryPrefab, position, rotation);
+                var baseScale = go.transform.localScale;
+                go.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
             }
             go.name = $"{kind}_{index}";
 
-            // footprint가 1칸보다 크면(예: 2x2 합성기) 실제 오브젝트도 그만큼 크게 스케일한다.
-            var baseScale = go.transform.localScale;
-            go.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
-
-            var view = go.GetComponent<MachineView>();
+            var view = go.GetComponent<MachineView>() ?? go.AddComponent<MachineView>();
             view.Initialize(kind, index, driver);
         }
     }

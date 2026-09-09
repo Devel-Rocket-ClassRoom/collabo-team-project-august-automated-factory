@@ -8,7 +8,7 @@
             "outputSlots": 0,
             "gridWidth": 2,
             "gridHeight": 2,
-            "prefabName": ""
+            "prefabName": "Prefab_Core"
         },
         {
             "machineID": "Former",
@@ -18,7 +18,7 @@
             "outputSlots": 1,
             "gridWidth": 1,
             "gridHeight": 1,
-            "prefabName": ""
+            "prefabName": "Prefab_Former"
         },
         {
             "machineID": "Merger",
@@ -38,7 +38,7 @@
             "outputSlots": 1,
             "gridWidth": 1,
             "gridHeight": 1,
-            "prefabName": ""
+            "prefabName": "Prefab_Miner"
         },
         {
             "machineID": "Smelter",
@@ -48,7 +48,7 @@
             "outputSlots": 1,
             "gridWidth": 1,
             "gridHeight": 1,
-            "prefabName": ""
+            "prefabName": "Prefab_Smelter"
         },
         {
             "machineID": "Splitter",
@@ -68,7 +68,7 @@
             "outputSlots": 1,
             "gridWidth": 2,
             "gridHeight": 2,
-            "prefabName": ""
+            "prefabName": "Prefab_Synthesizer"
         }
     ]
 }
