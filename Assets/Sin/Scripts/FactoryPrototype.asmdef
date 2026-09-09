@@ -4,6 +4,8 @@
     "references": [
         "Unity.InputSystem",
         "UnityEngine.UI",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
         "Bae"
     ],
     "includePlatforms": [],
