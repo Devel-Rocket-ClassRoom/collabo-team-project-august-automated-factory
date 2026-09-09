@@ -18,9 +18,12 @@ namespace Seo.UI
         private Image accentBar;
         private Image progressFill;
         private Button recipeButton;
+        private Button demolishButton;
+        private GameObject demolitionConfirmation;
 
         public event Action CloseRequested;
         public event Action RecipeRequested;
+        public event Action DemolishRequested;
 
         public void Render(in MachineInfoViewData data)
         {
@@ -36,6 +39,18 @@ namespace Seo.UI
             progressFill.color = data.AccentColor;
             progressFill.fillAmount = data.Progress01;
             recipeButton.gameObject.SetActive(data.CanSelectRecipe);
+        }
+
+        public void SetDemolitionAllowed(bool allowed)
+        {
+            if (demolishButton != null) demolishButton.gameObject.SetActive(allowed);
+            if (!allowed) CloseDemolitionConfirmation();
+        }
+
+        public override void Close()
+        {
+            CloseDemolitionConfirmation();
+            base.Close();
         }
 
         public static MachineInfoPanel CreateRuntime(Transform parent)
@@ -115,22 +130,77 @@ namespace Seo.UI
                 "RecipeButton",
                 "레시피 설정",
                 new Vector2(24f, 20f),
-                new Vector2(310f, 58f),
+                new Vector2(210f, 58f),
                 false,
                 new Color(0.1f, 0.38f, 0.62f, 1f));
+            panel.demolishButton = CreateButton(
+                actionFooter.transform,
+                "DemolishButton",
+                "철거",
+                new Vector2(246f, 20f),
+                new Vector2(126f, 58f),
+                false,
+                new Color(0.55f, 0.12f, 0.12f, 1f));
             var closeButton = CreateButton(
                 actionFooter.transform,
                 "CloseButton",
                 "닫기",
                 new Vector2(-24f, 20f),
-                new Vector2(132f, 58f),
+                new Vector2(112f, 58f),
                 true,
                 new Color(0.38f, 0.16f, 0.18f, 1f));
             closeButton.onClick.AddListener(() => panel.CloseRequested?.Invoke());
             panel.recipeButton.onClick.AddListener(() => panel.RecipeRequested?.Invoke());
+            panel.demolishButton.onClick.AddListener(panel.OpenDemolitionConfirmation);
+
+            panel.CreateDemolitionConfirmation(root.transform);
 
             panel.Close();
             return panel;
+        }
+
+        private void CreateDemolitionConfirmation(Transform parent)
+        {
+            var dim = CreateImage(parent, "DemolitionConfirmation", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            dim.color = new Color(0f, 0f, 0f, 0.78f);
+            dim.raycastTarget = true;
+            demolitionConfirmation = dim.gameObject;
+
+            var card = CreateImage(dim.transform, "Dialog", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(420f, 220f));
+            card.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            SeoUIFactory.ApplyPanel(card, new Color(0.07f, 0.035f, 0.045f, 1f));
+            card.raycastTarget = true;
+
+            var title = CreateText(card.transform, "Title", new Vector2(30f, -30f), new Vector2(360f, 42f), 27, FontStyle.Bold);
+            title.text = "철거하시겠습니까?";
+            title.alignment = TextAnchor.MiddleCenter;
+            var description = CreateText(card.transform, "Description", new Vector2(30f, -78f), new Vector2(360f, 40f), 17);
+            description.text = "기계 안의 자원은 코어로 반환됩니다.";
+            description.color = SeoUITheme.Current.Muted;
+            description.alignment = TextAnchor.MiddleCenter;
+
+            var cancel = CreateButton(card.transform, "Cancel", "취소", new Vector2(30f, 24f),
+                new Vector2(170f, 58f), false, new Color(0.12f, 0.32f, 0.42f, 1f));
+            var confirm = CreateButton(card.transform, "Confirm", "철거 확정", new Vector2(-30f, 24f),
+                new Vector2(170f, 58f), true, new Color(0.65f, 0.1f, 0.1f, 1f));
+            cancel.onClick.AddListener(CloseDemolitionConfirmation);
+            confirm.onClick.AddListener(() =>
+            {
+                CloseDemolitionConfirmation();
+                DemolishRequested?.Invoke();
+            });
+            demolitionConfirmation.SetActive(false);
+        }
+
+        private void OpenDemolitionConfirmation()
+        {
+            if (demolitionConfirmation != null) demolitionConfirmation.SetActive(true);
+        }
+
+        private void CloseDemolitionConfirmation()
+        {
+            if (demolitionConfirmation != null) demolitionConfirmation.SetActive(false);
         }
 
         private static Text CreateText(Transform parent, string name, Vector2 position, Vector2 size, int fontSize, FontStyle style = FontStyle.Normal)
