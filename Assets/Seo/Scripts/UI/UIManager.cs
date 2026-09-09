@@ -149,6 +149,7 @@ namespace Seo.UI
             }
 
             machineInfoPanel.Render(data);
+            machineInfoPanel.SetDemolitionAllowed(CanDemolishSelected());
             machineInfoPanel.Open();
         }
 
@@ -202,6 +203,44 @@ namespace Seo.UI
             machineInfoPanel = MachineInfoPanel.CreateRuntime(panelParent);
             machineInfoPanel.CloseRequested += CloseMachineInfo;
             machineInfoPanel.RecipeRequested += OpenRecipeSelection;
+            machineInfoPanel.DemolishRequested += DemolishSelected;
+        }
+
+        private bool CanDemolishSelected()
+        {
+            if (driver == null || driver.World == null || selectedIndex < 0) return false;
+            if (selectedKind == MachineInstanceKind.Miner)
+                return selectedIndex < driver.World.Miners.Count && driver.World.Miners[selectedIndex] != null;
+            return selectedIndex < driver.World.Processors.Count
+                && driver.World.Processors[selectedIndex] != null
+                && selectedIndex != driver.World.CoreProcessorIndex;
+        }
+
+        private void DemolishSelected()
+        {
+            if (!CanDemolishSelected()) return;
+
+            var world = driver.World;
+            if (selectedKind == MachineInstanceKind.Miner)
+            {
+                DestroyMachineVisual($"{MachineInstanceKind.Miner}_{selectedIndex}");
+                world.Grid.UnregisterOccupant(CellOccupantType.Miner, selectedIndex);
+                world.RemoveMiner(selectedIndex);
+            }
+            else
+            {
+                DestroyMachineVisual($"{MachineInstanceKind.Processor}_{selectedIndex}");
+                world.Grid.UnregisterOccupant(CellOccupantType.Processor, selectedIndex);
+                world.RemoveProcessor(selectedIndex);
+            }
+
+            CloseMachineInfo();
+        }
+
+        private static void DestroyMachineVisual(string objectName)
+        {
+            var visual = GameObject.Find(objectName);
+            if (visual != null) Destroy(visual);
         }
 
         private void OpenRecipeSelection()
