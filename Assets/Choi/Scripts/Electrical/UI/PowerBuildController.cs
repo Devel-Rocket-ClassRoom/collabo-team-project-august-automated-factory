@@ -27,6 +27,7 @@ namespace Choi.SaveLoad
         private readonly List<GameObject> visuals = new List<GameObject>();
         private readonly List<GameObject> placementPreview = new List<GameObject>();
         private readonly List<GameObject> towerSelectionPreview = new List<GameObject>();
+        private readonly List<GameObject> coreRangePreview = new List<GameObject>();
         private readonly List<Vector2Int> cableDragPath = new List<Vector2Int>();
 
         private PowerGridSystem powerGrid;
@@ -40,6 +41,9 @@ namespace Choi.SaveLoad
         private bool lastBlackoutState;
         private bool blackoutStateInitialized;
         private int selectedTowerId = -1;
+        private bool hasLastGeneratorPaintCell;
+        private Vector2Int lastGeneratorPaintCell;
+        private bool isCoreRangeSelected;
 
         public PowerBuildMode Mode { get; private set; }
         public string LastMessage { get; private set; } = "전력 도구 대기";
@@ -62,7 +66,7 @@ namespace Choi.SaveLoad
         {
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
-                if (Mode == PowerBuildMode.None) ClearTowerSelectionPreview();
+                if (Mode == PowerBuildMode.None) ClearPowerRangeSelection();
                 else SetMode(PowerBuildMode.None);
                 return;
             }
@@ -92,13 +96,19 @@ namespace Choi.SaveLoad
 
             if (Mode == PowerBuildMode.None)
             {
-                if (pressed) SelectTowerAt(cell);
+                if (pressed) SelectPowerRangeAt(cell);
                 return;
             }
 
             if (Mode == PowerBuildMode.Cable)
             {
                 HandleCablePlacement(cell, pressed, held, released);
+                return;
+            }
+
+            if (Mode == PowerBuildMode.Generator)
+            {
+                HandleGeneratorPlacement(cell, pressed, held);
                 return;
             }
 
@@ -121,13 +131,20 @@ namespace Choi.SaveLoad
         {
             CancelPlacementPreview();
             ClearTowerSelectionPreview();
+            ClearCoreRangePreview();
             RestoreBuildRouter();
+        }
+
+        public void ToggleMode(PowerBuildMode mode)
+        {
+            SetMode(Mode == mode ? PowerBuildMode.None : mode);
         }
 
         public void SetMode(PowerBuildMode mode)
         {
             CancelPlacementPreview();
-            ClearTowerSelectionPreview();
+            ClearPowerRangeSelection();
+            hasLastGeneratorPaintCell = false;
             Mode = mode;
             if (mode == PowerBuildMode.None)
             {
@@ -243,13 +260,28 @@ namespace Choi.SaveLoad
                 string completedMessage = LastMessage;
                 RebuildVisuals();
                 powerGrid.EvaluatePower();
-                if (completedMode == PowerBuildMode.Generator
-                    || completedMode == PowerBuildMode.TransmissionTower)
+                // 발전기는 버튼을 다시 누르지 않아도 계속 설치할 수 있다.
+                // 송전탑은 기존처럼 한 번 설치한 뒤 선택을 종료한다.
+                if (completedMode == PowerBuildMode.TransmissionTower)
                 {
                     SetMode(PowerBuildMode.None);
                     LastMessage = completedMessage;
                 }
             }
+        }
+
+        private void HandleGeneratorPlacement(Vector2Int cell, bool pressed, bool held)
+        {
+            if (!pressed && !held)
+            {
+                hasLastGeneratorPaintCell = false;
+                return;
+            }
+            if (!pressed && hasLastGeneratorPaintCell && lastGeneratorPaintCell == cell) return;
+
+            hasLastGeneratorPaintCell = true;
+            lastGeneratorPaintCell = cell;
+            ApplyAt(cell);
         }
 
         private void CreateWire(Vector2Int fromCell, Vector2Int toCell)
@@ -346,22 +378,15 @@ namespace Choi.SaveLoad
         private void ShowCablePreview(Vector2Int currentCell)
         {
             ClearPlacementPreview();
-            List<Vector2Int> previewPath = cableDragPath;
-            if (powerGrid.TryGetNode(currentCell, out PowerNodeRuntime targetNode)
-                && IsGeneratorTowerPair(cableStartNode, targetNode))
-            {
-                previewPath = new List<Vector2Int> { cableStartNode.Cell, targetNode.Cell };
-            }
+            if (cableStartNode == null || cableStartCell == currentCell) return;
 
-            for (int i = 1; i < previewPath.Count; i++)
-            {
-                Vector3 from = GridUtility.CellToWorldCenter(previewPath[i - 1], CableHeight + 0.02f);
-                Vector3 to = GridUtility.CellToWorldCenter(previewPath[i], CableHeight + 0.02f);
-                GameObject wire = BuildVisuals.CreateStrip(from, to, CableWidth * 1.7f,
-                    new Color(0.2f, 0.95f, 1f), null, false);
-                wire.name = "PowerWirePreview";
-                placementPreview.Add(wire);
-            }
+            // 드래그 경로의 흔들림과 관계없이 시작점-현재 지점을 한 직선으로 미리 보여준다.
+            Vector3 from = GridUtility.CellToWorldCenter(cableStartCell, CableHeight + 0.02f);
+            Vector3 to = GridUtility.CellToWorldCenter(currentCell, CableHeight + 0.02f);
+            GameObject wire = BuildVisuals.CreateStrip(from, to, CableWidth * 1.7f,
+                new Color(0.2f, 0.95f, 1f), null, false);
+            wire.name = "PowerWirePreview";
+            placementPreview.Add(wire);
         }
 
         private static bool IsGeneratorTowerPair(PowerNodeRuntime first, PowerNodeRuntime second)
@@ -377,13 +402,28 @@ namespace Choi.SaveLoad
             CreateTowerRange(centerCell, placementPreview, new Color(0.35f, 0.9f, 1f));
         }
 
-        private void SelectTowerAt(Vector2Int cell)
+        private void SelectPowerRangeAt(Vector2Int cell)
         {
+            if (powerGrid != null && powerGrid.IsCoreCell(cell))
+            {
+                if (isCoreRangeSelected)
+                {
+                    ClearCoreRangePreview();
+                    LastMessage = "코어 전력 범위 표시 종료";
+                    return;
+                }
+
+                ClearTowerSelectionPreview();
+                ShowCoreRangePreview();
+                LastMessage = $"코어 선택 · 공급 범위 {PowerGridSystem.CoreRangeSize}x{PowerGridSystem.CoreRangeSize}";
+                return;
+            }
+
             if (powerGrid == null
                 || !powerGrid.TryGetNode(cell, out PowerNodeRuntime node)
                 || node.Kind != PowerNodeKind.TransmissionTower)
             {
-                ClearTowerSelectionPreview();
+                ClearPowerRangeSelection();
                 return;
             }
 
@@ -395,6 +435,7 @@ namespace Choi.SaveLoad
             }
 
             ClearTowerSelectionPreview();
+            ClearCoreRangePreview();
             selectedTowerId = node.Id;
             CreateTowerRange(cell, towerSelectionPreview, new Color(0.72f, 0.35f, 1f));
             LastMessage = $"송전탑 선택: {cell} · 공급 범위 15x15";
@@ -413,6 +454,34 @@ namespace Choi.SaveLoad
             CreatePreviewStrip(new Vector3(maxX, height, minZ), new Vector3(maxX, height, maxZ), width, color, target);
             CreatePreviewStrip(new Vector3(maxX, height, maxZ), new Vector3(minX, height, maxZ), width, color, target);
             CreatePreviewStrip(new Vector3(minX, height, maxZ), new Vector3(minX, height, minZ), width, color, target);
+        }
+
+        private void ShowCoreRangePreview()
+        {
+            if (powerGrid == null || !powerGrid.TryGetCorePowerCenter(out Vector2 center))
+            {
+                ClearCoreRangePreview();
+                return;
+            }
+
+            ClearCoreRangePreview();
+            isCoreRangeSelected = true;
+
+            float halfRange = PowerGridSystem.CoreRangeSize * 0.5f;
+            // 2x2 코어 중심을 기준으로 12x12 영역의 네 변을 그리드 경계에 맞춘다.
+            float minX = Mathf.Floor(center.x - halfRange);
+            float maxX = minX + PowerGridSystem.CoreRangeSize;
+            float minZ = Mathf.Floor(center.y - halfRange);
+            float maxZ = minZ + PowerGridSystem.CoreRangeSize;
+            const float height = 0.085f;
+            const float width = 0.09f;
+            Color color = new Color(0.18f, 1f, 0.52f, 0.9f);
+
+            CreatePreviewStrip(new Vector3(minX, height, minZ), new Vector3(maxX, height, minZ), width, color, coreRangePreview);
+            CreatePreviewStrip(new Vector3(maxX, height, minZ), new Vector3(maxX, height, maxZ), width, color, coreRangePreview);
+            CreatePreviewStrip(new Vector3(maxX, height, maxZ), new Vector3(minX, height, maxZ), width, color, coreRangePreview);
+            CreatePreviewStrip(new Vector3(minX, height, maxZ), new Vector3(minX, height, minZ), width, color, coreRangePreview);
+            for (int i = 0; i < coreRangePreview.Count; i++) coreRangePreview[i].name = "CorePowerRange";
         }
 
         private void CreatePreviewStrip(Vector3 from, Vector3 to, float width, Color color, List<GameObject> target)
@@ -447,6 +516,22 @@ namespace Choi.SaveLoad
             }
             towerSelectionPreview.Clear();
             selectedTowerId = -1;
+        }
+
+        private void ClearCoreRangePreview()
+        {
+            for (int i = 0; i < coreRangePreview.Count; i++)
+            {
+                if (coreRangePreview[i] != null) Destroy(coreRangePreview[i]);
+            }
+            coreRangePreview.Clear();
+            isCoreRangeSelected = false;
+        }
+
+        private void ClearPowerRangeSelection()
+        {
+            ClearTowerSelectionPreview();
+            ClearCoreRangePreview();
         }
 
         private void RestoreBuildRouter()
