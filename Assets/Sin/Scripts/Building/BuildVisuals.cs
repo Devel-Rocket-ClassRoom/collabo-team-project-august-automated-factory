@@ -10,8 +10,16 @@ namespace Factory.Building
     {
         private static readonly Dictionary<Color, Material> materialCache = new Dictionary<Color, Material>();
 
-        public static GameObject CreateStrip(Vector3 from, Vector3 to, float thickness, Color color, Transform parent, bool withCollider = false, GameObject prefab = null)
+        // keepPrefabMaterial=true 면 prefab 의 머티리얼(예: 컨베이어 텍스처)을 그대로 두고 색만
+        // 안 덮는다. 대신 길이 방향으로 텍스처를 타일링해 무늬가 늘어나지 않게 한다.
+        // (미리보기 스트립은 false 로 둬서 유효/무효 색 틴트를 유지한다.)
+        public static GameObject CreateStrip(Vector3 from, Vector3 to, float thickness, Color color, Transform parent,
+            bool withCollider = false, GameObject prefab = null, bool keepPrefabMaterial = false, float flatSurfaceY = 0.06f)
         {
+            // 텍스처 벨트는 코너와 똑같이 바닥에 눕힌 Quad 로 그린다(높이차로 이음새가 끊겨 보이지 않게).
+            // 폴백(단색)·미리보기는 기존처럼 살짝 두께 있는 큐브.
+            bool flat = prefab != null && keepPrefabMaterial;
+
             GameObject go;
             if (prefab != null)
             {
@@ -25,22 +33,33 @@ namespace Factory.Building
 
             Vector3 mid = (from + to) * 0.5f;
             float length = Mathf.Max(Vector3.Distance(from, to), 0.001f);
-            Quaternion rotation = Quaternion.LookRotation(to - from);
-
             go.transform.SetParent(parent, true);
-            go.transform.position = mid;
+
+            if (flat)
+            {
+                Vector3 travel = to - from;
+                float yaw = Mathf.Atan2(travel.x, travel.z) * Mathf.Rad2Deg;
+                go.transform.position = new Vector3(mid.x, flatSurfaceY, mid.z); // 코너 Quad 와 같은 높이
+                go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation; // 프리팹 눕힌 자세 유지 + 진행방향
+                // 폭(thickness)은 코너 텍스처 안의 "벨트 띠" 폭과 같아야 이음새에서 안 잘린다.
+                // 둘 다 칸 중심선 기준 centered 이므로 이 폭만 맞추면 정렬됨.
+                go.transform.localScale = new Vector3(thickness, length, 1f);
+
+                var renderer = go.GetComponentInChildren<Renderer>();
+                if (renderer != null && renderer.sharedMaterial != null && renderer.sharedMaterial.mainTexture != null)
+                {
+                    var mat = renderer.material; // 스트립마다 개별 인스턴스(타일링이 서로 안 섞이게)
+                    mat.mainTextureScale = new Vector2(mat.mainTextureScale.x, Mathf.Max(1f, Mathf.Round(length)));
+                }
+                return go;
+            }
+
+            Quaternion rotation = Quaternion.LookRotation(to - from);
+            go.transform.position = mid + Vector3.up * (thickness * 0.2f); // 큐브 밑면이 바닥에 닿게
             go.transform.rotation = rotation;
             go.transform.localScale = new Vector3(thickness, thickness * 0.4f, length);
-
             Colorize(go, color);
-
-            // 방향 화살표는 스트립(go)의 자식으로 붙이되, 월드 좌표/스케일을 먼저 확정한 뒤
-            // worldPositionStays=true로 재부모화한다 — 스트립은 (thickness, thickness*0.4,
-            // length)로 비균일 스케일돼 있어서 그냥 자식으로 붙이면 화살표가 길이에 따라
-            // 늘어나거나 찌그러지는데, 이렇게 하면 유니티가 로컬 스케일을 알아서 보정해줘서
-            // 항상 일정한 절대 크기로 보이면서도 스트립이 파괴될 때 같이 정리된다.
-            AttachDirectionArrow(mid + Vector3.up * (thickness * 0.4f * 0.5f + 0.03f), rotation, go.transform);
-
+            AttachDirectionArrow(go.transform.position + Vector3.up * (thickness * 0.2f + 0.03f), rotation, go.transform);
             return go;
         }
 

@@ -30,6 +30,15 @@ namespace Factory.Building
         [SerializeField] private Color committedColor = new Color(0.15f, 0.15f, 0.15f, 1f);
         [SerializeField] private GameObject itemVisualPrefab;
         [SerializeField] private GameObject stripPrefab;
+        // 코너(90도 꺾이는 칸) 프리팹. cornerPrefab = 우회전(진입 아래→이탈 오른쪽), cornerLeftPrefab = 좌회전.
+        // 좌회전 그림은 우회전 PNG를 좌우 반전해서 만들면 된다. cornerLeftPrefab 이 없으면 대칭 타일로 간주해
+        // cornerPrefab 을 양쪽에 쓴다(화살표 없는 코너용). 둘 다 없으면 직선 조각 2개로 폴백.
+        [SerializeField] private GameObject cornerPrefab;
+        [SerializeField] private GameObject cornerLeftPrefab;
+        // 납작 벨트 Quad 가 놓이는 높이. 바닥 타일이 두께가 있어서 0 이면 파묻힌다 — 타일 윗면 위로 올린다.
+        [SerializeField] private float beltSurfaceY = 0.06f;
+        // 코너 Quad 를 살짝 키워 직선과의 이음새를 덮는다(1 = 그대로, 1.08 = 8% 크게).
+        [SerializeField] private float cornerScale = 1.08f;
 
         private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly List<Vector2Int> path = new List<Vector2Int>();
@@ -98,8 +107,15 @@ namespace Factory.Building
                 ComputeCellSpan(path, k, out Vector3 entry, out Vector3 exit, out Vector3? bend);
                 if (bend.HasValue)
                 {
-                    previewStrips.Add(BuildVisuals.CreateStrip(entry, bend.Value, previewThickness, previewColor, transform, prefab: stripPrefab));
-                    previewStrips.Add(BuildVisuals.CreateStrip(bend.Value, exit, previewThickness, previewColor, transform, prefab: stripPrefab));
+                    if (cornerPrefab != null)
+                    {
+                        previewStrips.Add(SpawnBeltCorner(bend.Value, bend.Value - entry, exit - bend.Value, previewColor, transform, keepMaterial: false));
+                    }
+                    else
+                    {
+                        previewStrips.Add(BuildVisuals.CreateStrip(entry, bend.Value, previewThickness, previewColor, transform, prefab: stripPrefab));
+                        previewStrips.Add(BuildVisuals.CreateStrip(bend.Value, exit, previewThickness, previewColor, transform, prefab: stripPrefab));
+                    }
                 }
                 else
                 {
@@ -112,7 +128,7 @@ namespace Factory.Building
         // 계산한다. 진입/이탈 방향이 다르면(코너) 꺾이는 지점(bend)을 반환해서 두 조각으로 나눠 그린다.
         private static void ComputeCellSpan(List<Vector2Int> path, int k, out Vector3 entry, out Vector3 exit, out Vector3? bend)
         {
-            Vector3 center = GridUtility.CellToWorldCenter(path[k], 0.5f);
+            Vector3 center = GridUtility.CellToWorldCenter(path[k], 0f); // 벨트는 바닥에 붙는다(납작 Quad)
             Vector3? inDir = k > 0 ? DirWorld(path[k] - path[k - 1]) : (Vector3?)null;
             Vector3? outDir = k < path.Count - 1 ? DirWorld(path[k + 1] - path[k]) : (Vector3?)null;
 
@@ -447,10 +463,8 @@ namespace Factory.Building
         {
             var root = new GameObject($"Belt_{segmentId}");
 
-            // 벨트 스트립 메쉬는 from/to 지점을 중심(Y)으로 삼아 두께만큼 위아래로 걸쳐 있다.
-            // 아이템 앵커까지 같은 Y를 쓰면 아이템 절반이 벨트 안에 파묻혀 버리니, 벨트 윗면
-            // 위로 아이템 반지름만큼 띄워서 "위에 얹혀 굴러가는" 것처럼 보이게 한다.
-            Vector3 itemHeightOffset = Vector3.up * (committedThickness * 0.2f + itemVisualRadius);
+            // 아이템이 벨트 면(beltSurfaceY) 위에 얹혀 굴러가는 것처럼 반지름만큼 띄운다.
+            Vector3 itemHeightOffset = Vector3.up * (beltSurfaceY + 0.01f + itemVisualRadius);
 
             var startAnchor = new GameObject("Start").transform;
             startAnchor.SetParent(root.transform);
@@ -462,17 +476,62 @@ namespace Factory.Building
 
             if (bend.HasValue)
             {
-                // 코너 칸: 진입 절반 + 이탈 절반 두 조각으로 나눠 그려야 칸 전체가 빈틈없이 덮인다.
-                BuildVisuals.CreateStrip(from, bend.Value, committedThickness, committedColor, root.transform, prefab: stripPrefab);
-                BuildVisuals.CreateStrip(bend.Value, to, committedThickness, committedColor, root.transform, prefab: stripPrefab);
+                if (cornerPrefab != null)
+                {
+                    SpawnBeltCorner(bend.Value, bend.Value - from, to - bend.Value, committedColor, root.transform, keepMaterial: true);
+                }
+                else
+                {
+                    // 폴백: 진입 절반 + 이탈 절반 두 조각으로 나눠 그려 칸 전체를 덮는다.
+                    BuildVisuals.CreateStrip(from, bend.Value, committedThickness, committedColor, root.transform, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: beltSurfaceY);
+                    BuildVisuals.CreateStrip(bend.Value, to, committedThickness, committedColor, root.transform, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: beltSurfaceY);
+                }
             }
             else
             {
-                BuildVisuals.CreateStrip(from, to, committedThickness, committedColor, root.transform, prefab: stripPrefab);
+                BuildVisuals.CreateStrip(from, to, committedThickness, committedColor, root.transform, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: beltSurfaceY);
             }
 
             var itemRenderer = root.AddComponent<BeltItemRenderer>();
             itemRenderer.Initialize(driver, segmentId, startAnchor, endAnchor, itemVisualPrefab);
+        }
+
+        // 코너 칸 중심에 코너 프리팹을 놓고 Y축으로만 돌린다(프리팹의 눕힌 자세는 유지).
+        //
+        // 우회전 프리팹 기준: 진입 = 아래(-Z) 변에서 위로(+Z) 들어와, 오른쪽(+X) 변으로 나간다.
+        //  - 실제 진입 흐름방향(fin)에 프리팹 로컬 +Z 를 맞추면(yaw) 네 방향 우회전이 다 커버됨.
+        //  - 좌회전은 거울상이라 회전만으론 화살표가 뒤집힘 → 좌회전 전용 프리팹(cornerLeftPrefab)을 쓴다.
+        //    없으면 대칭 타일로 보고 우회전 프리팹을 두 변 사잇방향에 맞춰 돌린다(화살표 없는 코너용 폴백).
+        private GameObject SpawnBeltCorner(Vector3 cellCenter, Vector3 dIn, Vector3 dOut, Color tint, Transform parent, bool keepMaterial)
+        {
+            Vector3 fin = new Vector3(dIn.x, 0f, dIn.z).normalized;
+            Vector3 fout = new Vector3(dOut.x, 0f, dOut.z).normalized;
+            bool leftTurn = Vector3.Cross(fin, fout).y < 0f;
+
+            GameObject prefab = (leftTurn && cornerLeftPrefab != null) ? cornerLeftPrefab : cornerPrefab;
+            var go = Instantiate(prefab, parent);
+            go.transform.position = new Vector3(cellCenter.x, beltSurfaceY, cellCenter.z);
+
+            // 이음새를 덮게 코너를 살짝 키운다(Quad 평면 축 = 로컬 X/Y, Z 는 노멀이라 유지).
+            Vector3 baseScale = go.transform.localScale;
+            go.transform.localScale = new Vector3(baseScale.x * cornerScale, baseScale.y * cornerScale, baseScale.z);
+
+            float yaw;
+            if (leftTurn && cornerLeftPrefab == null)
+            {
+                // 폴백: 대칭 타일 가정 — 두 변 사잇방향(우회전 프리팹은 135°)에 맞춤.
+                Vector3 bisector = fout - fin;
+                yaw = Mathf.Atan2(bisector.x, bisector.z) * Mathf.Rad2Deg - 135f;
+            }
+            else
+            {
+                // 진입 흐름방향(fin)에 로컬 +Z 를 맞춘다. 우/좌 전용 프리팹 둘 다 이 규칙.
+                yaw = Mathf.Atan2(fin.x, fin.z) * Mathf.Rad2Deg;
+            }
+            go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;
+
+            if (!keepMaterial) BuildVisuals.Colorize(go, tint);
+            return go;
         }
     }
 }
