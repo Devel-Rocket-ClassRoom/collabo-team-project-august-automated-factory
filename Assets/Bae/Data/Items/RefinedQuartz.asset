@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fa4a62007ebe06c4f8a2aca0aa40ee80, type: 3}
-  m_Name: IronOre
+  m_Name: RefinedQuartz
   m_EditorClassIdentifier: Bae::Bae.SO.ItemSO
-  itemID: IronOre
-  itemName: "\uCCA0 \uC6D0\uC11D"
-  description: "\uAE30\uBCF8 \uAD6C\uC870\uC7AC\uC758 \uC6D0\uB8CC\uAC00 \uB418\uB294
-    \uAD11\uC11D\uC785\uB2C8\uB2E4."
-  iconName: Icon_IronOre
-  prefabName: Prefab_Item_IronOre
+  itemID: RefinedQuartz
+  itemName: "\uC815\uC81C\uB41C \uC11D\uC601"
+  description: "\uC11D\uC601\uC744 \uC7AC\uB828\uB8CC\uC5D0 \uB123\uC73C\uBA74 \uC815\uC7AC\uB418\uC11C
+    \uB098\uC640\uC694 \uC9DC\uB780"
+  iconName: Icon_RefinedQuartz
+  prefabName: Prefab_Item_RefinedQuartz

@@ -10,15 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21cab9ad17333124c89504f1885fd7c2, type: 3}
-  m_Name: FormIronPlate
+  m_Name: ProcessCarbonNanotube
   m_EditorClassIdentifier: Bae::Bae.SO.RecipeSO
-  recipeID: FormIronIngot
-  machineID: Former
-  timeToCraft: 3
+  recipeID: ProcessCarbonNanotube
+  machineID: ProcessingMachine
+  timeToCraft: 6
   inputItems:
-  - IronIngot
-  - IronIngot
-  - IronIngot
+  - CoalBundle
+  - QuartzPlate
+  - UraniumPlate
   outputItems:
-  - IronPlate
-  - IronPlate
+  - CarbonNanotube

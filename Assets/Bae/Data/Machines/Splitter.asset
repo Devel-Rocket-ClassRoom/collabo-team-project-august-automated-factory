@@ -19,4 +19,4 @@ MonoBehaviour:
   outputSlots: 3
   gridWidth: 1
   gridHeight: 1
-  prefabName: 
+  prefabName: Prefab_Splitter

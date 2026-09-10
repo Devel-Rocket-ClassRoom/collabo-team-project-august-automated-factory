@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fa4a62007ebe06c4f8a2aca0aa40ee80, type: 3}
-  m_Name: IronOre
+  m_Name: GoldOre
   m_EditorClassIdentifier: Bae::Bae.SO.ItemSO
-  itemID: IronOre
-  itemName: "\uCCA0 \uC6D0\uC11D"
-  description: "\uAE30\uBCF8 \uAD6C\uC870\uC7AC\uC758 \uC6D0\uB8CC\uAC00 \uB418\uB294
-    \uAD11\uC11D\uC785\uB2C8\uB2E4."
-  iconName: Icon_IronOre
-  prefabName: Prefab_Item_IronOre
+  itemID: GoldOre
+  itemName: "\uAE08 \uC6D0\uC11D"
+  description: "\uD76C\uADC0 \uC790\uC6D0\uC73C\uB85C \uC694\uC998 \uAE08\uAC12 \uB9CE\uC774
+    \uC62C\uB77C\uC694."
+  iconName: Icon_GoldOre
+  prefabName: Prefab_Item_GoldOre

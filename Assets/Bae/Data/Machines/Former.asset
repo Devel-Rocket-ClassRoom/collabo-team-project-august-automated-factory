@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Bae::Bae.SO.MachineSO
   machineID: Former
   machineName: "\uC131\uD615\uAE30"
-  powerConsumption: 0
+  powerConsumption: 15
   inputSlots: 1
   outputSlots: 1
   gridWidth: 1

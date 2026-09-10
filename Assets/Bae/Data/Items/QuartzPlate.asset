@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fa4a62007ebe06c4f8a2aca0aa40ee80, type: 3}
-  m_Name: IronOre
+  m_Name: QuartzPlate
   m_EditorClassIdentifier: Bae::Bae.SO.ItemSO
-  itemID: IronOre
-  itemName: "\uCCA0 \uC6D0\uC11D"
-  description: "\uAE30\uBCF8 \uAD6C\uC870\uC7AC\uC758 \uC6D0\uB8CC\uAC00 \uB418\uB294
-    \uAD11\uC11D\uC785\uB2C8\uB2E4."
-  iconName: Icon_IronOre
-  prefabName: Prefab_Item_IronOre
+  itemID: QuartzPlate
+  itemName: "\uC11D\uC601 \uD310"
+  description: "\uC815\uC81C\uB41C \uC11D\uC601\uC744 \uB123\uC73C\uBA74 \uC11D\uC601
+    \uD310\uC774 \uB098\uC640\uC694"
+  iconName: Icon_QuartzPlate
+  prefabName: Prefab_Item_QuartzPlate
