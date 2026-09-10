@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Bae::Bae.SO.MachineSO
   machineID: Smelter
   machineName: "\uC81C\uB828\uB85C"
-  powerConsumption: 0
+  powerConsumption: 10
   inputSlots: 1
   outputSlots: 1
   gridWidth: 1

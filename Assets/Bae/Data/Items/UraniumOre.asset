@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fa4a62007ebe06c4f8a2aca0aa40ee80, type: 3}
-  m_Name: SteelIngot
+  m_Name: UraniumOre
   m_EditorClassIdentifier: Bae::Bae.SO.ItemSO
-  itemID: SteelIngot
-  itemName: "\uAC15\uCCA0 \uC8FC\uAD34"
-  description: "\uCCA0 \uC8FC\uAD34\uC640 \uC11D\uD0C4\uC744 \uD569\uC131\uD574 \uB9CC\uB4E0
-    \uACE0\uAC15\uB3C4 \uC8FC\uAD34\uC785\uB2C8\uB2E4."
-  iconName: Icon_SteelIngot
-  prefabName: Prefab_Item_SteelIngot
+  itemID: UraniumOre
+  itemName: "\uC6B0\uB77C\uB284 \uC6D0\uC11D"
+  description: "\uD6C4\uBC18 \uD0DC\uD06C \uC704\uD5D8 \uC790\uC6D0 \uAD11\uC11D
+    \uC785\uB2C8\uB2E4."
+  iconName: Icon_UraniumOre
+  prefabName: Prefab_Item_UraniumOre

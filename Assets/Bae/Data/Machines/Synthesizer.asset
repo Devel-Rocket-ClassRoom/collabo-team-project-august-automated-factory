@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Bae::Bae.SO.MachineSO
   machineID: Synthesizer
   machineName: "\uD569\uC131\uAE30"
-  powerConsumption: 0
+  powerConsumption: 30
   inputSlots: 2
   outputSlots: 1
   gridWidth: 2
