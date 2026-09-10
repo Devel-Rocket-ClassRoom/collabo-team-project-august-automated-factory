@@ -73,6 +73,8 @@ public static class SceneBootstrapper
         var corePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/CoreVisual.prefab");
         var ghostPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/MachineGhost.prefab");
         var stripPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltStripVisual.prefab");
+        var cornerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltCornerVisual.prefab");
+        var cornerLeftPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltCornerVisualLeft.prefab");
         if (itemPrefab == null || corePrefab == null || ghostPrefab == null || stripPrefab == null)
         {
             Debug.LogWarning("[SceneBootstrapper] Prefab(s) not found — run Tools > Factory Prototype > Build Prefabs first.");
@@ -80,6 +82,8 @@ public static class SceneBootstrapper
 
         SetRef(beltTool, "itemVisualPrefab", itemPrefab);
         SetRef(beltTool, "stripPrefab", stripPrefab);
+        SetRef(beltTool, "cornerPrefab", cornerPrefab);
+        SetRef(beltTool, "cornerLeftPrefab", cornerLeftPrefab);
         SetRef(machineTool, "ghostPrefab", ghostPrefab);
 
         // Bae님 데이터(MachineData.prefabName)는 Addressables 키 문자열이라 아직 실제 프리팹을

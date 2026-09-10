@@ -35,6 +35,7 @@ public static class PrefabBuilder
         BuildOreDepositVisualPrefab();
         BuildGhostPrefab();
         BuildBeltStripPrefab();
+        BuildBeltCornerPrefab();
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -218,13 +219,36 @@ public static class PrefabBuilder
     {
         if (AlreadyExists("BeltStripVisual")) return;
 
-        // 크기/회전은 BuildVisuals.CreateStrip이 배치 때마다 다시 계산해서 덮어쓴다 —
-        // 프리팹은 메쉬/머티리얼 템플릿 역할만 한다.
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        // 바닥에 눕힌 Quad — 코너(BeltCornerVisual)와 같은 형태라 이음새에 높이차가 없다.
+        // 크기/회전은 BuildVisuals.CreateStrip 이 배치마다 다시 잡는다(로컬 X=폭, Y=길이).
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
         Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // 눕힘(윗면이 위를 봄)
         ApplyPersistedMaterial(go, "BeltStripVisual_Mat", new Color(0.15f, 0.15f, 0.15f));
 
         SaveAndDestroy(go, "BeltStripVisual");
+    }
+
+    // 코너 프리팹(바닥에 눕힌 Quad). 배치 시 BeltDragTool 이 칸 중심에 놓고 Y축으로만 돌린다.
+    //  - BeltCornerVisual      : 우회전 (진입 아래→이탈 오른쪽)
+    //  - BeltCornerVisualLeft   : 좌회전 (우회전 PNG 를 좌우 반전한 그림 끼우기)
+    private static void BuildBeltCornerPrefab()
+    {
+        BuildFlatBeltQuad("BeltCornerVisual", "BeltCornerVisual_Mat");
+        BuildFlatBeltQuad("BeltCornerVisualLeft", "BeltCornerVisualLeft_Mat");
+    }
+
+    private static void BuildFlatBeltQuad(string prefabName, string matName)
+    {
+        if (AlreadyExists(prefabName)) return;
+
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // 바닥에 눕힘
+        go.transform.localScale = Vector3.one;
+        ApplyPersistedMaterial(go, matName, new Color(0.15f, 0.15f, 0.15f));
+
+        SaveAndDestroy(go, prefabName);
     }
 
     private static bool AlreadyExists(string name)

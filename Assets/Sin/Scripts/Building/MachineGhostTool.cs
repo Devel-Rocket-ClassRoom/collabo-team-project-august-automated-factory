@@ -31,8 +31,8 @@ namespace Factory.Building
         [SerializeField] private SimulationDriver driver;
         [SerializeField] private MachineVisualLibrary visualLibrary;
         [SerializeField] private Vector2 screenOffset = new Vector2(0f, 150f);
-        [SerializeField] private Color validColor = new Color(0.3f, 0.9f, 0.4f, 0.45f);
-        [SerializeField] private Color invalidColor = new Color(0.9f, 0.2f, 0.2f, 0.45f);
+        [SerializeField] private Color validColor = new Color(0.3f, 0.9f, 0.4f, 0.8f);
+        [SerializeField] private Color invalidColor = new Color(0.9f, 0.2f, 0.2f, 0.8f);
         // 기계 전용 프리팹도, visualLibrary에 등록된 것도 없을 때(폴백)만 쓰는 공용 박스 프리팹.
         [SerializeField] private GameObject ghostPrefab;
 
@@ -71,28 +71,43 @@ namespace Factory.Building
             selectedMachineRuntime = db.Machines[id];
             currentFacing = new Vector2Int(1, 0);
 
-            // 고스트는 실제로 놓일 기계와 같은 모양(machineVisualLibrary에 등록된 종류별 전용
-            // 프리팹)을 쓰고, 색만 유효/무효 색으로 덮어씌운다. 등록 안 된 종류는 공용 박스로 대체.
-            GameObject shapePrefab = visualLibrary != null && visualLibrary.TryGetPrefab(machineId, out var found) ? found : null;
-            ghost = shapePrefab != null
-                ? Instantiate(shapePrefab, transform)
-                : ghostPrefab != null
-                    ? Instantiate(ghostPrefab, transform)
-                    : BuildVisuals.CreateBox(Vector3.zero, new Vector3(0.9f, 0.9f, 0.9f), invalidColor, transform, withCollider: false);
-
-            // 미리보기 전용이라 실제 동작(MachineView)과 충돌 판정은 걷어낸다.
-            var view = ghost.GetComponent<MachineView>();
-            if (view != null) Destroy(view);
-            var collider = ghost.GetComponent<Collider>();
-            if (collider != null) Destroy(collider);
-
-            // footprint가 1칸보다 크면(예: 2x2 합성기) 고스트도 그만큼 크게 스케일한다 — 생성
-            // 경로(프리팹/폴백 박스)가 원래 갖고 있던 기본 스케일에 곱해서, footprint=(1,1)일
-            // 때는 기존 크기 그대로 유지된다.
-            var baseGhostScale = ghost.transform.localScale;
+            // 고스트는 실제로 놓일 기계와 같은 모양이어야 유효/무효 색이 자연스럽다 — 실제 배치
+            // (SpawnMachineVisual)와 같은 우선순위: Addressables 키(있으면) > 라이브러리 프리팹 > 공용 박스.
             var footprint = selectedMachineRuntime.Footprint;
-            ghost.transform.localScale = new Vector3(
-                baseGhostScale.x * footprint.x, baseGhostScale.y, baseGhostScale.z * footprint.y);
+            string addressableKey = selectedMachineRuntime.PrefabName;
+            GameObject shapePrefab = visualLibrary != null && visualLibrary.TryGetPrefab(machineId, out var found) ? found : null;
+
+            if (!string.IsNullOrEmpty(addressableKey))
+            {
+                // 박스로 시작해서, 실제 배치와 동일하게 Addressables 모델이 로드되면 그걸로 바뀐다.
+                // 여기선 root를 footprint로 스케일하지 않는다 — 배리언트가 이미 자기 footprint에
+                // 맞게 만들어져 있고(placeholder도 footprint 크기로 직접 만듦), 또 곱하면 커진다.
+                ghost = new GameObject("Ghost");
+                ghost.transform.SetParent(transform, false);
+                var placeholder = BuildVisuals.CreateBox(Vector3.zero, new Vector3(footprint.x, 1f, footprint.y), invalidColor, ghost.transform, withCollider: false);
+                ghost.AddComponent<AddressableModelMount>().Mount(addressableKey, placeholder);
+            }
+            else if (shapePrefab != null)
+            {
+                ghost = Instantiate(shapePrefab, transform);
+                var baseScale = ghost.transform.localScale;
+                ghost.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
+            }
+            else if (ghostPrefab != null)
+            {
+                ghost = Instantiate(ghostPrefab, transform);
+                var baseScale = ghost.transform.localScale;
+                ghost.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
+            }
+            else
+            {
+                ghost = BuildVisuals.CreateBox(Vector3.zero, new Vector3(0.9f * footprint.x, 0.9f, 0.9f * footprint.y), invalidColor, transform, withCollider: false);
+            }
+
+            // 미리보기 전용이라 실제 동작(MachineView)과 충돌 판정은 걷어낸다(자식 포함 — Addressables
+            // 모델이 콜라이더를 들고 있을 수 있음).
+            foreach (var view in ghost.GetComponentsInChildren<MachineView>()) Destroy(view);
+            foreach (var col in ghost.GetComponentsInChildren<Collider>()) Destroy(col);
 
             ghost.transform.rotation = FacingToRotation(currentFacing);
             ghost.SetActive(false);
@@ -164,7 +179,9 @@ namespace Factory.Building
                 free = false;
             }
 
-            BuildVisuals.Colorize(ghost, free ? validColor : invalidColor);
+            // 실제 모델의 텍스처/모양은 유지하고 색조만 유효/무효 색으로 — 자식 렌더러(다중 파츠
+            // 모델 포함) 전부 처리해서 일부만 안 바뀌는 문제 없게.
+            BuildVisuals.TintPreserveShape(ghost, free ? validColor : invalidColor);
         }
 
         // 확인 버튼에서 호출.

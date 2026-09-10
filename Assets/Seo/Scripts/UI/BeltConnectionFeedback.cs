@@ -32,6 +32,8 @@ namespace Seo.UI
         private Color releaseColor;
         private float releaseMessageUntil;
         private float nextDiscovery;
+        private Color? lastTintColor;
+        private int lastTintStripCount = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateRuntimeInstance()
@@ -75,6 +77,8 @@ namespace Seo.UI
 
                 wasDragging = false;
                 lastPathValid = false;
+                lastTintColor = null;
+                lastTintStripCount = -1;
                 HideEndpointBadges();
                 SetMessage(Time.unscaledTime < releaseMessageUntil
                     ? releaseMessage
@@ -352,11 +356,26 @@ namespace Seo.UI
             if (beltTool == null || PreviewStripsField == null) return;
             var strips = PreviewStripsField.GetValue(beltTool) as List<GameObject>;
             if (strips == null) return;
-            var previewColor = new Color(color.r, color.g, color.b, 0.58f);
+            var previewColor = new Color(color.r, color.g, color.b, 0.82f);
+
+            // Update()가 매 프레임 호출하는데, 색이 그대로면 매번 새 Material을 또 만들어 다시
+            // 씌울 이유가 없다(그럼 계속 반짝여 보인다 — TintPreserveShape가 매번 새 인스턴스를
+            // 만들기 때문). 실제로 색이 바뀌었거나(유효→무효 등) 조각 개수가 바뀌었을 때만
+            // (=BeltDragTool이 RebuildPreview로 새로 지어서 아직 이 색이 안 입혀진 새 오브젝트가
+            // 있을 때만) 다시 칠한다.
+            if (lastTintColor.HasValue && lastTintColor.Value == previewColor && lastTintStripCount == strips.Count)
+                return;
+
             for (int i = 0; i < strips.Count; i++)
             {
-                if (strips[i] != null) BuildVisuals.Colorize(strips[i], previewColor);
+                // Colorize는 텍스처/모양을 무시하고 통짜 단색 머티리얼로 갈아버려서, 벨트 미리보기가
+                // 매 프레임(Update) 이걸로 덮어써지며 납작한 사각형으로 보이는 버그가 있었다.
+                // TintPreserveShape로 바꿔 원본 셰이더/텍스처(모양)는 유지하고 색상만 입힌다.
+                if (strips[i] != null) BuildVisuals.TintPreserveShape(strips[i], previewColor);
             }
+
+            lastTintColor = previewColor;
+            lastTintStripCount = strips.Count;
         }
 
         private static PortRole Opposite(PortRole role)
