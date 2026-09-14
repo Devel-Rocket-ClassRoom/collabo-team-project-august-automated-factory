@@ -13,14 +13,17 @@ namespace Factory.Simulation
         [SerializeField] private SimulationDriver driver;
         [SerializeField] private GameObject oreDepositVisualPrefab;
 
-        // CopperOreDeposit은 뺐다 — "CopperOre" 아이템이 아직 Bae님 데이터에 없어서(팀에서
-        // 실제 아이템으로 추가하면 다시 넣으면 됨). 대신 석탄(Coal, 실제 아이템으로 이미 있음)
-        // 노드를 둬서 합성기가 진짜 서로 다른 두 자원(철 주괴 + 석탄)을 받는 걸 테스트할 수 있게 함.
+        // 최초 테스트용 고정 배치 몇 개(철 2군데 + 석탄, 합성기가 서로 다른 두 자원을 받는 걸
+        // 확인하려고 둠). 이후 광맥은 여기 코드를 고치는 대신 OreDepositMarker를 씬에 놓는
+        // 것을 권장 — 재컴파일 없이 Scene 뷰에서 바로 배치/이동 가능.
         private static readonly (Vector2Int cell, string depositId)[] FixedDeposits =
         {
             (new Vector2Int(4, 3), "IronOreDeposit"),
-            (new Vector2Int(4, 5), "IronOreDeposit"),
             (new Vector2Int(-4, 3), "CoalDeposit"),
+            (new Vector2Int(-4, 5), "CopperOreDeposit"),
+            (new Vector2Int(6, 4), "GoldOreDeposit"),
+            (new Vector2Int(2, 6), "QuartzOreDeposit"),
+            (new Vector2Int(-2, 6), "UraniumOreDeposit"),
         };
 
         private void Start()
@@ -33,12 +36,26 @@ namespace Factory.Simulation
             for (int i = 0; i < FixedDeposits.Length; i++)
             {
                 var (cell, depositId) = FixedDeposits[i];
-                if (!db.TryGetOreDepositId(depositId, out int depositRuntimeId)) continue;
-                if (grid.TryGetOreDeposit(cell, out _)) continue; // 이미 있으면(재실행 등) 건너뜀
-
-                grid.RegisterOreDeposit(cell, depositRuntimeId);
-                SpawnVisual(cell, db.OreDeposits[depositRuntimeId]);
+                TrySpawn(cell, depositId, db, grid);
             }
+
+            // 씬에 직접 놓은 마커(OreDepositMarker)도 등록한다 — 코드 수정/재컴파일 없이
+            // Scene 뷰에서 오브젝트 옮기고 depositId만 고르면 되는 더 쉬운 배치 방법.
+            var markers = FindObjectsByType<OreDepositMarker>(FindObjectsSortMode.None);
+            for (int i = 0; i < markers.Length; i++)
+            {
+                TrySpawn(markers[i].Cell, markers[i].depositId, db, grid);
+            }
+        }
+
+        private void TrySpawn(Vector2Int cell, string depositId, GameDatabase db, WorldGrid grid)
+        {
+            if (string.IsNullOrEmpty(depositId)) return;
+            if (!db.TryGetOreDepositId(depositId, out int depositRuntimeId)) return;
+            if (grid.TryGetOreDeposit(cell, out _)) return; // 이미 있으면(겹치는 마커, 재실행 등) 건너뜀
+
+            grid.RegisterOreDeposit(cell, depositRuntimeId);
+            SpawnVisual(cell, db.OreDeposits[depositRuntimeId]);
         }
 
         private void SpawnVisual(Vector2Int cell, OreDepositRuntime deposit)

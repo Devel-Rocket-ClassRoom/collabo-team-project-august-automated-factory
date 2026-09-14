@@ -15,22 +15,13 @@ using UnityEngine;
 //    3) MachineSO / ItemSO 의 prefabName 을 그 키로 채우고 JSON 재베이크
 //    4) Play Mode 데이터 빌더를 "Use Asset Database" 로 (콘텐츠 빌드 불필요)
 //
-// 기계/광맥 아트 매핑은 MachineVariantGenerator.Machines/Deposits 가 단일 소스 — 거기만 고친다.
-// 아이템 매핑만 이 파일 Items 표.
+// 기계/광맥/아이템 아트 매핑은 MachineVariantGenerator.Machines/Deposits/Items 가 단일 소스 —
+// 새 모델 추가/교체는 거기만 고치고 1→2 메뉴 다시 실행.
 public static class AddressablesSetup
 {
     private const string MachineGroup = "Machines";
     private const string ItemGroup = "Items";
     private const string DepositGroup = "Deposits";
-
-    // itemID -> (Addressables 키, OZEA 프리팹 이름). 키는 기존 컨벤션(Prefab_Item_*) 유지.
-    private static readonly (string id, string key, string prefab)[] Items =
-    {
-        ("IronOre",   "Prefab_Item_IronOre",   "Iron_Ore"),
-        ("IronIngot", "Prefab_Item_IronIngot", "SM_Iron_Ingot"),
-        ("IronPlate", "Prefab_Item_IronPlate", "SM_Iron_Plate"),
-        ("Coal",      "Prefab_Item_Coal",      "Coal_Ore"),
-    };
 
     [MenuItem("Tools/Factory/Addressables/2. Setup All")]
     public static void SetupAll()
@@ -51,8 +42,8 @@ public static class AddressablesSetup
             marked += Mark(settings, machineGroup, e.Key, e.OzeaPrefab, MachineVariantGenerator.MachineVariantDir);
         foreach (var e in MachineVariantGenerator.Deposits)
             marked += Mark(settings, depositGroup, e.Key, e.OzeaPrefab, MachineVariantGenerator.DepositVariantDir);
-        foreach (var (_, key, ozea) in Items)
-            marked += Mark(settings, itemGroup, key, ozea, null);
+        foreach (var e in MachineVariantGenerator.Items)
+            marked += Mark(settings, itemGroup, e.Key, e.OzeaPrefab, MachineVariantGenerator.ItemVariantDir);
         settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryModified, null, true, true);
 
         int filled = 0;
@@ -138,13 +129,13 @@ public static class AddressablesSetup
     private static int FillItemPrefabNames()
     {
         int n = 0;
-        foreach (var (id, key, _) in Items)
+        foreach (var e in MachineVariantGenerator.Items)
         {
-            ItemSO so = LoadScriptable<ItemSO>(a => a.itemID == id);
+            ItemSO so = LoadScriptable<ItemSO>(a => a.itemID == e.ItemId);
             if (so == null) continue;
-            if (so.prefabName != key)
+            if (so.prefabName != e.Key)
             {
-                so.prefabName = key;
+                so.prefabName = e.Key;
                 EditorUtility.SetDirty(so);
             }
             n++;
