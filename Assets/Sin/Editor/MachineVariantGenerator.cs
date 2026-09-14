@@ -36,7 +36,10 @@ public static class MachineVariantGenerator
         E("Smelter",     "Prefab_Smelter",     "SM_Thermal_T1",     1),
         E("Former",      "Prefab_Former",      "SM_BioChem_T1",     1),
         E("Synthesizer", "Prefab_Synthesizer", "SM_Fusion_T1",      2),
-        // 분류기/합류기는 프로시저럴 유지 — 넣지 않음.
+        // 분류기/합류기: OZEA 원본 없이 손으로 만든 평면 Quad 배리언트를 쓴다
+        // (Assets/Sin/Prefabs/Machines/Prefab_Splitter.prefab 등). OZEA 이름은 비워둠 → Setup All 이 배리언트 경로만 본다.
+        E("Splitter", "Prefab_Splitter", "", 1),
+        E("Merger",   "Prefab_Merger",   "", 1),
     };
 
     // 광맥: GameId = resourceId. OreDepositSpawner 가 "Prefab_Deposit_" + resourceId 로 조회.

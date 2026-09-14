@@ -26,7 +26,7 @@ namespace Factory.Building
         // BeltItemVisual 프리팹의 반지름(지름 0.25의 절반)과 맞춰야 한다 — 벨트 위에 아이템이
         // "위에 얹힌" 것처럼 보이려면 벨트 두께의 절반 + 이 반지름만큼 띄워야 한다.
         [SerializeField] private float itemVisualRadius = 0.125f;
-        [SerializeField] private Color previewColor = new Color(0.2f, 0.9f, 0.3f, 0.5f);
+        [SerializeField] private Color previewColor = new Color(0.2f, 0.9f, 0.3f, 0.8f);
         [SerializeField] private Color committedColor = new Color(0.15f, 0.15f, 0.15f, 1f);
         [SerializeField] private GameObject itemVisualPrefab;
         [SerializeField] private GameObject stripPrefab;
@@ -113,13 +113,13 @@ namespace Factory.Building
                     }
                     else
                     {
-                        previewStrips.Add(BuildVisuals.CreateStrip(entry, bend.Value, previewThickness, previewColor, transform, prefab: stripPrefab));
-                        previewStrips.Add(BuildVisuals.CreateStrip(bend.Value, exit, previewThickness, previewColor, transform, prefab: stripPrefab));
+                        previewStrips.Add(BuildVisuals.CreateStrip(entry, bend.Value, previewThickness, previewColor, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
+                        previewStrips.Add(BuildVisuals.CreateStrip(bend.Value, exit, previewThickness, previewColor, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
                     }
                 }
                 else
                 {
-                    previewStrips.Add(BuildVisuals.CreateStrip(entry, exit, previewThickness, previewColor, transform, prefab: stripPrefab));
+                    previewStrips.Add(BuildVisuals.CreateStrip(entry, exit, previewThickness, previewColor, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
                 }
             }
         }
@@ -530,7 +530,7 @@ namespace Factory.Building
             }
             go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;
 
-            if (!keepMaterial) BuildVisuals.Colorize(go, tint);
+            if (!keepMaterial) BuildVisuals.TintPreserveShape(go, tint);
             return go;
         }
     }

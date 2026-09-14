@@ -15,6 +15,16 @@ MonoBehaviour:
   m_GroupName: Machines
   m_GUID: 426d442cc30340d4fbeb93bf023df66b
   m_SerializeEntries:
+  - m_GUID: 231127cfd67f2764f8a1d391957c70ab
+    m_Address: Prefab_Merger
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 416fe71ac9aea2e41badee8b2359d3b8
+    m_Address: Prefab_Splitter
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 701a324d994ac9e4e91d6df706eefd88
     m_Address: Prefab_Synthesizer
     m_ReadOnly: 0
