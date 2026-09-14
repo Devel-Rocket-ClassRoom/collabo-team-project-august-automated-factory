@@ -18,10 +18,15 @@ namespace Factory.Rendering
         private bool hasHandle;
         private GameObject placeholder;
         private bool destroyed;
+        private bool alignToGround;
 
-        public void Mount(string addressableKey, GameObject fallbackPlaceholder)
+        // alignToGround: 기계/광맥처럼 "칸 중심 높이에 뜬 스폰 루트" 밑에 모델을 지면(y=0)까지
+        // 내려서 맞출 때만 true. 벨트 위 아이템처럼 루트 자체가 이미 원하는 위치(벨트 표면 위)를
+        // 매 프레임 그대로 따라가야 하는 경우엔 false로 둬서 모델이 루트 기준 그대로 놓이게 한다.
+        public void Mount(string addressableKey, GameObject fallbackPlaceholder, bool alignToGround = true)
         {
             placeholder = fallbackPlaceholder;
+            this.alignToGround = alignToGround;
             if (string.IsNullOrEmpty(addressableKey)) return; // 키 없음 -> 폴백 박스 유지
 
             handle = Addressables.InstantiateAsync(addressableKey, transform, instantiateInWorldSpace: false);
@@ -34,10 +39,13 @@ namespace Factory.Rendering
             if (destroyed) return; // 로드 도중 파괴됨 — OnDestroy가 이미 해제 처리
             if (op.Status != AsyncOperationStatus.Succeeded || op.Result == null) return; // 폴백 박스 유지
 
-            // 배리언트는 "월드 원점에 놨을 때 밑면이 지면(y=0)"으로 저장돼 있다(MachineVariantGenerator).
-            // 스폰 루트는 칸 중심 높이(y=0.5 등)에 있으므로, 그 높이만큼 내려 모델 밑면을 지면에 맞춘다.
-            Transform model = op.Result.transform;
-            model.position -= new Vector3(0f, transform.position.y, 0f);
+            if (alignToGround)
+            {
+                // 배리언트는 "월드 원점에 놨을 때 밑면이 지면(y=0)"으로 저장돼 있다(MachineVariantGenerator).
+                // 스폰 루트는 칸 중심 높이(y=0.5 등)에 있으므로, 그 높이만큼 내려 모델 밑면을 지면에 맞춘다.
+                Transform model = op.Result.transform;
+                model.position -= new Vector3(0f, transform.position.y, 0f);
+            }
 
             if (placeholder != null) placeholder.SetActive(false);
         }

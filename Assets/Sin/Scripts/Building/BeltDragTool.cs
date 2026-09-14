@@ -474,8 +474,16 @@ namespace Factory.Building
             endAnchor.SetParent(root.transform);
             endAnchor.position = to + itemHeightOffset;
 
+            // 코너면 꺾이는 지점도 앵커로 만들어 BeltItemRenderer에 넘긴다 — 안 그러면 아이템이
+            // start->end를 그냥 직선(대각선)으로 가로질러서, 코너를 안 따라가고 벽을 뚫는 것처럼
+            // 보인다. 진입 절반/이탈 절반 두 구간으로 나눠 가게 하려면 이 중간점이 필요하다.
+            Transform bendAnchor = null;
             if (bend.HasValue)
             {
+                bendAnchor = new GameObject("Bend").transform;
+                bendAnchor.SetParent(root.transform);
+                bendAnchor.position = bend.Value + itemHeightOffset;
+
                 if (cornerPrefab != null)
                 {
                     SpawnBeltCorner(bend.Value, bend.Value - from, to - bend.Value, committedColor, root.transform, keepMaterial: true);
@@ -493,7 +501,7 @@ namespace Factory.Building
             }
 
             var itemRenderer = root.AddComponent<BeltItemRenderer>();
-            itemRenderer.Initialize(driver, segmentId, startAnchor, endAnchor, itemVisualPrefab);
+            itemRenderer.Initialize(driver, segmentId, startAnchor, endAnchor, itemVisualPrefab, bendAnchor);
         }
 
         // 코너 칸 중심에 코너 프리팹을 놓고 Y축으로만 돌린다(프리팹의 눕힌 자세는 유지).

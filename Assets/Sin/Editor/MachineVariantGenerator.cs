@@ -15,6 +15,20 @@ public static class MachineVariantGenerator
 {
     public const string MachineVariantDir = "Assets/Sin/Prefabs/Machines";
     public const string DepositVariantDir = "Assets/Sin/Prefabs/Deposits";
+    public const string ItemVariantDir = "Assets/Sin/Prefabs/Items";
+
+    // 벨트 위 아이템은 칸 footprint가 없다 — 항상 이 절대 크기(최대 변 기준, 월드 단위)로
+    // 맞춘다. BeltItemRenderer의 기존 폴백 구 지름(0.25)과 비슷한 눈에 띄는 크기.
+    private const float ItemTargetSize = 0.28f;
+
+    public struct ItemEntry
+    {
+        public string ItemId;      // Bae님 ItemData.itemID
+        public string Key;         // Addressables 키 / 배리언트 파일명
+        public string OzeaPrefab;  // 원본 OZEA 프리팹 이름(없으면 매핑 안 됨 — 벨트에서 폴백 구+색 유지)
+    }
+
+    private static ItemEntry I(string itemId, string key, string ozea) => new ItemEntry { ItemId = itemId, Key = key, OzeaPrefab = ozea };
 
     public struct Entry
     {
@@ -45,8 +59,46 @@ public static class MachineVariantGenerator
     // 광맥: GameId = resourceId. OreDepositSpawner 가 "Prefab_Deposit_" + resourceId 로 조회.
     public static readonly Entry[] Deposits =
     {
-        E("IronOre", "Prefab_Deposit_IronOre", "SM_Iron_Node", 1),
-        E("Coal",    "Prefab_Deposit_Coal",    "SM_Coal_Node", 1),
+        E("IronOre",    "Prefab_Deposit_IronOre",    "SM_Iron_Node",    1),
+        E("Coal",       "Prefab_Deposit_Coal",       "SM_Coal_Node",    1),
+        E("CopperOre",  "Prefab_Deposit_CopperOre",  "SM_Copper_Node",  1),
+        E("GoldOre",    "Prefab_Deposit_GoldOre",    "SM_Gold_Node",    1),
+        E("QuartzOre",  "Prefab_Deposit_QuartzOre",  "SM_Quartz_Node",  1),
+        E("UraniumOre", "Prefab_Deposit_UraniumOre", "SM_Uranium_Node", 1),
+    };
+
+    // 아이템(벨트 위에 놓일 자원): GameId = Bae님 ItemData.itemID. OZEA에 딱 맞는 완제품
+    // 모양이 없는 항목은 비슷한 원석류로 대충 대체한다(Concrete = 보크사이트 원석/노드).
+    // ConveyorBelt는 마땅한 형태가 없어 아예 뺐다 — 벨트에서 계속 기존 폴백(구+색)으로 보인다.
+    // 나중에 커스텀 아이콘을 만들면 여기에 추가하면 된다(분류기/합류기 아이콘과 같은 방식).
+    public static readonly ItemEntry[] Items =
+    {
+        I("IronOre",              "Prefab_Item_IronOre",              "Iron_Ore"),
+        I("IronIngot",             "Prefab_Item_IronIngot",            "SM_Iron_Ingot"),
+        I("IronPlate",             "Prefab_Item_IronPlate",            "SM_Iron_Plate"),
+        I("Coal",                  "Prefab_Item_Coal",                 "Coal_Ore"),
+        I("CopperOre",             "Prefab_Item_CopperOre",            "Copper_Ore"),
+        I("CopperIngot",           "Prefab_Item_CopperIngot",          "SM_Copper_Ingot"),
+        I("CopperPlate",           "Prefab_Item_CopperPlate",          "SM_Copper_Bar"),
+        I("CopperWire",            "Prefab_Item_CopperWire",           "SM_Copper_Coil"),
+        I("GoldOre",                "Prefab_Item_GoldOre",              "Gold_Ore"),
+        I("GoldIngot",              "Prefab_Item_GoldIngot",            "SM_Gold_Ingot"),
+        I("QuartzOre",              "Prefab_Item_QuartzOre",            "Quartz_Ore"),
+        I("QuartzPlate",            "Prefab_Item_QuartzPlate",          "SM_Quartz_Glass"),
+        I("RefinedQuartz",          "Prefab_Item_RefinedQuartz",        "SM_Sorted_Quartz"),
+        I("UraniumOre",             "Prefab_Item_UraniumOre",           "Uranium_Ore"),
+        I("RefinedUranium",         "Prefab_Item_RefinedUranium",       "SM_Uranium_Container"),
+        I("UraniumPlate",           "Prefab_Item_UraniumPlate",         "SM_Uranium_Fuel_Rod"),
+        I("Circuit",                "Prefab_Item_Circuit",              "SM_Circuit_Board"),
+        I("Gear",                   "Prefab_Item_Gear",                 "SM_Gear"),
+        I("EnergyCell",             "Prefab_Item_EnergyCell",           "SM_Energy_Cell"),
+        I("HighCapacityBattery",    "Prefab_Item_HighCapacityBattery",  "SM_Battery_T3"),
+        I("PlasmaCore",             "Prefab_Item_PlasmaCore",           "SM_Thorium_Core"),
+        I("CarbonNanotube",         "Prefab_Item_CarbonNanotube",       "SM_Tube_Bundle"),
+        I("IronBeam",               "Prefab_Item_IronBeam",             "SM_Support_Beam"),
+        I("PowerCable",             "Prefab_Item_PowerCable",           "SM_Cable_Small_Straight"),
+        I("CoalBundle",             "Prefab_Item_CoalBundle",           "SM_Coal_Bricks"),
+        I("Concrete",               "Prefab_Item_Concrete",             "SM_Bauxite_Node"),
     };
 
     // 없는 배리언트만 생성한다. 이미 있는 건 절대 안 건드린다(손으로 다듬어둔 값 보존).
@@ -56,10 +108,12 @@ public static class MachineVariantGenerator
     {
         EnsureDir(MachineVariantDir);
         EnsureDir(DepositVariantDir);
+        EnsureDir(ItemVariantDir);
 
         int n = 0;
         foreach (var e in Machines) n += Generate(MachineVariantDir, e.Key, e.OzeaPrefab, e.Footprint) ? 1 : 0;
         foreach (var e in Deposits) n += Generate(DepositVariantDir, e.Key, e.OzeaPrefab, e.Footprint) ? 1 : 0;
+        foreach (var e in Items) n += GenerateItem(e.Key, e.OzeaPrefab) ? 1 : 0;
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -93,6 +147,55 @@ public static class MachineVariantGenerator
         if (ok) Debug.Log($"[MachineVariantGenerator] {key}  <-  {ozeaName}  ({variantPath})");
         else Debug.LogError($"[MachineVariantGenerator] {key} 저장 실패");
         return ok;
+    }
+
+    // 아이템 배리언트 생성. 기계/광맥용 Generate()와 거의 같지만 footprint(칸) 개념이 없어서
+    // 절대 크기(ItemTargetSize)로 맞추고, 방향(Facing) 개념도 없어서 원본 회전을 그대로 둔다.
+    private static bool GenerateItem(string key, string ozeaName)
+    {
+        string variantPath = $"{ItemVariantDir}/{key}.prefab";
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(variantPath) != null) return false; // 이미 있음
+
+        string ozeaPath = FindPrefabPath(ozeaName);
+        if (ozeaPath == null)
+        {
+            Debug.LogWarning($"[MachineVariantGenerator] OZEA 프리팹 '{ozeaName}' 을 못 찾음 — {key} 건너뜀.");
+            return false;
+        }
+
+        var source = AssetDatabase.LoadAssetAtPath<GameObject>(ozeaPath);
+        var instance = (GameObject)PrefabUtility.InstantiatePrefab(source);
+
+        BakeItemStartingTransform(instance);
+
+        bool ok = false;
+        PrefabUtility.SaveAsPrefabAsset(instance, variantPath, out ok);
+        Object.DestroyImmediate(instance);
+
+        if (ok) Debug.Log($"[MachineVariantGenerator] {key}  <-  {ozeaName}  ({variantPath})");
+        else Debug.LogError($"[MachineVariantGenerator] {key} 저장 실패");
+        return ok;
+    }
+
+    // 최대 변 기준 ItemTargetSize로 맞추고 밑면을 y=0에 둔다. 회전은 원본 그대로(아이템은
+    // 기계처럼 놓는 방향이 없어서 90도 yaw를 구울 이유가 없다) — 어색하면 배리언트에서 직접 조정.
+    private static void BakeItemStartingTransform(GameObject instance)
+    {
+        instance.transform.localPosition = Vector3.zero;
+        instance.transform.localScale = Vector3.one;
+
+        if (!TryMeasureLocalBounds(instance.transform, out Bounds local))
+        {
+            Debug.LogWarning($"[MachineVariantGenerator] '{instance.name}' 메시를 못 찾아 스케일 자동조정 생략 — 배리언트에서 수동으로 맞추세요.");
+            return;
+        }
+
+        float maxDim = Mathf.Max(local.size.x, Mathf.Max(local.size.y, local.size.z));
+        if (maxDim < 0.0001f) return;
+
+        float s = ItemTargetSize / maxDim;
+        instance.transform.localScale = new Vector3(s, s, s);
+        instance.transform.localPosition = new Vector3(0f, -local.min.y * s, 0f);
     }
 
     private static readonly Vector3[] Corners =

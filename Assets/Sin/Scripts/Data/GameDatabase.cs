@@ -11,12 +11,15 @@ namespace Factory.Data
         public readonly string Key;
         public readonly string DisplayName;
         public readonly Color Color;
+        // Addressables 키(예: "Prefab_Item_CopperOre"). 비어 있으면 벨트에서 폴백(구+색)으로 그린다.
+        public readonly string PrefabName;
 
-        public ResourceRuntime(string key, string displayName, Color color)
+        public ResourceRuntime(string key, string displayName, Color color, string prefabName)
         {
             Key = key;
             DisplayName = displayName;
             Color = color;
+            PrefabName = prefabName;
         }
     }
 
@@ -148,7 +151,7 @@ namespace Factory.Data
             // 한다 (결정적 동작, 저장 데이터 안정성).
             var (resources, resourceIdByKey) = BuildIndexed(
                 items, i => i.itemID,
-                def => new ResourceRuntime(def.itemID, def.itemName, ColorFromKey(def.itemID)));
+                def => new ResourceRuntime(def.itemID, def.itemName, ColorFromKey(def.itemID), def.prefabName));
 
             var (machines, machineIdByKey) = BuildIndexed(
                 machineDataList, m => m.machineID,
