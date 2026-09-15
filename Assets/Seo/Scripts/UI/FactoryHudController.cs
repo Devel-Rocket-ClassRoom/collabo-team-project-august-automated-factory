@@ -16,16 +16,23 @@ namespace Seo.UI
         private GameObject productionPage;
         private GameObject logisticsPage;
         private GameObject powerPage;
+        private GameObject dockRoot;
+        private GameObject sideMenuRoot;
+        private Button menuToggleButton;
         private Button productionTab;
         private Button logisticsTab;
         private Button powerTab;
+        private Category? openCategory;
         private GameObject rotateButton;
         private GameObject confirmButton;
         private GameObject demolishConfirmButton;
+        private GameObject cancelButton;
         private Text powerText;
         private Text toastText;
         private GameObject toastRoot;
         private BuildInputRouter buildRouter;
+        private MachineGhostTool machineTool;
+        private string pendingPlacementMachineId;
         private float toastUntil;
         private float nextDiscovery;
         private bool built;
@@ -48,6 +55,7 @@ namespace Seo.UI
             }
 
             if (!built) return;
+            TrackActivePlacement();
             UpdateContextActions();
             UpdatePowerStatus();
             UpdatePowerButtonStates();
@@ -75,6 +83,7 @@ namespace Seo.UI
 
             safeRoot = EnsureSafeRoot(canvas.transform);
             buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            machineTool = FindFirstObjectByType<MachineGhostTool>();
             BuildTopHud();
             BuildBottomDock();
             DecorateRecipePanel();
@@ -98,9 +107,10 @@ namespace Seo.UI
         private void BuildTopHud()
         {
             var resourceCard = SeoUIFactory.CreatePanel(safeRoot, "SeoResourceCard", new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(28f, -24f), new Vector2(520f, 116f));
+                new Vector2(0f, 1f), new Vector2(28f, -24f), new Vector2(620f, 142f));
             var resourceRt = resourceCard.rectTransform;
             resourceRt.pivot = new Vector2(0f, 1f);
+            CreateCardAccent(resourceCard.transform, SeoUITheme.Current.Primary);
 
             var line1 = GameObject.Find("HudLine1")?.GetComponent<Text>();
             var line2 = GameObject.Find("HudLine2")?.GetComponent<Text>();
@@ -108,8 +118,8 @@ namespace Seo.UI
             {
                 line1.transform.SetParent(resourceCard.transform, false);
                 SeoUIFactory.SetRect(line1.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f), new Vector2(22f, -14f), new Vector2(470f, 34f));
-                line1.fontSize = 22;
+                    new Vector2(0f, 1f), new Vector2(30f, -16f), new Vector2(560f, 36f));
+                line1.fontSize = 24;
                 line1.fontStyle = FontStyle.Bold;
                 line1.color = SeoUITheme.Current.Primary;
             }
@@ -117,21 +127,36 @@ namespace Seo.UI
             {
                 line2.transform.SetParent(resourceCard.transform, false);
                 SeoUIFactory.SetRect(line2.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f), new Vector2(22f, -52f), new Vector2(476f, 52f));
-                line2.fontSize = 20;
+                    new Vector2(0f, 1f), new Vector2(30f, -60f), new Vector2(560f, 64f));
+                line2.fontSize = 25;
+                line2.fontStyle = FontStyle.Bold;
                 line2.resizeTextForBestFit = true;
-                line2.resizeTextMinSize = 15;
-                line2.resizeTextMaxSize = 20;
+                line2.resizeTextMinSize = 18;
+                line2.resizeTextMaxSize = 25;
+                line2.horizontalOverflow = HorizontalWrapMode.Wrap;
+                line2.verticalOverflow = VerticalWrapMode.Truncate;
             }
 
             var powerCard = SeoUIFactory.CreatePanel(safeRoot, "SeoPowerCard", Vector2.one, Vector2.one,
-                new Vector2(-28f, -24f), new Vector2(430f, 94f));
+                new Vector2(-28f, -24f), new Vector2(540f, 142f));
             powerCard.rectTransform.pivot = Vector2.one;
-            powerText = SeoUIFactory.CreateText(powerCard.transform, "PowerStatus", "전력 시스템 연결 중", 19,
+            CreateCardAccent(powerCard.transform, SeoUITheme.Current.Warning);
+            var powerTitle = SeoUIFactory.CreateText(powerCard.transform, "PowerTitle", "공장 전력 현황", 23,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
-            powerText.rectTransform.offsetMin = new Vector2(22f, 12f);
-            powerText.rectTransform.offsetMax = new Vector2(-22f, -12f);
+            SeoUIFactory.SetRect(powerTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(30f, -14f), new Vector2(480f, 34f));
+            powerTitle.color = SeoUITheme.Current.Warning;
+
+            powerText = SeoUIFactory.CreateText(powerCard.transform, "PowerStatus", "전력 시스템 연결 중", 21,
+                TextAnchor.UpperLeft, FontStyle.Bold);
+            SeoUIFactory.SetRect(powerText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(30f, -54f), new Vector2(480f, 76f));
             powerText.supportRichText = true;
+            powerText.resizeTextForBestFit = true;
+            powerText.resizeTextMinSize = 16;
+            powerText.resizeTextMaxSize = 21;
+            powerText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            powerText.verticalOverflow = VerticalWrapMode.Truncate;
 
             var toastPanel = SeoUIFactory.CreatePanel(safeRoot, "SeoToast", new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f), new Vector2(0f, -32f), new Vector2(460f, 52f),
@@ -143,20 +168,21 @@ namespace Seo.UI
             toastRoot.SetActive(false);
         }
 
+        private static void CreateCardAccent(Transform parent, Color color)
+        {
+            var accent = SeoUIFactory.CreatePanel(parent, "Accent", new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), Vector2.zero, new Vector2(8f, 108f), color);
+            accent.rectTransform.pivot = new Vector2(0f, 0.5f);
+            accent.raycastTarget = false;
+        }
+
         private void BuildBottomDock()
         {
             var dock = SeoUIFactory.CreatePanel(safeRoot, "SeoBottomDock", new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(1080f, 180f));
+                new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(1180f, 154f));
             dock.rectTransform.pivot = new Vector2(0.5f, 0f);
-
-            var tabs = new GameObject("Tabs", typeof(RectTransform));
-            tabs.transform.SetParent(dock.transform, false);
-            SeoUIFactory.SetRect(tabs.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(22f, -16f), new Vector2(520f, 48f));
-
-            productionTab = CreateTab(tabs.transform, "생산", 0, Category.Production);
-            logisticsTab = CreateTab(tabs.transform, "물류", 1, Category.Logistics);
-            powerTab = CreateTab(tabs.transform, "전력·저장", 2, Category.Power);
+            dockRoot = dock.gameObject;
+            BuildSideMenu();
 
             productionPage = CreatePage(dock.transform, "ProductionPage");
             logisticsPage = CreatePage(dock.transform, "LogisticsPage");
@@ -174,14 +200,59 @@ namespace Seo.UI
 
             BuildPowerButtons();
             BuildContextBar(dock.transform);
-            SetCategory(Category.Production);
+            CloseCategoryPanel(false);
+        }
+
+        private void BuildSideMenu()
+        {
+            menuToggleButton = SeoUIFactory.CreateButton(safeRoot, "SeoMenuToggle", "메뉴", ToggleSideMenu);
+            SeoUIFactory.SetRect(menuToggleButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(184f, 78f));
+            var toggleLabel = menuToggleButton.GetComponentInChildren<Text>(true);
+            if (toggleLabel != null) toggleLabel.fontSize = 24;
+
+            var menu = SeoUIFactory.CreatePanel(safeRoot, "SeoSideMenu", new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(222f, 0f), new Vector2(264f, 330f));
+            menu.rectTransform.pivot = new Vector2(0f, 0.5f);
+            sideMenuRoot = menu.gameObject;
+
+            var title = SeoUIFactory.CreateText(menu.transform, "Title", "건설 메뉴", 22,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            SeoUIFactory.SetRect(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(224f, 42f));
+            title.color = SeoUITheme.Current.Primary;
+
+            productionTab = CreateTab(menu.transform, "생산", 0, Category.Production);
+            logisticsTab = CreateTab(menu.transform, "물류", 1, Category.Logistics);
+            powerTab = CreateTab(menu.transform, "전력·저장", 2, Category.Power);
+            sideMenuRoot.SetActive(false);
+        }
+
+        private void ToggleSideMenu()
+        {
+            if (sideMenuRoot == null) return;
+            bool willOpen = !sideMenuRoot.activeSelf;
+            if (willOpen)
+            {
+                CloseCategoryPanel(true);
+                sideMenuRoot.SetActive(true);
+            }
+            else
+            {
+                sideMenuRoot.SetActive(false);
+            }
+
+            var label = menuToggleButton != null ? menuToggleButton.GetComponentInChildren<Text>(true) : null;
+            if (label != null) label.text = willOpen ? "닫기" : "메뉴";
         }
 
         private Button CreateTab(Transform parent, string label, int index, Category category)
         {
-            var button = SeoUIFactory.CreateButton(parent, "Tab_" + category, label, () => SetCategory(category));
+            var button = SeoUIFactory.CreateButton(parent, "Tab_" + category, label, () => ToggleCategory(category));
             SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(index * 170f, 0f), new Vector2(158f, 44f));
+                new Vector2(0f, 1f), new Vector2(20f, -64f - index * 86f), new Vector2(224f, 74f));
+            var labelText = button.GetComponentInChildren<Text>(true);
+            if (labelText != null) labelText.fontSize = 23;
             return button;
         }
 
@@ -190,7 +261,7 @@ namespace Seo.UI
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             SeoUIFactory.SetRect(go.GetComponent<RectTransform>(), Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), new Vector2(0f, -22f), new Vector2(-36f, -74f));
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-36f, -24f));
             return go;
         }
 
@@ -201,14 +272,15 @@ namespace Seo.UI
             go.transform.SetParent(page, false);
             var button = go.GetComponent<Button>();
             SeoUIFactory.ApplyButton(button, tint);
-            float width = 210f;
-            float spacing = 18f;
+            if (button != null) button.onClick.AddListener(CollapseAfterToolSelection);
+            float width = 250f;
+            float spacing = 22f;
             float total = width * count + spacing * (count - 1);
             float x = -total * 0.5f + width * 0.5f + index * (width + spacing);
             SeoUIFactory.SetRect(go.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, -14f), new Vector2(width, 72f));
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, 0f), new Vector2(width, 84f));
             var label = go.GetComponentInChildren<Text>(true);
-            if (label != null) label.fontSize = 20;
+            if (label != null) label.fontSize = 23;
         }
 
         private void BuildPowerButtons()
@@ -232,6 +304,7 @@ namespace Seo.UI
                             ShowToast(controller.Mode == modes[captured]
                                 ? labels[captured] + " 모드"
                                 : labels[captured] + " 모드 종료");
+                            if (controller.Mode == modes[captured]) CollapseAfterToolSelection();
                         }
                     }
                     else
@@ -252,25 +325,73 @@ namespace Seo.UI
                     powerModeButtonColors[i] = color ?? Color.white;
                 }
 
-                float width = 148f;
-                float spacing = 14f;
+                float width = 166f;
+                float spacing = 16f;
                 float total = width * labels.Length + spacing * (labels.Length - 1);
                 float x = -total * 0.5f + width * 0.5f + i * (width + spacing);
                 SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, -14f), new Vector2(width, 68f));
+                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, 0f), new Vector2(width, 80f));
+                var label = button.GetComponentInChildren<Text>(true);
+                if (label != null) label.fontSize = 21;
             }
         }
 
         private void BuildContextBar(Transform dock)
         {
             var bar = SeoUIFactory.CreatePanel(safeRoot, "SeoContextBar", new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0f, 214f), new Vector2(470f, 76f));
+                new Vector2(0.5f, 0f), new Vector2(0f, 214f), new Vector2(710f, 76f));
             bar.rectTransform.pivot = new Vector2(0.5f, 0f);
 
-            rotateButton = MoveActionButton("RotateButton", bar.transform, -116f);
-            confirmButton = MoveActionButton("ConfirmButton", bar.transform, 116f);
-            demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, 0f, SeoUITheme.Current.Danger);
+            rotateButton = MoveActionButton("RotateButton", bar.transform, -232f);
+            confirmButton = MoveActionButton("ConfirmButton", bar.transform, 0f);
+            demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, -116f, SeoUITheme.Current.Danger);
+            var confirmAction = confirmButton != null ? confirmButton.GetComponent<Button>() : null;
+            if (confirmAction != null) confirmAction.onClick.AddListener(HandlePlacementConfirmed);
+
+            var cancel = SeoUIFactory.CreateButton(bar.transform, "SeoBuildCancel", "취소", CancelCurrentInteraction);
+            SeoUIFactory.SetRect(cancel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(232f, 0f), new Vector2(210f, 56f));
+            var cancelLabel = cancel.GetComponentInChildren<Text>(true);
+            if (cancelLabel != null) cancelLabel.fontSize = 22;
+            cancelButton = cancel.gameObject;
             bar.gameObject.SetActive(false);
+        }
+
+        private void CancelCurrentInteraction()
+        {
+            pendingPlacementMachineId = null;
+            CancelActiveBuildMode();
+            var powerController = FindFirstObjectByType<PowerBuildController>();
+            if (powerController != null && powerController.Mode != PowerBuildMode.None)
+                powerController.SetMode(PowerBuildMode.None);
+            ShowToast("현재 작업을 취소했습니다");
+        }
+
+        private void TrackActivePlacement()
+        {
+            if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (machineTool == null) machineTool = FindFirstObjectByType<MachineGhostTool>();
+            if (buildRouter == null || machineTool == null) return;
+            if (buildRouter.CurrentMode == BuildInputRouter.Mode.PlaceMachine
+                && !string.IsNullOrEmpty(machineTool.SelectedMachineId))
+            {
+                pendingPlacementMachineId = machineTool.SelectedMachineId;
+            }
+        }
+
+        private void HandlePlacementConfirmed()
+        {
+            string machineId = pendingPlacementMachineId;
+            if (string.IsNullOrEmpty(machineId)) return;
+            if (buildRouter == null || machineTool == null) return;
+            // 기존 확정 처리에서 성공했을 때만 모드가 None으로 바뀐다. 배치가 불가능한 칸에서
+            // 확정을 눌렀다면 기존 고스트를 그대로 유지하고 새 고스트를 만들지 않는다.
+            if (buildRouter.CurrentMode != BuildInputRouter.Mode.None) return;
+
+            machineTool.SelectMachine(machineId);
+            buildRouter.SetMode(BuildInputRouter.Mode.PlaceMachine);
+            pendingPlacementMachineId = machineId;
+            ShowToast("연속 설치 모드 · 취소 버튼으로 종료");
         }
 
         private static GameObject MoveActionButton(string name, Transform parent, float x, Color? tint = null)
@@ -284,8 +405,23 @@ namespace Seo.UI
             return go;
         }
 
+        private void ToggleCategory(Category category)
+        {
+            if (openCategory.HasValue && openCategory.Value == category)
+            {
+                CloseCategoryPanel(true);
+                return;
+            }
+
+            SetCategory(category);
+        }
+
         private void SetCategory(Category category)
         {
+            CancelActiveBuildMode();
+            openCategory = category;
+            if (dockRoot != null) dockRoot.SetActive(true);
+            SetSideMenuVisible(false);
             if (productionPage != null) productionPage.SetActive(category == Category.Production);
             if (logisticsPage != null) logisticsPage.SetActive(category == Category.Logistics);
             if (powerPage != null) powerPage.SetActive(category == Category.Power);
@@ -295,6 +431,48 @@ namespace Seo.UI
             var controller = FindFirstObjectByType<PowerBuildController>();
             if (category != Category.Power && controller != null && controller.Mode != PowerBuildMode.None)
                 controller.SetMode(PowerBuildMode.None);
+        }
+
+        private void CollapseAfterToolSelection()
+        {
+            openCategory = null;
+            if (dockRoot != null) dockRoot.SetActive(false);
+            SetTabState(productionTab, false);
+            SetTabState(logisticsTab, false);
+            SetTabState(powerTab, false);
+            SetSideMenuVisible(false);
+        }
+
+        private void SetSideMenuVisible(bool visible)
+        {
+            if (sideMenuRoot != null) sideMenuRoot.SetActive(visible);
+            var label = menuToggleButton != null ? menuToggleButton.GetComponentInChildren<Text>(true) : null;
+            if (label != null) label.text = visible ? "닫기" : "메뉴";
+        }
+
+        private void CloseCategoryPanel(bool cancelBuildMode)
+        {
+            if (cancelBuildMode) CancelActiveBuildMode();
+            openCategory = null;
+            if (dockRoot != null) dockRoot.SetActive(false);
+            SetTabState(productionTab, false);
+            SetTabState(logisticsTab, false);
+            SetTabState(powerTab, false);
+
+            var controller = FindFirstObjectByType<PowerBuildController>();
+            if (controller != null && controller.Mode != PowerBuildMode.None)
+                controller.SetMode(PowerBuildMode.None);
+        }
+
+        private void CancelActiveBuildMode()
+        {
+            pendingPlacementMachineId = null;
+            if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (machineTool == null) machineTool = FindFirstObjectByType<MachineGhostTool>();
+            if (buildRouter != null && buildRouter.CurrentMode == BuildInputRouter.Mode.PlaceMachine)
+                machineTool?.CancelPlacement();
+            if (buildRouter != null && buildRouter.CurrentMode != BuildInputRouter.Mode.None)
+                buildRouter.SetMode(BuildInputRouter.Mode.None);
         }
 
         private static void SetTabState(Button button, bool selected)
@@ -316,10 +494,21 @@ namespace Seo.UI
             if (rotateButton != null) rotateButton.SetActive(mode == BuildInputRouter.Mode.PlaceMachine);
             if (confirmButton != null) confirmButton.SetActive(mode == BuildInputRouter.Mode.PlaceMachine);
             if (demolishConfirmButton != null) demolishConfirmButton.SetActive(mode == BuildInputRouter.Mode.Demolish);
+            if (cancelButton != null)
+            {
+                cancelButton.SetActive(mode != BuildInputRouter.Mode.None);
+                var cancelRt = cancelButton.GetComponent<RectTransform>();
+                if (cancelRt != null)
+                {
+                    float x = mode == BuildInputRouter.Mode.PlaceMachine ? 232f
+                        : mode == BuildInputRouter.Mode.Demolish ? 116f : 0f;
+                    cancelRt.anchoredPosition = new Vector2(x, 0f);
+                }
+            }
 
             var parent = rotateButton != null ? rotateButton.transform.parent.gameObject
                 : demolishConfirmButton != null ? demolishConfirmButton.transform.parent.gameObject : null;
-            if (parent != null) parent.SetActive(mode == BuildInputRouter.Mode.PlaceMachine || mode == BuildInputRouter.Mode.Demolish);
+            if (parent != null) parent.SetActive(mode != BuildInputRouter.Mode.None);
         }
 
         private void UpdatePowerStatus()
@@ -334,15 +523,15 @@ namespace Seo.UI
 
             bool shortage = grid.RequestedPower > grid.AvailablePower;
             const string warningColor = "#FF3028";
-            string warningLight = shortage ? $"<color={warningColor}>●</color>" : "<color=#5CD99A>●</color>";
+            string warningLight = shortage ? $"<color={warningColor}>● 전력 부족</color>" : "<color=#5CD99A>● 전력 정상</color>";
             string powerAmount = shortage
                 ? $"<color={warningColor}>{grid.RequestedPower} / {grid.AvailablePower}</color>"
                 : $"{grid.RequestedPower} / {grid.AvailablePower}";
 
             powerText.color = SeoUITheme.Current.Text;
             powerText.text =
-                $"{warningLight} POWER  {powerAmount} MW\n" +
-                $"가동 기계  {grid.PoweredMachineCount} / {grid.TotalMachineCount}";
+                $"{warningLight}   사용 / 공급  {powerAmount} MW\n" +
+                $"가동 기계   {grid.PoweredMachineCount} / {grid.TotalMachineCount}대";
         }
 
         private void UpdatePowerButtonStates()
@@ -374,10 +563,18 @@ namespace Seo.UI
             if (panel == null) return;
             var root = panel.gameObject;
             if (root.transform.parent != safeRoot) root.transform.SetParent(safeRoot, false);
+            if (root.activeSelf) root.transform.SetAsLastSibling();
             var rt = root.GetComponent<RectTransform>();
             SeoUIFactory.SetRect(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640f, 540f));
-            SeoUIFactory.ApplyPanel(root.GetComponent<Image>());
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640f, 680f));
+            var rootImage = root.GetComponent<Image>();
+            SeoUIFactory.ApplyPanel(rootImage);
+            if (rootImage != null) rootImage.raycastTarget = true;
+            var canvasGroup = root.GetComponent<CanvasGroup>();
+            if (canvasGroup == null) canvasGroup = root.AddComponent<CanvasGroup>();
+            canvasGroup.alpha = 1f;
+            canvasGroup.interactable = true;
+            canvasGroup.blocksRaycasts = true;
 
             var container = root.transform.Find("RecipeButtonContainer") as RectTransform;
             if (container != null)
@@ -389,9 +586,13 @@ namespace Seo.UI
                     var button = container.GetChild(i).GetComponent<Button>();
                     if (button == null) continue;
                     SeoUIFactory.ApplyButton(button);
+                    button.interactable = true;
+                    var buttonImage = button.GetComponent<Image>();
+                    if (buttonImage != null) buttonImage.raycastTarget = true;
                     button.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 76f);
                     UpdateRecipeButtonLabel(button);
                 }
+                LayoutRebuilder.ForceRebuildLayoutImmediate(container);
             }
 
             if (root.transform.Find("SeoRecipeHeader") == null)
@@ -404,6 +605,12 @@ namespace Seo.UI
                     SeoUITheme.Current.Danger);
                 SeoUIFactory.SetRect(close.GetComponent<RectTransform>(), Vector2.one, Vector2.one, Vector2.one,
                     new Vector2(-20f, -18f), new Vector2(100f, 48f));
+                close.transform.SetAsLastSibling();
+            }
+            else
+            {
+                var close = root.transform.Find("SeoRecipeClose");
+                if (close != null) close.SetAsLastSibling();
             }
         }
 
