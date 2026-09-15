@@ -27,7 +27,6 @@ namespace Seo.UI
         private GameObject panelRoot;
         private Text summaryText;
         private Button confirmButton;
-        private Button cancelButton;
         private LineRenderer selectionOutline;
         private bool wasDemolishMode;
         private float nextDiscovery;
@@ -59,7 +58,6 @@ namespace Seo.UI
                 wasDemolishMode = false;
                 RestoreHighlights();
                 SetOutlineVisible(false);
-                if (cancelButton != null) cancelButton.gameObject.SetActive(false);
                 if (confirmButton != null) confirmButton.interactable = false;
 
                 bool showingToast = Time.unscaledTime < toastUntil;
@@ -69,7 +67,6 @@ namespace Seo.UI
             }
 
             wasDemolishMode = true;
-            if (cancelButton != null) cancelButton.gameObject.SetActive(true);
             panelRoot.SetActive(true);
             ReadSelection();
             UpdateOutline();
@@ -116,17 +113,6 @@ namespace Seo.UI
                     confirmRect.sizeDelta = new Vector2(210f, 56f);
                 }
 
-                Transform contextBar = confirmObject.transform.parent;
-                if (cancelButton == null && contextBar != null)
-                {
-                    var existing = contextBar.Find("SeoDemolishCancel");
-                    cancelButton = existing != null
-                        ? existing.GetComponent<Button>()
-                        : SeoUIFactory.CreateButton(contextBar, "SeoDemolishCancel", "취소", CancelDemolition);
-                    StyleActionButton(cancelButton, "취소");
-                    SeoUIFactory.SetRect(cancelButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
-                        new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-116f, 0f), new Vector2(210f, 56f));
-                }
             }
 
             return panelRoot != null;
@@ -303,12 +289,6 @@ namespace Seo.UI
         private void SetOutlineVisible(bool visible)
         {
             if (selectionOutline != null) selectionOutline.gameObject.SetActive(visible);
-        }
-
-        private void CancelDemolition()
-        {
-            if (demolishTool != null) demolishTool.OnCancelled();
-            if (router != null) router.SetMode(BuildInputRouter.Mode.None);
         }
 
         private void HandleDemolishModeEnded()

@@ -199,8 +199,18 @@ namespace Seo.UI
             MovePaletteButton("PaletteButton_Demolish", logisticsPage.transform, 3, 4, tint: SeoUITheme.Current.Danger);
 
             BuildPowerButtons();
+            BuildDockCloseButton(dock.transform);
             BuildContextBar(dock.transform);
             CloseCategoryPanel(false);
+        }
+
+        private void BuildDockCloseButton(Transform dock)
+        {
+            var close = SeoUIFactory.CreateButton(dock, "SeoDockClose", "메뉴 닫기", () => CloseCategoryPanel(true));
+            SeoUIFactory.SetRect(close.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
+                new Vector2(1f, 0f), new Vector2(-8f, 14f), new Vector2(240f, 72f));
+            var label = close.GetComponentInChildren<Text>(true);
+            if (label != null) label.fontSize = 30;
         }
 
         private void BuildSideMenu()
@@ -344,15 +354,24 @@ namespace Seo.UI
 
             rotateButton = MoveActionButton("RotateButton", bar.transform, -232f);
             confirmButton = MoveActionButton("ConfirmButton", bar.transform, 0f);
-            demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, -116f, SeoUITheme.Current.Danger);
+            demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, 116f, SeoUITheme.Current.Danger);
             var confirmAction = confirmButton != null ? confirmButton.GetComponent<Button>() : null;
             if (confirmAction != null) confirmAction.onClick.AddListener(HandlePlacementConfirmed);
 
             var cancel = SeoUIFactory.CreateButton(bar.transform, "SeoBuildCancel", "취소", CancelCurrentInteraction);
+            var confirmRt = confirmButton != null ? confirmButton.GetComponent<RectTransform>() : null;
+            Vector2 actionSize = confirmRt != null ? confirmRt.sizeDelta : new Vector2(210f, 56f);
             SeoUIFactory.SetRect(cancel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(232f, 0f), new Vector2(210f, 56f));
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(232f, 0f), actionSize);
             var cancelLabel = cancel.GetComponentInChildren<Text>(true);
-            if (cancelLabel != null) cancelLabel.fontSize = 22;
+            var confirmLabel = confirmButton != null ? confirmButton.GetComponentInChildren<Text>(true) : null;
+            if (cancelLabel != null && confirmLabel != null)
+            {
+                cancelLabel.font = confirmLabel.font;
+                cancelLabel.fontSize = confirmLabel.fontSize;
+                cancelLabel.fontStyle = confirmLabel.fontStyle;
+                cancelLabel.color = confirmLabel.color;
+            }
             cancelButton = cancel.gameObject;
             bar.gameObject.SetActive(false);
         }
@@ -490,25 +509,40 @@ namespace Seo.UI
         private void UpdateContextActions()
         {
             if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (machineTool == null) machineTool = FindFirstObjectByType<MachineGhostTool>();
             var mode = buildRouter != null ? buildRouter.CurrentMode : BuildInputRouter.Mode.None;
-            if (rotateButton != null) rotateButton.SetActive(mode == BuildInputRouter.Mode.PlaceMachine);
-            if (confirmButton != null) confirmButton.SetActive(mode == BuildInputRouter.Mode.PlaceMachine);
-            if (demolishConfirmButton != null) demolishConfirmButton.SetActive(mode == BuildInputRouter.Mode.Demolish);
+            bool placingMachine = mode == BuildInputRouter.Mode.PlaceMachine;
+            bool placingMiner = placingMachine && machineTool != null && machineTool.SelectedMachineId == "Miner";
+
+            if (rotateButton != null) rotateButton.SetActive(placingMachine && !placingMiner);
+            if (confirmButton != null)
+            {
+                confirmButton.SetActive(placingMachine);
+                SetActionButtonX(confirmButton, placingMiner ? -116f : 0f);
+            }
+            if (demolishConfirmButton != null)
+            {
+                demolishConfirmButton.SetActive(mode == BuildInputRouter.Mode.Demolish);
+                if (mode == BuildInputRouter.Mode.Demolish) SetActionButtonX(demolishConfirmButton, 116f);
+            }
             if (cancelButton != null)
             {
                 cancelButton.SetActive(mode != BuildInputRouter.Mode.None);
-                var cancelRt = cancelButton.GetComponent<RectTransform>();
-                if (cancelRt != null)
-                {
-                    float x = mode == BuildInputRouter.Mode.PlaceMachine ? 232f
-                        : mode == BuildInputRouter.Mode.Demolish ? 116f : 0f;
-                    cancelRt.anchoredPosition = new Vector2(x, 0f);
-                }
+                float x = placingMachine ? (placingMiner ? 116f : 232f)
+                    : mode == BuildInputRouter.Mode.Demolish ? -116f : 0f;
+                SetActionButtonX(cancelButton, x);
             }
 
             var parent = rotateButton != null ? rotateButton.transform.parent.gameObject
                 : demolishConfirmButton != null ? demolishConfirmButton.transform.parent.gameObject : null;
             if (parent != null) parent.SetActive(mode != BuildInputRouter.Mode.None);
+        }
+
+        private static void SetActionButtonX(GameObject button, float x)
+        {
+            if (button == null) return;
+            var rt = button.GetComponent<RectTransform>();
+            if (rt != null) rt.anchoredPosition = new Vector2(x, 0f);
         }
 
         private void UpdatePowerStatus()
