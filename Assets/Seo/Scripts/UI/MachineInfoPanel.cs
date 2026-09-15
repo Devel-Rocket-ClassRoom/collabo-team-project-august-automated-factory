@@ -221,7 +221,10 @@ namespace Seo.UI
             text.alignment = TextAnchor.UpperLeft;
             text.color = Color.white;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(12, fontSize - 5);
+            text.resizeTextMaxSize = fontSize;
             text.raycastTarget = false;
             return text;
         }
