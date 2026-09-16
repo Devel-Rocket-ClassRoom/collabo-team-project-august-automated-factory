@@ -195,9 +195,10 @@ namespace Seo.UI
             MovePaletteButton("PaletteButton_Former", productionPage.transform, 2, 4);
             MovePaletteButton("PaletteButton_Synthesizer", productionPage.transform, 3, 4);
 
-            MovePaletteButton("PaletteButton_Belt", logisticsPage.transform, 0, 3);
-            MovePaletteButton("PaletteButton_Splitter", logisticsPage.transform, 1, 3);
-            MovePaletteButton("PaletteButton_Merger", logisticsPage.transform, 2, 3);
+            MovePaletteButton("PaletteButton_Belt", logisticsPage.transform, 0, 4);
+            MovePaletteButton("PaletteButton_Splitter", logisticsPage.transform, 1, 4);
+            MovePaletteButton("PaletteButton_Merger", logisticsPage.transform, 2, 4);
+            MovePaletteButton("PaletteButton_MiniCore", logisticsPage.transform, 3, 4);
             var legacyDemolishButton = GameObject.Find("PaletteButton_Demolish");
             if (legacyDemolishButton != null) legacyDemolishButton.SetActive(false);
 

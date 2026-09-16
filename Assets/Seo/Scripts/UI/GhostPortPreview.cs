@@ -103,14 +103,14 @@ namespace Seo.UI
 
         private void EnsureBadges()
         {
-            if (inputBadge == null) inputBadge = CreateBadge("Ghost_IN", "▶", new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 30, true);
-            if (secondInputBadge == null) secondInputBadge = CreateBadge("Ghost_IN_2", "▶", new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 30, true);
-            if (outputBadge == null) outputBadge = CreateBadge("Ghost_OUT", "▶", new Color(1f, 0.48f, 0.05f), new Vector2(52f, 48f), 30, true);
+            if (inputBadge == null) inputBadge = CreateBadge("Ghost_IN", "▶", new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 24, true);
+            if (secondInputBadge == null) secondInputBadge = CreateBadge("Ghost_IN_2", "▶", new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 24, true);
+            if (outputBadge == null) outputBadge = CreateBadge("Ghost_OUT", "▶", new Color(1f, 0.48f, 0.05f), new Vector2(52f, 48f), 24, true);
             if (autoBadge == null) autoBadge = CreateBadge("Ghost_AUTO", "AUTO → CORE", new Color(0.95f, 0.72f, 0.15f), new Vector2(130f, 30f), 15, false);
             if (routingBadges.Count == 0)
             {
                 for (int i = 0; i < 4; i++)
-                    routingBadges.Add(CreateBadge("Ghost_ROUTE_" + i, "↔", new Color(0.1f, 0.78f, 1f), new Vector2(52f, 48f), 30, true));
+                    routingBadges.Add(CreateBadge("Ghost_ROUTE_" + i, "↔", new Color(0.1f, 0.78f, 1f), new Vector2(52f, 48f), 24, true));
             }
             SetBadgeVisibility(false, false);
             SetRoutingVisibility(false);
