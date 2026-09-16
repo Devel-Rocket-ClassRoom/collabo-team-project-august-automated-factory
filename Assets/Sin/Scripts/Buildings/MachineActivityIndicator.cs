@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace Factory.Buildings
 {
-    // 기계가 실제로 작동 중일 때(레시피 처리 중인 Processor, 항상 캐고 있는 Miner) 연기를
-    // 뿜어서 "돌아가고 있다"는 걸 눈으로 바로 알 수 있게 한다.
+    // 기계가 실제로 작동 중일 때(레시피 처리 중인 Processor, 캐는 중인 Miner — 전력 있을
+    // 때만) 연기를 뿜어서 "돌아가고 있다"는 걸 눈으로 바로 알 수 있게 한다.
     // 분류기/합류기/코어(RecipeId<0)는 IsProcessing이 절대 true가 안 돼서 자동으로 안 나온다.
     //
     // 실제 파티클 시스템은 안 만든다 — 기계마다 하나씩 만들면 대수만큼(100대=최대 100)
@@ -47,18 +47,24 @@ namespace Factory.Buildings
             MachineSmokeEmitter.Puff(worldPosition, dir * driftSpeed, puffParticleCount);
         }
 
+        // 전력이 끊기면 PowerGridSystem이 시뮬레이션 코드는 안 건드리고 SpeedMultiplier만
+        // 0으로 만들어서 멈춘다(Progress가 더 안 늘어남) — 그래서 IsProcessing 하나만 보면
+        // 안 된다. 마침 가공 사이클 도중에 전력이 끊기면 IsProcessing=true인 채로 얼어붙어서
+        // (다시는 안 끝나니) 영원히 "작동 중"으로 남아 연기가 안 멈추는 버그가 있었다.
+        // 채굴기도 마찬가지로 SpeedMultiplier=0이면 실제로는 안 캐는데 예전엔 그냥
+        // "존재하면 항상 캐는 중"으로 봐서 전력 여부와 무관하게 항상 연기가 났다.
         private bool IsActive()
         {
             switch (kind)
             {
                 case MachineInstanceKind.Miner:
-                    // 채굴기는 블로킹 개념이 없다(MinerSystem) — 존재하면 항상 캐는 중.
-                    return instanceIndex >= 0 && instanceIndex < driver.World.Miners.Count
-                        && driver.World.Miners[instanceIndex] != null;
+                    if (instanceIndex < 0 || instanceIndex >= driver.World.Miners.Count) return false;
+                    var miner = driver.World.Miners[instanceIndex];
+                    return miner != null && miner.SpeedMultiplier > 0f;
                 case MachineInstanceKind.Processor:
                     if (instanceIndex < 0 || instanceIndex >= driver.World.Processors.Count) return false;
                     var processor = driver.World.Processors[instanceIndex];
-                    return processor != null && processor.IsProcessing;
+                    return processor != null && processor.IsProcessing && processor.SpeedMultiplier > 0f;
                 default:
                     return false;
             }
