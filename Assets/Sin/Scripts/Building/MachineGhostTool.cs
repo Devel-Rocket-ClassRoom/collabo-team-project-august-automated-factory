@@ -337,6 +337,7 @@ namespace Factory.Building
         private void SpawnMachineVisual(GameObject libraryPrefab, string addressableKey, Vector3 position, Quaternion rotation, MachineInstanceKind kind, int index, Color color, Vector2Int footprint)
         {
             GameObject go;
+            Transform visual = null; // 콜라이더 없는 순수 시각 전용 자식 — 있으면 작동 중 들썩임 대상.
             if (!string.IsNullOrEmpty(addressableKey) || libraryPrefab == null)
             {
                 go = new GameObject();
@@ -346,10 +347,15 @@ namespace Factory.Building
                 boxCollider.center = new Vector3(0f, 0.5f, 0f);
                 boxCollider.size = new Vector3(footprint.x, 1f, footprint.y);
 
-                var placeholder = BuildVisuals.CreateBox(position, new Vector3(footprint.x, 1f, footprint.y), color, go.transform, withCollider: false);
+                // 탭 판정 콜라이더는 루트(go)에 고정, 실제로 보이는 모델은 이 자식(visual) 밑에만
+                // 둔다 — 작동 중 들썩임으로 이 자식 스케일만 흔들어도 콜라이더/배치 판정엔 영향 없음.
+                visual = new GameObject("Visual").transform;
+                visual.SetParent(go.transform, false);
+
+                var placeholder = BuildVisuals.CreateBox(position, new Vector3(footprint.x, 1f, footprint.y), color, visual, withCollider: false);
                 placeholder.name = "Placeholder";
 
-                go.AddComponent<AddressableModelMount>().Mount(addressableKey, placeholder);
+                visual.gameObject.AddComponent<AddressableModelMount>().Mount(addressableKey, placeholder);
             }
             else
             {
@@ -361,6 +367,14 @@ namespace Factory.Building
 
             var view = go.GetComponent<MachineView>() ?? go.AddComponent<MachineView>();
             view.Initialize(kind, index, driver);
+
+            // 작동 중(레시피 처리 중인 기계, 항상 캐는 채굴기) 표시 — 분류기/합류기/코어는
+            // IsProcessing이 절대 안 켜져서 자동으로 가만히 있는다. visual이 없는(라이브러리
+            // 프리팹 폴백) 경로는 콜라이더랑 안 분리돼 있어서 건너뛴다.
+            if (visual != null)
+            {
+                go.AddComponent<MachineActivityIndicator>().Initialize(visual, kind, index, driver);
+            }
         }
     }
 }
