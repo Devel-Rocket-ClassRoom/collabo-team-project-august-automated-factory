@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Factory.Buildings;
 using Factory.Data;
@@ -17,6 +18,7 @@ namespace Factory.Building
     // GameDatabase에서 조회한다.
     public class MachineGhostTool : MonoBehaviour, IBuildTool
     {
+        public static Func<string, Vector2Int, bool> PlacementPermission { get; set; }
         // 채굴기는 이제 하나뿐이고 유일하게 특별 취급되는 종류다(입출력 포트가 없어 원격
         // 전송, 광물 노드 위에만 지을 수 있음) — Bae님 데이터엔 이걸 구분할 필드가 없어서
         // 문자열 id로 직접 비교한다.
@@ -188,6 +190,7 @@ namespace Factory.Building
         public bool Confirm()
         {
             if (selectedMachineId == null || !hasValidCell || driver == null || driver.World == null) return false;
+            if (PlacementPermission != null && !PlacementPermission(selectedMachineId, currentCell)) return false;
 
             var grid = driver.World.Grid;
             var db = driver.World.Database;

@@ -29,6 +29,8 @@ namespace Factory.Building
         // 기계 정보 확인 탭이 아니다"를 판단하는 데 쓴다.
         public bool IsToolActive => mode != Mode.None;
         public Mode CurrentMode => mode;
+        // 튜토리얼처럼 건설 입력은 허용하되 카메라 이동/줌만 잠가야 하는 흐름에서 사용한다.
+        public bool CameraInputEnabled { get; set; } = true;
 
         // 팔레트 버튼이 "지금 내가 선택된 도구인지" UI로 표시할 수 있게 모드가 바뀔 때마다 알림.
         public event Action<Mode> ModeChanged;
@@ -121,10 +123,11 @@ namespace Factory.Building
 
             // 오른쪽 버튼 드래그는 왼쪽 버튼(건설 제스처)과 별개로 항상 카메라를 이동시킨다 —
             // 터치의 두 손가락 팬에 대응하는 마우스 조작이라, 배치/벨트 모드 중에도 막히면 안 됨.
-            HandleRightButtonPan(position, mouse.rightButton.wasPressedThisFrame, mouse.rightButton.wasReleasedThisFrame, overUI);
+            if (CameraInputEnabled)
+                HandleRightButtonPan(position, mouse.rightButton.wasPressedThisFrame, mouse.rightButton.wasReleasedThisFrame, overUI);
 
             float scroll = mouse.scroll.ReadValue().y;
-            if (Mathf.Abs(scroll) > 0.01f && cameraRig != null)
+            if (CameraInputEnabled && Mathf.Abs(scroll) > 0.01f && cameraRig != null)
             {
                 // 휠 한 칸(scroll notch)은 터치 핀치 델타보다 훨씬 작은 값이라, 같은
                 // zoomSpeed를 그대로 곱하면 체감상 너무 느리다 — 휠 전용으로 크게 배율을 준다.
@@ -157,7 +160,7 @@ namespace Factory.Building
             if (tool == null)
             {
                 // 건설 도구가 선택 안 된 상태(None)에서는 한 손가락 드래그로 맵을 이동한다.
-                HandleSingleTouchPan(position, pressedThisFrame, releasedThisFrame, overUI);
+                if (CameraInputEnabled) HandleSingleTouchPan(position, pressedThisFrame, releasedThisFrame, overUI);
                 return;
             }
 
@@ -217,6 +220,7 @@ namespace Factory.Building
 
         private void HandleTwoTouch(Vector2 a, Vector2 b)
         {
+            if (!CameraInputEnabled) return;
             Vector2 midpoint = (a + b) * 0.5f;
             float dist = Vector2.Distance(a, b);
 
