@@ -259,10 +259,17 @@ namespace Seo.UI
         private Bounds CalculateBounds()
         {
             var renderers = GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0) return new Bounds(transform.position, Vector3.one);
-            var bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
-            return bounds;
+            Bounds bounds = default;
+            bool has = false;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                // 연기 같은 연출용 파티클 렌더러는 뺀다 — 안 그러면 연기가 위로 퍼질수록 그
+                // 렌더러의 바운드도 매 프레임 같이 커져서, 그 위에 얹는 이름표가 덩달아 움직인다.
+                if (renderers[i] is ParticleSystemRenderer) continue;
+                if (!has) { bounds = renderers[i].bounds; has = true; }
+                else bounds.Encapsulate(renderers[i].bounds);
+            }
+            return has ? bounds : new Bounds(transform.position, Vector3.one);
         }
 
         private void SetBadgeTransform(WorldBadge badge, Vector3 position, float scale)
