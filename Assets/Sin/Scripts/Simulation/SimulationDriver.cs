@@ -17,7 +17,7 @@ namespace Factory.Simulation
 
         private void Awake()
         {
-            Application.targetFrameRate = 60;
+            Application.targetFrameRate = -1; // 프로파일링을 위해 프레임 제한 해제
 
             // DataManager.Awake()가 JSON을 로드하는데, 유니티는 서로 다른 오브젝트의 Awake
             // 순서를 보장 안 해준다 — DataManager.cs에 [DefaultExecutionOrder]를 붙여서 항상
