@@ -50,6 +50,9 @@ namespace Factory.Building
         private Vector2Int currentCell;
         private Vector2Int currentFacing = new Vector2Int(1, 0);
         private bool hasValidCell;
+        // Addressables 모델은 비동기로 늦게 얹히는데, 그 시점에 다시 칠하려면 "마지막으로
+        // 계산된 유효/무효 상태"가 필요하다 — PlaceGhostAlongRay가 매번 갱신한다.
+        private bool lastPlacementFree = true;
 
         public bool IsPlacing => selectedMachineId != null;
         public string SelectedMachineId => selectedMachineId;
@@ -91,7 +94,14 @@ namespace Factory.Building
                 ghost = new GameObject("Ghost");
                 ghost.transform.SetParent(transform, false);
                 var placeholder = BuildVisuals.CreateBox(Vector3.zero, new Vector3(footprint.x, 1f, footprint.y), invalidColor, ghost.transform, withCollider: false);
-                ghost.AddComponent<AddressableModelMount>().Mount(addressableKey, placeholder);
+                var mount = ghost.AddComponent<AddressableModelMount>();
+                var capturedGhost = ghost; // 콜백이 나중에(비동기) 불릴 때 그 사이 ghost 필드가 다른 걸 가리킬 수 있으니 지금 값을 붙잡아둔다.
+                mount.Mount(addressableKey, placeholder, onLoaded: () =>
+                {
+                    // 실제 모델이 막 얹혔을 때 원래 색(칠 안 된 상태)으로 한 프레임이라도 보이면
+                    // "설치된 것처럼" 보인다 — 로드 완료 즉시 마지막 유효/무효 상태로 다시 칠한다.
+                    if (capturedGhost != null) BuildVisuals.TintPreserveShape(capturedGhost, lastPlacementFree ? validColor : invalidColor);
+                });
             }
             else if (shapePrefab != null)
             {
@@ -184,6 +194,8 @@ namespace Factory.Building
             {
                 free = false;
             }
+
+            lastPlacementFree = free; // Addressables 모델이 나중에 로드됐을 때 다시 칠할 기준값.
 
             // 실제 모델의 텍스처/모양은 유지하고 색조만 유효/무효 색으로 — 자식 렌더러(다중 파츠
             // 모델 포함) 전부 처리해서 일부만 안 바뀌는 문제 없게.
