@@ -17,6 +17,12 @@ namespace Factory.Simulation
                 if (!processor.IsProcessing)
                 {
                     if (processor.RecipeId < 0) continue;
+                    // 전력 없으면 새 사이클을 아예 시작하지 않는다(재료 소비 안 함) — 안 그러면
+                    // "사이클 시작(=재료 소비)"은 전력과 무관하게 일어나고 "진행(Progress 증가)"만
+                    // 전력에 묶여서, 전력이 없어도 레시피를 새로 설정할 때마다(또는 다음 틱에)
+                    // 재료를 한 번씩 공짜로 먹어버리고 그 자리에 얼어붙는 버그가 생긴다(실제로
+                    // 겪음: 전력 없이 레시피만 눌러도 코어/벨트에서 재료가 빨려 들어감).
+                    if (!processor.IsPowered) continue;
                     var recipe = database.Recipes[processor.RecipeId];
                     // 산출물을 담을 자리가 없으면 사이클을 시작조차 하지 않는다 — 시작하면
                     // TryConsumeInputs가 입력을 소비해버리는데, 산출은 Capacity에서 잘려

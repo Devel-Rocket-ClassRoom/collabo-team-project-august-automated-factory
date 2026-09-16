@@ -24,6 +24,19 @@ namespace Factory.Simulation
         public int RecipeId = -1;
         public float SpeedMultiplier = 1f;
 
+        // 전력 유무는 여기 하나로만 판정한다. PowerGridSystem은 전력 없으면 SpeedMultiplier를
+        // 0으로 깎아서(시뮬레이션 코드는 안 건드리는 설계) 끈다 — 그런데 "0인지"를 여기저기서
+        // 직접 float 비교로 매번 새로 판단하면, 어딘가 하나 빠뜨렸을 때(예: 사이클 시작 체크에
+        // 안 넣음, 연기 이펙트에 안 넣음) 조용히 새는 구멍이 생긴다(실제로 둘 다 겪음). 전력에
+        // 반응해야 하는 코드는 전부 SpeedMultiplier를 직접 보지 말고 이 프로퍼티만 봐야 한다.
+        //
+        // 켜져 있을 때(IsPowered=true): 새 사이클 시작(재료 소비) 가능, Progress 진행, 연기 등
+        //   "작동 중" 시각효과 재생.
+        // 꺼져 있을 때(IsPowered=false): 새 사이클을 시작하지 않음(재료 안 먹음), 이미 진행
+        //   중이던 사이클은 Progress가 그 자리에서 멈춘 채 대기(전력 들어오면 이어서 진행 —
+        //   재료를 이미 냈으니 취소하지 않고 자연스럽게 이어가는 게 맞음), 시각효과 정지.
+        public bool IsPowered => SpeedMultiplier > 0f;
+
         // 벨트 라우팅 노드(분류기/합류기)면 None이 아니다. RoutingSystem이 이 값으로 분기하고,
         // ProcessorSystem은 RecipeId<0라 어차피 건드리지 않는다. RoutingCursor는 라운드로빈
         // 위치(분류기 = 다음 출력 벨트 인덱스, 합류기 = 마지막으로 내보낸 자원 id).

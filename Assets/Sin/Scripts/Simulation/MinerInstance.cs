@@ -7,6 +7,10 @@ namespace Factory.Simulation
         public int MachineId;
         public int OutputResourceId;
         public float SpeedMultiplier = 1f;
+
+        // ProcessorInstance.IsPowered와 같은 목적 — 전력 판정을 한 곳으로 모아서, 여기저기서
+        // SpeedMultiplier를 직접 비교하다 한 군데 빠뜨리는 실수를 막는다.
+        public bool IsPowered => SpeedMultiplier > 0f;
         public float MineIntervalSeconds = SimulationConstants.DefaultMineIntervalSeconds;
         // 아래 밟고 있는 광물 노드(OreDepositDef)가 정한 사이클당 산출량.
         public int YieldPerCycle = 1;

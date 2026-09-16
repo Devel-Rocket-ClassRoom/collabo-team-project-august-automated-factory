@@ -90,6 +90,10 @@ namespace Factory.Simulation
                 return;
             }
 
+            // 전력 없으면 이미 만들어둔 산출물도 안 내보낸다 — 꺼진 기계는 버퍼까지 완전히
+            // 멈춘다(사용자 결정: 전력 끊기면 들어오는 것도 나가는 것도 다 멈춰야 함).
+            if (!processor.IsPowered) return;
+
             var buffer = processor.OutputBuffer;
 
             // 이 라인이 이미 특정 자원으로 굳어졌으면 그것만 계속 내준다("벨트 하나당 한 종류").
@@ -134,6 +138,12 @@ namespace Factory.Simulation
             }
 
             if (target.RecipeId < 0) return; // 아직 레시피 미지정 -> 뭐가 필요한지 모르니 안 줌
+
+            // 전력 없으면 코어도 미리 내주지 않는다 — 여기서 안 막으면, 기계 자체는 (TryHandOff가
+            // 막아서) 못 받더라도 코어에서 자원이 먼저 빠져나가 벨트 위에 쌓이는 게 눈에 보여서
+            // "전력도 없는데 뭔가 움직인다"는 혼란을 준다(사용자 보고: 전력 없는 제련로에
+            // 레시피만 골라도 코어에서 원석이 바로 튀어나옴).
+            if (!target.IsPowered) return;
 
             // 목적지 레시피가 잠금 당시와 달라졌으면(사용자가 기계 탭해서 레시피를 바꿈)
             // 예전 재료로 굳은 잠금은 더 이상 유효하지 않다 — 풀어서 새 레시피 기준으로
@@ -266,13 +276,18 @@ namespace Factory.Simulation
             if (segment.TargetProcessorId.HasValue)
             {
                 var processor = processors[segment.TargetProcessorId.Value];
-                // 레시피도 없고 저장고(코어)도 라우팅 노드(분류기/합류기)도 아닌 기계 = 아무것도
-                // 요청하지 않았다. 벨트가 여기로 밀어넣으면 입력 버퍼에 죽은 재고로 쌓이기만 한다
-                // ("기계만 놓으면 레시피 없이도 자동으로 빨려 들어간다"는 사용자 보고). 안 받는다 —
-                // 아이템은 벨트 끝에서 대기하고, 상류로 역압이 전파된다.
-                if (processor.RecipeId < 0 && !processor.UniversalPorts && processor.RoutingRole == RoutingRole.None)
+                bool isRegularMachine = !processor.UniversalPorts && processor.RoutingRole == RoutingRole.None;
+                if (isRegularMachine)
                 {
-                    return false;
+                    // 레시피가 없는 기계 = 아무것도 요청하지 않았다. 벨트가 여기로 밀어넣으면
+                    // 입력 버퍼에 죽은 재고로 쌓이기만 한다("기계만 놓으면 레시피 없이도 자동으로
+                    // 빨려 들어간다"는 사용자 보고). 안 받는다 — 아이템은 벨트 끝에서 대기하고,
+                    // 상류로 역압이 전파된다.
+                    if (processor.RecipeId < 0) return false;
+
+                    // 전력 없으면 입력도 안 받는다 — 꺼진 기계는 버퍼까지 완전히 멈춘다(사용자
+                    // 결정). 코어/라우팅 노드는 전력 소모가 없는 설비라 여기 해당 안 됨.
+                    if (!processor.IsPowered) return false;
                 }
                 return processor.TryAcceptInput(item.ResourceId, 1);
             }
