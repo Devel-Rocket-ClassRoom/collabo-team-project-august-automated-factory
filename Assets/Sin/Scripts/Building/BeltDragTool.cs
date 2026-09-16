@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Factory.Rendering;
 using Factory.Simulation;
@@ -12,6 +13,7 @@ namespace Factory.Building
     // 어느 쪽에 닿아도 되고, 드래그 시작/끝 위치로 소스/타겟이 갈린다.
     public class BeltDragTool : MonoBehaviour, IBuildTool
     {
+        public static Func<IReadOnlyList<Vector2Int>, bool> PathPermission { get; set; }
         private enum EndpointRole
         {
             None,
@@ -79,7 +81,7 @@ namespace Factory.Building
         {
             if (!dragging) return;
             dragging = false;
-            Commit();
+            if (PathPermission == null || PathPermission(path)) Commit();
             path.Clear();
             ClearPreview();
         }

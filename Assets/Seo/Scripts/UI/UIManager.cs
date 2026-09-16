@@ -86,6 +86,7 @@ namespace Seo.UI
 
         public void ShowMachine(MachineInstanceKind kind, int instanceIndex)
         {
+            if (!FactoryTutorialController.AllowsMachineSelection(kind, instanceIndex)) return;
             selectedKind = kind;
             selectedIndex = instanceIndex;
             selectionPending = true;

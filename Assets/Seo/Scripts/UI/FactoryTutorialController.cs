@@ -11,6 +11,8 @@ namespace Seo.UI
     // 기존 건설/레시피/벨트 코드를 호출하거나 복제하지 않고, 플레이어가 만든 결과만 읽는다.
     public sealed class FactoryTutorialController : MonoBehaviour
     {
+        public static FactoryTutorialController Instance { get; private set; }
+
         private enum Step
         {
             Waiting,
@@ -29,8 +31,18 @@ namespace Seo.UI
         }
 
         private static readonly Vector2Int CopperCell = new Vector2Int(-4, 5);
-        // 구리 광맥과 코어 사이의 빈 칸. 이 위치를 기준으로 입출력 포트 안내를 그린다.
-        private static readonly Vector2Int SmelterCell = new Vector2Int(-3, 2);
+        // 코어 바로 아래. 기본 방향(+X)을 유지하면 입력/출력 벨트를 좌우로 분리할 수 있다.
+        private static readonly Vector2Int SmelterCell = new Vector2Int(-1, -4);
+        private static readonly Vector2Int[] InputBeltGuide =
+        {
+            new Vector2Int(-1, -1), new Vector2Int(-2, -1), new Vector2Int(-2, -2),
+            new Vector2Int(-2, -3), new Vector2Int(-2, -4), SmelterCell,
+        };
+        private static readonly Vector2Int[] OutputBeltGuide =
+        {
+            SmelterCell, new Vector2Int(0, -4), new Vector2Int(0, -3),
+            new Vector2Int(0, -2), new Vector2Int(0, -1),
+        };
 
         private SimulationDriver driver;
         private MachineGhostTool machineTool;
@@ -44,6 +56,7 @@ namespace Seo.UI
         private GameObject panelRoot;
         private GameObject worldHighlight;
         private GameObject placementPreview;
+        private GameObject beltGuide;
         private Outline uiOutline;
         private Graphic uiGraphic;
         private int copperOreId = -1;
@@ -54,12 +67,44 @@ namespace Seo.UI
         private int initialCopperOre;
         private int initialCopperIngot;
         private float enteredAt;
+        private TapInputManager legacyTapInput;
+        private bool legacyTapWasEnabled;
+        private readonly Dictionary<Button, bool> originalButtonStates = new Dictionary<Button, bool>();
+
+        public static bool AllowsMachineSelection(MachineInstanceKind kind, int index)
+        {
+            if (Instance == null || !Instance.enabled) return true;
+            switch (Instance.step)
+            {
+                case Step.Core:
+                    return kind == MachineInstanceKind.Processor
+                        && Instance.driver != null && Instance.driver.World != null
+                        && index == Instance.driver.World.CoreProcessorIndex;
+                case Step.InspectMiner:
+                    return kind == MachineInstanceKind.Miner && index == Instance.minerIndex;
+                case Step.InspectSmelter:
+                    return kind == MachineInstanceKind.Processor && index == Instance.smelterIndex;
+                default:
+                    return false;
+            }
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateRuntimeInstance()
         {
             if (FindFirstObjectByType<FactoryTutorialController>() != null) return;
             new GameObject("[Seo] Factory Tutorial").AddComponent<FactoryTutorialController>();
+        }
+
+        private void Awake()
+        {
+            Instance = this;
+        }
+
+        private void OnDestroy()
+        {
+            RestoreInput();
+            if (Instance == this) Instance = null;
         }
 
         private void Update()
@@ -71,11 +116,25 @@ namespace Seo.UI
             EvaluateStep();
         }
 
+        private void LateUpdate()
+        {
+            ApplyInputLocks();
+        }
+
         private bool Discover()
         {
             if (driver == null) driver = FindFirstObjectByType<SimulationDriver>();
             if (machineTool == null) machineTool = FindFirstObjectByType<MachineGhostTool>();
             if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (legacyTapInput == null)
+            {
+                legacyTapInput = FindFirstObjectByType<TapInputManager>();
+                if (legacyTapInput != null)
+                {
+                    legacyTapWasEnabled = legacyTapInput.enabled;
+                    legacyTapInput.enabled = false; // 선택은 잠금 판정이 있는 UIManager 한 경로만 사용한다.
+                }
+            }
             if (hud == null) hud = FindFirstObjectByType<FactoryHudController>();
             if (driver == null || driver.World == null || machineTool == null || hud == null) return false;
 
@@ -100,6 +159,8 @@ namespace Seo.UI
                 enabled = false;
                 return;
             }
+            MachineGhostTool.PlacementPermission = AllowsPlacement;
+            BeltDragTool.PathPermission = AllowsBeltPath;
             Enter(Step.Core);
         }
 
@@ -212,24 +273,24 @@ namespace Seo.UI
                     HighlightNamedChild("MachineInfoPanel", "RecipeButton");
                     break;
                 case Step.ConnectInput:
-                    SetCopy("코어 → 제련로", "물류의 벨트를 선택하고 코어에서 제련로 입력 포트까지 연결하세요.");
+                    SetCopy("코어 → 제련로", "벨트를 선택한 뒤 ‘시작’에서 누르고 반투명 화살표를 따라 ‘도착’까지 드래그하세요. 우클릭 드래그/휠 또는 두 손가락으로 화면을 움직일 수 있습니다.");
                     hud.OpenLogisticsForTutorial();
                     HighlightUI("PaletteButton_Belt");
-                    HighlightCell(GetSmelterPort(false), 0.72f);
+                    CreateBeltGuide(InputBeltGuide, "시작\n코어", "도착\n제련로 입력");
                     break;
                 case Step.ConnectOutput:
                     initialCopperIngot = CoreAmount(copperIngotId);
-                    SetCopy("제련로 → 코어", "제련로 출력 포트에서 코어까지 벨트를 연결하세요. 구리 괴가 코어에 도착하면 완료됩니다.");
+                    SetCopy("제련로 → 코어", "‘시작’에서 누르고 반투명 화살표를 따라 코어의 ‘도착’까지 드래그하세요. 화면 이동과 줌도 사용할 수 있습니다.");
                     hud.OpenLogisticsForTutorial();
                     HighlightUI("PaletteButton_Belt");
-                    HighlightCell(GetSmelterPort(true), 0.72f);
+                    CreateBeltGuide(OutputBeltGuide, "시작\n제련로 출력", "도착\n코어");
                     break;
                 case Step.Complete:
                     SetCopy("생산 라인 완성!", "구리 채굴부터 제련, 코어 저장까지 자동 생산 라인이 완성되었습니다.");
                     progressText.text = "튜토리얼 완료";
                     skipButton.GetComponentInChildren<Text>().text = "닫기";
                     skipButton.onClick.RemoveAllListeners();
-                    skipButton.onClick.AddListener(() => panelRoot.SetActive(false));
+                    skipButton.onClick.AddListener(FinishTutorial);
                     break;
             }
         }
@@ -275,7 +336,97 @@ namespace Seo.UI
         {
             ClearHighlights();
             panelRoot.SetActive(false);
+            RestoreInput();
             enabled = false;
+        }
+
+        private void FinishTutorial()
+        {
+            ClearHighlights();
+            panelRoot.SetActive(false);
+            RestoreInput();
+            enabled = false;
+        }
+
+        private void ApplyInputLocks()
+        {
+            if (buildRouter != null)
+            {
+                // 튜토리얼 중에도 언제든 화면을 살펴볼 수 있어야 한다. 현재 단계에서 허용되지
+                // 않은 건설 행동은 버튼 잠금과 Placement/PathPermission이 별도로 차단한다.
+                buildRouter.enabled = true;
+                buildRouter.CameraInputEnabled = true;
+            }
+
+            var buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                var button = buttons[i];
+                if (button == null || !button.gameObject.scene.IsValid()) continue;
+                if (!originalButtonStates.ContainsKey(button)) originalButtonStates[button] = button.interactable;
+                button.interactable = originalButtonStates[button] && IsAllowedButton(button.gameObject.name);
+            }
+        }
+
+        private bool IsAllowedButton(string buttonName)
+        {
+            if (buttonName == "Skip") return true;
+            switch (step)
+            {
+                case Step.PickMiner: return buttonName == "PaletteButton_Miner";
+                case Step.PlaceMiner:
+                case Step.PlaceSmelter: return buttonName == "ConfirmButton";
+                case Step.PickSmelter: return buttonName == "PaletteButton_Smelter";
+                case Step.PickRecipe:
+                    return buttonName == "RecipeButton" || buttonName == "Recipe_SmeltCopperIngot";
+                case Step.ConnectInput:
+                case Step.ConnectOutput: return buttonName == "PaletteButton_Belt";
+                default: return false;
+            }
+        }
+
+        private void RestoreInput()
+        {
+            foreach (var pair in originalButtonStates)
+                if (pair.Key != null) pair.Key.interactable = pair.Value;
+            originalButtonStates.Clear();
+
+            if (buildRouter != null)
+            {
+                buildRouter.enabled = true;
+                buildRouter.CameraInputEnabled = true;
+            }
+            if (legacyTapInput != null) legacyTapInput.enabled = legacyTapWasEnabled;
+            if (MachineGhostTool.PlacementPermission == AllowsPlacement)
+                MachineGhostTool.PlacementPermission = null;
+            if (BeltDragTool.PathPermission == AllowsBeltPath)
+                BeltDragTool.PathPermission = null;
+        }
+
+        private bool AllowsPlacement(string machineId, Vector2Int cell)
+        {
+            if (step == Step.PlaceMiner) return machineId == "Miner" && cell == CopperCell;
+            if (step == Step.PlaceSmelter) return machineId == "Smelter" && cell == SmelterCell;
+            return false;
+        }
+
+        private bool AllowsBeltPath(IReadOnlyList<Vector2Int> path)
+        {
+            if ((step != Step.ConnectInput && step != Step.ConnectOutput) || path == null || path.Count < 2)
+                return false;
+            var required = step == Step.ConnectInput ? InputBeltGuide : OutputBeltGuide;
+            return MatchesPath(path, required, false) || MatchesPath(path, required, true);
+        }
+
+        private static bool MatchesPath(IReadOnlyList<Vector2Int> actual, IReadOnlyList<Vector2Int> expected, bool reverse)
+        {
+            if (actual.Count != expected.Count) return false;
+            for (int i = 0; i < actual.Count; i++)
+            {
+                int expectedIndex = reverse ? expected.Count - 1 - i : i;
+                if (actual[i] != expected[expectedIndex]) return false;
+            }
+            return true;
         }
 
         private void CancelPlacementMode()
@@ -372,6 +523,74 @@ namespace Seo.UI
             label.text = "제련로\n배치 위치";
         }
 
+        private void CreateBeltGuide(IReadOnlyList<Vector2Int> cells, string startLabel, string endLabel)
+        {
+            beltGuide = new GameObject("TutorialBeltGuide");
+            var material = new Material(Shader.Find("Sprites/Default"));
+            material.color = new Color(0.1f, 0.95f, 1f, 0.52f);
+
+            var line = beltGuide.AddComponent<LineRenderer>();
+            line.useWorldSpace = true;
+            line.positionCount = cells.Count;
+            line.widthMultiplier = 0.22f;
+            line.material = material;
+            line.startColor = line.endColor = new Color(0.1f, 0.95f, 1f, 0.48f);
+            for (int i = 0; i < cells.Count; i++)
+                line.SetPosition(i, GridUtility.CellToWorldCenter(cells[i], 0.13f));
+
+            for (int i = 0; i < cells.Count - 1; i++)
+            {
+                Vector3 from = GridUtility.CellToWorldCenter(cells[i], 0.16f);
+                Vector3 to = GridUtility.CellToWorldCenter(cells[i + 1], 0.16f);
+                CreateArrowHead(beltGuide.transform, (from + to) * 0.5f, to - from, material);
+            }
+
+            var startRing = CreateRing(GridUtility.CellToWorldCenter(cells[0], 0.1f), 0.48f);
+            startRing.name = "BeltGuideStart";
+            startRing.transform.SetParent(beltGuide.transform, true);
+            var endRing = CreateRing(GridUtility.CellToWorldCenter(cells[cells.Count - 1], 0.1f), 0.48f);
+            endRing.name = "BeltGuideEnd";
+            endRing.transform.SetParent(beltGuide.transform, true);
+            CreateWorldLabel(beltGuide.transform, cells[0], startLabel, new Color(0.3f, 1f, 0.55f, 1f));
+            CreateWorldLabel(beltGuide.transform, cells[cells.Count - 1], endLabel, new Color(1f, 0.78f, 0.2f, 1f));
+        }
+
+        private static void CreateArrowHead(Transform parent, Vector3 position, Vector3 direction, Material material)
+        {
+            direction.y = 0f;
+            direction.Normalize();
+            Vector3 right = Vector3.Cross(Vector3.up, direction);
+            var mesh = new Mesh { name = "TutorialArrow" };
+            mesh.vertices = new[]
+            {
+                direction * 0.38f,
+                -direction * 0.24f + right * 0.25f,
+                -direction * 0.24f - right * 0.25f,
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 1 };
+            mesh.RecalculateBounds();
+            var arrow = new GameObject("Arrow", typeof(MeshFilter), typeof(MeshRenderer));
+            arrow.transform.SetParent(parent, false);
+            arrow.transform.position = position;
+            arrow.GetComponent<MeshFilter>().sharedMesh = mesh;
+            arrow.GetComponent<MeshRenderer>().sharedMaterial = material;
+        }
+
+        private static void CreateWorldLabel(Transform parent, Vector2Int cell, string value, Color color)
+        {
+            var label = new GameObject("GuideLabel").AddComponent<TextMesh>();
+            label.transform.SetParent(parent, false);
+            label.transform.position = GridUtility.CellToWorldCenter(cell, 0.28f);
+            label.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            label.transform.localScale = Vector3.one * 0.085f;
+            label.anchor = TextAnchor.LowerCenter;
+            label.alignment = TextAlignment.Center;
+            label.fontSize = 46;
+            label.fontStyle = FontStyle.Bold;
+            label.color = color;
+            label.text = value;
+        }
+
         private void AnimateHighlights()
         {
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
@@ -399,10 +618,12 @@ namespace Seo.UI
             if (uiOutline != null) Destroy(uiOutline);
             if (worldHighlight != null) Destroy(worldHighlight);
             if (placementPreview != null) Destroy(placementPreview);
+            if (beltGuide != null) Destroy(beltGuide);
             uiOutline = null;
             uiGraphic = null;
             worldHighlight = null;
             placementPreview = null;
+            beltGuide = null;
         }
 
         private bool IsSelected(MachineInstanceKind kind, int index)
