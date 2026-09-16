@@ -96,7 +96,7 @@ namespace Seo.UI
             if (processor.UniversalPorts)
             {
                 for (int i = 0; i < 4; i++)
-                    portBadges.Add(CreateBadge("↔", new Color(0.1f, 0.78f, 1f), new Vector2(52f, 48f), 30, true));
+                    portBadges.Add(CreateBadge("↔", new Color(0.1f, 0.78f, 1f), new Vector2(52f, 48f), 24, true));
                 return;
             }
 
@@ -110,7 +110,7 @@ namespace Seo.UI
                     Vector2Int flowDirection = input ? -FourDirs[i] : FourDirs[i];
                     portBadges.Add(CreateBadge(DirectionArrow(flowDirection),
                         input ? new Color(0.05f, 0.78f, 1f) : new Color(1f, 0.48f, 0.05f),
-                        new Vector2(52f, 48f), 30, true));
+                        new Vector2(52f, 48f), 24, true));
                 }
                 return;
             }
@@ -119,10 +119,10 @@ namespace Seo.UI
             var outputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
             string flowArrow = DirectionArrow(processor.Facing);
             for (int i = 0; i < inputCells.Count; i++)
-                portBadges.Add(CreateBadge(flowArrow, new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 30, true));
+                portBadges.Add(CreateBadge(flowArrow, new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 24, true));
             int visibleOutputs = machineKey == "Synthesizer" ? Mathf.Min(1, outputCells.Count) : outputCells.Count;
             for (int i = 0; i < visibleOutputs; i++)
-                portBadges.Add(CreateBadge(flowArrow, new Color(1f, 0.48f, 0.05f), new Vector2(52f, 48f), 30, true));
+                portBadges.Add(CreateBadge(flowArrow, new Color(1f, 0.48f, 0.05f), new Vector2(52f, 48f), 24, true));
         }
 
         private static string DirectionArrow(Vector2Int direction)
@@ -155,6 +155,10 @@ namespace Seo.UI
                 Vector3 center = GridUtility.GetFootprintCenter(processor.Anchor, processor.Footprint, bounds.max.y + 0.12f);
                 float halfX = processor.Footprint.x * GridUtility.CellSize * 0.5f + 0.18f;
                 float halfZ = processor.Footprint.y * GridUtility.CellSize * 0.5f + 0.18f;
+                portBadges[0].SetVisible(!IsUniversalSideConnected(processor, Vector2Int.left));
+                portBadges[1].SetVisible(!IsUniversalSideConnected(processor, Vector2Int.right));
+                portBadges[2].SetVisible(!IsUniversalSideConnected(processor, Vector2Int.down));
+                portBadges[3].SetVisible(!IsUniversalSideConnected(processor, Vector2Int.up));
                 SetBadgeTransform(portBadges[0], center + Vector3.left * halfX, 0.0065f);
                 SetBadgeTransform(portBadges[1], center + Vector3.right * halfX, 0.0065f);
                 SetBadgeTransform(portBadges[2], center + Vector3.back * halfZ, 0.0065f);
@@ -167,6 +171,10 @@ namespace Seo.UI
                 for (int i = 0; i < FourDirs.Length && i < portBadges.Count; i++)
                 {
                     Vector2Int cell = processor.Anchor + FourDirs[i];
+                    bool input = processor.RoutingRole == RoutingRole.Splitter
+                        ? FourDirs[i] == -processor.Facing
+                        : FourDirs[i] != processor.Facing;
+                    portBadges[i].SetVisible(!IsPortConnected(cell, input));
                     SetBadgeTransform(portBadges[i], GridUtility.CellToWorldCenter(cell, bounds.max.y + 0.12f), 0.0065f);
                 }
                 return;
@@ -177,17 +185,65 @@ namespace Seo.UI
             int badgeIndex = 0;
             for (int i = 0; i < inputs.Count; i++)
             {
+                portBadges[badgeIndex].SetVisible(!IsPortConnected(inputs[i], true));
                 SetBadgeTransform(portBadges[badgeIndex++], GridUtility.CellToWorldCenter(inputs[i], bounds.max.y + 0.12f), 0.0065f);
             }
             int visibleOutputs = machineKey == "Synthesizer" ? Mathf.Min(1, outputs.Count) : outputs.Count;
             for (int i = 0; i < visibleOutputs; i++)
             {
+                portBadges[badgeIndex].SetVisible(!IsPortConnected(outputs[i], false));
                 Vector3 position = machineKey == "Synthesizer"
                     ? GridUtility.GetFootprintCenter(processor.Anchor, processor.Footprint, bounds.max.y + 0.12f)
                         + new Vector3(processor.Facing.x, 0f, processor.Facing.y) * (GridUtility.CellSize * 1.5f)
                     : GridUtility.CellToWorldCenter(outputs[i], bounds.max.y + 0.12f);
                 SetBadgeTransform(portBadges[badgeIndex++], position, 0.0065f);
             }
+        }
+
+        private bool IsPortConnected(Vector2Int cell, bool input)
+        {
+            if (driver == null || driver.World == null) return false;
+            if (!driver.World.Grid.TryGetOccupant(cell, out var occupant)
+                || occupant.Type != CellOccupantType.Belt
+                || occupant.InstanceIndex < 0
+                || occupant.InstanceIndex >= driver.World.Segments.Count)
+                return false;
+
+            var segment = driver.World.Segments[occupant.InstanceIndex];
+            if (segment == null) return false;
+            return input
+                ? segment.TargetProcessorId == instanceIndex
+                : segment.SourceProcessorId == instanceIndex;
+        }
+
+        private bool IsUniversalSideConnected(ProcessorInstance processor, Vector2Int side)
+        {
+            if (driver == null || driver.World == null) return false;
+            int count = side.x != 0 ? processor.Footprint.y : processor.Footprint.x;
+            for (int i = 0; i < count; i++)
+            {
+                Vector2Int cell;
+                if (side == Vector2Int.left)
+                    cell = new Vector2Int(processor.Anchor.x - 1, processor.Anchor.y + i);
+                else if (side == Vector2Int.right)
+                    cell = new Vector2Int(processor.Anchor.x + processor.Footprint.x, processor.Anchor.y + i);
+                else if (side == Vector2Int.down)
+                    cell = new Vector2Int(processor.Anchor.x + i, processor.Anchor.y - 1);
+                else
+                    cell = new Vector2Int(processor.Anchor.x + i, processor.Anchor.y + processor.Footprint.y);
+
+                if (!driver.World.Grid.TryGetOccupant(cell, out var occupant)
+                    || occupant.Type != CellOccupantType.Belt
+                    || occupant.InstanceIndex < 0
+                    || occupant.InstanceIndex >= driver.World.Segments.Count)
+                    continue;
+
+                var segment = driver.World.Segments[occupant.InstanceIndex];
+                if (segment != null && (segment.SourceProcessorId == instanceIndex
+                    || segment.TargetProcessorId == instanceIndex))
+                    return true;
+            }
+            return false;
         }
 
         private void UpdateStatus()
@@ -357,6 +413,11 @@ namespace Seo.UI
                 Root = root;
                 this.background = background;
                 this.label = label;
+            }
+
+            public void SetVisible(bool visible)
+            {
+                if (Root != null && Root.activeSelf != visible) Root.SetActive(visible);
             }
 
             public void SetContent(string value, Color color)
