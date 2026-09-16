@@ -22,6 +22,7 @@ namespace Seo.UI
         private Button productionTab;
         private Button logisticsTab;
         private Button powerTab;
+        private Button editModeButton;
         private Category? openCategory;
         private GameObject rotateButton;
         private GameObject confirmButton;
@@ -33,6 +34,7 @@ namespace Seo.UI
         private BuildInputRouter buildRouter;
         private MachineGhostTool machineTool;
         private string pendingPlacementMachineId;
+        private bool editModeActive;
         private float toastUntil;
         private float nextDiscovery;
         private bool built;
@@ -193,10 +195,11 @@ namespace Seo.UI
             MovePaletteButton("PaletteButton_Former", productionPage.transform, 2, 4);
             MovePaletteButton("PaletteButton_Synthesizer", productionPage.transform, 3, 4);
 
-            MovePaletteButton("PaletteButton_Belt", logisticsPage.transform, 0, 4);
-            MovePaletteButton("PaletteButton_Splitter", logisticsPage.transform, 1, 4);
-            MovePaletteButton("PaletteButton_Merger", logisticsPage.transform, 2, 4);
-            MovePaletteButton("PaletteButton_Demolish", logisticsPage.transform, 3, 4, tint: SeoUITheme.Current.Danger);
+            MovePaletteButton("PaletteButton_Belt", logisticsPage.transform, 0, 3);
+            MovePaletteButton("PaletteButton_Splitter", logisticsPage.transform, 1, 3);
+            MovePaletteButton("PaletteButton_Merger", logisticsPage.transform, 2, 3);
+            var legacyDemolishButton = GameObject.Find("PaletteButton_Demolish");
+            if (legacyDemolishButton != null) legacyDemolishButton.SetActive(false);
 
             BuildPowerButtons();
             BuildDockCloseButton(dock.transform);
@@ -222,7 +225,7 @@ namespace Seo.UI
             if (toggleLabel != null) toggleLabel.fontSize = 24;
 
             var menu = SeoUIFactory.CreatePanel(safeRoot, "SeoSideMenu", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(222f, 0f), new Vector2(264f, 330f));
+                new Vector2(0f, 0.5f), new Vector2(222f, 0f), new Vector2(264f, 416f));
             menu.rectTransform.pivot = new Vector2(0f, 0.5f);
             sideMenuRoot = menu.gameObject;
 
@@ -235,12 +238,23 @@ namespace Seo.UI
             productionTab = CreateTab(menu.transform, "생산", 0, Category.Production);
             logisticsTab = CreateTab(menu.transform, "물류", 1, Category.Logistics);
             powerTab = CreateTab(menu.transform, "전력·저장", 2, Category.Power);
+            editModeButton = SeoUIFactory.CreateButton(menu.transform, "EditMode", "편집 모드", EnterEditMode);
+            SeoUIFactory.SetRect(editModeButton.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(20f, -64f - 3f * 86f), new Vector2(224f, 74f));
+            var editLabel = editModeButton.GetComponentInChildren<Text>(true);
+            if (editLabel != null) editLabel.fontSize = 23;
+            SetTabState(editModeButton, false);
             sideMenuRoot.SetActive(false);
         }
 
         private void ToggleSideMenu()
         {
             if (sideMenuRoot == null) return;
+            if (editModeActive)
+            {
+                ShowToast("취소 버튼으로 편집 모드를 종료하세요");
+                return;
+            }
             bool willOpen = !sideMenuRoot.activeSelf;
             if (willOpen)
             {
@@ -357,6 +371,8 @@ namespace Seo.UI
             demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, 116f, SeoUITheme.Current.Danger);
             var confirmAction = confirmButton != null ? confirmButton.GetComponent<Button>() : null;
             if (confirmAction != null) confirmAction.onClick.AddListener(HandlePlacementConfirmed);
+            var demolishAction = demolishConfirmButton != null ? demolishConfirmButton.GetComponent<Button>() : null;
+            if (demolishAction != null) demolishAction.onClick.AddListener(HandleDemolitionConfirmed);
 
             var cancel = SeoUIFactory.CreateButton(bar.transform, "SeoBuildCancel", "취소", CancelCurrentInteraction);
             var confirmRt = confirmButton != null ? confirmButton.GetComponent<RectTransform>() : null;
@@ -378,12 +394,42 @@ namespace Seo.UI
 
         private void CancelCurrentInteraction()
         {
+            editModeActive = false;
             pendingPlacementMachineId = null;
             CancelActiveBuildMode();
             var powerController = FindFirstObjectByType<PowerBuildController>();
             if (powerController != null && powerController.Mode != PowerBuildMode.None)
                 powerController.SetMode(PowerBuildMode.None);
             ShowToast("현재 작업을 취소했습니다");
+        }
+
+        private void EnterEditMode()
+        {
+            CancelActiveBuildMode();
+            var powerController = FindFirstObjectByType<PowerBuildController>();
+            if (powerController != null && powerController.Mode != PowerBuildMode.None)
+                powerController.SetMode(PowerBuildMode.None);
+
+            editModeActive = true;
+            openCategory = null;
+            if (dockRoot != null) dockRoot.SetActive(false);
+            SetSideMenuVisible(false);
+            SetTabState(productionTab, false);
+            SetTabState(logisticsTab, false);
+            SetTabState(powerTab, false);
+            if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (buildRouter != null) buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
+            ShowToast("편집 모드 · 철거 대상을 선택하세요");
+        }
+
+        private void HandleDemolitionConfirmed()
+        {
+            if (!editModeActive) return;
+            if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (buildRouter == null) return;
+            if (buildRouter.CurrentMode == BuildInputRouter.Mode.None)
+                buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
+            ShowToast("편집 모드 유지 · 계속 철거하거나 취소로 종료");
         }
 
         private void TrackActivePlacement()

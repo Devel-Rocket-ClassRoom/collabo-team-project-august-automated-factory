@@ -95,7 +95,8 @@ namespace Seo.UI
             var processor = driver.World.Processors[instanceIndex];
             if (processor.UniversalPorts)
             {
-                for (int i = 0; i < 4; i++) portBadges.Add(CreateBadge("I/O", new Color(0.35f, 0.75f, 1f), new Vector2(52f, 28f), 14));
+                for (int i = 0; i < 4; i++)
+                    portBadges.Add(CreateBadge("↔", new Color(0.1f, 0.78f, 1f), new Vector2(52f, 48f), 30, true));
                 return;
             }
 
@@ -106,18 +107,30 @@ namespace Seo.UI
                     bool input = processor.RoutingRole == RoutingRole.Splitter
                         ? FourDirs[i] == -processor.Facing
                         : FourDirs[i] != processor.Facing;
-                    portBadges.Add(CreateBadge(input ? "IN" : "OUT",
-                        input ? new Color(0.2f, 0.72f, 1f) : new Color(1f, 0.58f, 0.12f),
-                        input ? new Vector2(48f, 28f) : new Vector2(58f, 28f), 14));
+                    Vector2Int flowDirection = input ? -FourDirs[i] : FourDirs[i];
+                    portBadges.Add(CreateBadge(DirectionArrow(flowDirection),
+                        input ? new Color(0.05f, 0.78f, 1f) : new Color(1f, 0.48f, 0.05f),
+                        new Vector2(52f, 48f), 30, true));
                 }
                 return;
             }
 
             var inputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
             var outputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
-            for (int i = 0; i < inputCells.Count; i++) portBadges.Add(CreateBadge("IN", new Color(0.2f, 0.72f, 1f), new Vector2(48f, 28f), 14));
+            string flowArrow = DirectionArrow(processor.Facing);
+            for (int i = 0; i < inputCells.Count; i++)
+                portBadges.Add(CreateBadge(flowArrow, new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 30, true));
             int visibleOutputs = machineKey == "Synthesizer" ? Mathf.Min(1, outputCells.Count) : outputCells.Count;
-            for (int i = 0; i < visibleOutputs; i++) portBadges.Add(CreateBadge("OUT", new Color(1f, 0.58f, 0.12f), new Vector2(58f, 28f), 14));
+            for (int i = 0; i < visibleOutputs; i++)
+                portBadges.Add(CreateBadge(flowArrow, new Color(1f, 0.48f, 0.05f), new Vector2(52f, 48f), 30, true));
+        }
+
+        private static string DirectionArrow(Vector2Int direction)
+        {
+            if (direction == Vector2Int.right) return "▶";
+            if (direction == Vector2Int.left) return "◀";
+            if (direction == Vector2Int.up) return "▲";
+            return "▼";
         }
 
         private void UpdatePositions()
@@ -142,10 +155,10 @@ namespace Seo.UI
                 Vector3 center = GridUtility.GetFootprintCenter(processor.Anchor, processor.Footprint, bounds.max.y + 0.12f);
                 float halfX = processor.Footprint.x * GridUtility.CellSize * 0.5f + 0.18f;
                 float halfZ = processor.Footprint.y * GridUtility.CellSize * 0.5f + 0.18f;
-                SetBadgeTransform(portBadges[0], center + Vector3.left * halfX, 0.0045f);
-                SetBadgeTransform(portBadges[1], center + Vector3.right * halfX, 0.0045f);
-                SetBadgeTransform(portBadges[2], center + Vector3.back * halfZ, 0.0045f);
-                SetBadgeTransform(portBadges[3], center + Vector3.forward * halfZ, 0.0045f);
+                SetBadgeTransform(portBadges[0], center + Vector3.left * halfX, 0.0065f);
+                SetBadgeTransform(portBadges[1], center + Vector3.right * halfX, 0.0065f);
+                SetBadgeTransform(portBadges[2], center + Vector3.back * halfZ, 0.0065f);
+                SetBadgeTransform(portBadges[3], center + Vector3.forward * halfZ, 0.0065f);
                 return;
             }
 
@@ -154,7 +167,7 @@ namespace Seo.UI
                 for (int i = 0; i < FourDirs.Length && i < portBadges.Count; i++)
                 {
                     Vector2Int cell = processor.Anchor + FourDirs[i];
-                    SetBadgeTransform(portBadges[i], GridUtility.CellToWorldCenter(cell, bounds.max.y + 0.12f), 0.0045f);
+                    SetBadgeTransform(portBadges[i], GridUtility.CellToWorldCenter(cell, bounds.max.y + 0.12f), 0.0065f);
                 }
                 return;
             }
@@ -164,7 +177,7 @@ namespace Seo.UI
             int badgeIndex = 0;
             for (int i = 0; i < inputs.Count; i++)
             {
-                SetBadgeTransform(portBadges[badgeIndex++], GridUtility.CellToWorldCenter(inputs[i], bounds.max.y + 0.12f), 0.0045f);
+                SetBadgeTransform(portBadges[badgeIndex++], GridUtility.CellToWorldCenter(inputs[i], bounds.max.y + 0.12f), 0.0065f);
             }
             int visibleOutputs = machineKey == "Synthesizer" ? Mathf.Min(1, outputs.Count) : outputs.Count;
             for (int i = 0; i < visibleOutputs; i++)
@@ -173,7 +186,7 @@ namespace Seo.UI
                     ? GridUtility.GetFootprintCenter(processor.Anchor, processor.Footprint, bounds.max.y + 0.12f)
                         + new Vector3(processor.Facing.x, 0f, processor.Facing.y) * (GridUtility.CellSize * 1.5f)
                     : GridUtility.CellToWorldCenter(outputs[i], bounds.max.y + 0.12f);
-                SetBadgeTransform(portBadges[badgeIndex++], position, 0.0045f);
+                SetBadgeTransform(portBadges[badgeIndex++], position, 0.0065f);
             }
         }
 
@@ -280,7 +293,8 @@ namespace Seo.UI
             badge.Root.transform.localScale = Vector3.one * scale;
         }
 
-        private static WorldBadge CreateBadge(string label, Color color, Vector2 size, int fontSize)
+        private static WorldBadge CreateBadge(string label, Color color, Vector2 size, int fontSize,
+            bool highContrast = false)
         {
             var root = new GameObject("WorldUI_" + label, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             var canvas = root.GetComponent<Canvas>();
@@ -297,7 +311,9 @@ namespace Seo.UI
             backgroundRt.offsetMin = Vector2.zero;
             backgroundRt.offsetMax = Vector2.zero;
             var background = backgroundGO.GetComponent<Image>();
-            background.color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.94f);
+            float colorStrength = highContrast ? 0.78f : 0.45f;
+            background.color = new Color(color.r * colorStrength, color.g * colorStrength,
+                color.b * colorStrength, highContrast ? 0.99f : 0.94f);
 
             var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
             textGO.transform.SetParent(root.transform, false);
@@ -314,6 +330,13 @@ namespace Seo.UI
             text.color = Color.white;
             text.raycastTarget = false;
             text.text = label;
+            if (highContrast)
+            {
+                var outline = textGO.AddComponent<Outline>();
+                outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+                outline.effectDistance = new Vector2(2f, -2f);
+                outline.useGraphicAlpha = true;
+            }
 
             return new WorldBadge(root, background, text);
         }

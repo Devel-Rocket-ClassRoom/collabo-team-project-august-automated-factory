@@ -58,9 +58,10 @@ namespace Seo.UI
                 {
                     Vector2Int dir = FourDirs[i];
                     bool input = splitter ? dir == -selection.Facing : dir != selection.Facing;
-                    SetBadgeLabel(routingBadges[i], input ? "IN" : "OUT", input);
+                    Vector2Int flowDirection = input ? -dir : dir;
+                    SetBadgeLabel(routingBadges[i], DirectionArrow(flowDirection), input);
                     float offset = dir.x != 0 ? bounds.extents.x + 0.22f : bounds.extents.z + 0.22f;
-                    SetBadgeTransform(routingBadges[i], center + new Vector3(dir.x, 0f, dir.y) * offset, 0.0045f);
+                    SetBadgeTransform(routingBadges[i], center + new Vector3(dir.x, 0f, dir.y) * offset, 0.0065f);
                 }
                 return;
             }
@@ -68,6 +69,10 @@ namespace Seo.UI
             SetBadgeVisibility(true, false);
             SetRoutingVisibility(false);
             Vector3 direction = new Vector3(selection.Facing.x, 0f, selection.Facing.y).normalized;
+            string flowArrow = DirectionArrow(selection.Facing);
+            SetBadgeLabel(inputBadge, flowArrow, true);
+            SetBadgeLabel(secondInputBadge, flowArrow, true);
+            SetBadgeLabel(outputBadge, flowArrow, false);
             float sideOffset = Mathf.Abs(direction.x) > 0.5f
                 ? bounds.extents.x + 0.22f
                 : bounds.extents.z + 0.22f;
@@ -76,15 +81,15 @@ namespace Seo.UI
             {
                 secondInputBadge.SetActive(true);
                 Vector3 perpendicular = new Vector3(-direction.z, 0f, direction.x) * (GridHalfCell(bounds, direction));
-                SetBadgeTransform(inputBadge, center - direction * sideOffset - perpendicular, 0.0045f);
-                SetBadgeTransform(secondInputBadge, center - direction * sideOffset + perpendicular, 0.0045f);
+                SetBadgeTransform(inputBadge, center - direction * sideOffset - perpendicular, 0.0065f);
+                SetBadgeTransform(secondInputBadge, center - direction * sideOffset + perpendicular, 0.0065f);
             }
             else
             {
                 secondInputBadge.SetActive(false);
-                SetBadgeTransform(inputBadge, center - direction * sideOffset, 0.0045f);
+                SetBadgeTransform(inputBadge, center - direction * sideOffset, 0.0065f);
             }
-            SetBadgeTransform(outputBadge, center + direction * sideOffset, 0.0045f);
+            SetBadgeTransform(outputBadge, center + direction * sideOffset, 0.0065f);
         }
 
         private void OnDestroy()
@@ -98,13 +103,14 @@ namespace Seo.UI
 
         private void EnsureBadges()
         {
-            if (inputBadge == null) inputBadge = CreateBadge("Ghost_IN", "IN", new Color(0.2f, 0.72f, 1f), new Vector2(54f, 30f));
-            if (secondInputBadge == null) secondInputBadge = CreateBadge("Ghost_IN_2", "IN", new Color(0.2f, 0.72f, 1f), new Vector2(54f, 30f));
-            if (outputBadge == null) outputBadge = CreateBadge("Ghost_OUT", "OUT", new Color(1f, 0.58f, 0.12f), new Vector2(64f, 30f));
-            if (autoBadge == null) autoBadge = CreateBadge("Ghost_AUTO", "AUTO → CORE", new Color(0.95f, 0.72f, 0.15f), new Vector2(130f, 30f));
+            if (inputBadge == null) inputBadge = CreateBadge("Ghost_IN", "▶", new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 30, true);
+            if (secondInputBadge == null) secondInputBadge = CreateBadge("Ghost_IN_2", "▶", new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 30, true);
+            if (outputBadge == null) outputBadge = CreateBadge("Ghost_OUT", "▶", new Color(1f, 0.48f, 0.05f), new Vector2(52f, 48f), 30, true);
+            if (autoBadge == null) autoBadge = CreateBadge("Ghost_AUTO", "AUTO → CORE", new Color(0.95f, 0.72f, 0.15f), new Vector2(130f, 30f), 15, false);
             if (routingBadges.Count == 0)
             {
-                for (int i = 0; i < 4; i++) routingBadges.Add(CreateBadge("Ghost_ROUTE_" + i, "I/O", new Color(0.35f, 0.75f, 1f), new Vector2(62f, 30f)));
+                for (int i = 0; i < 4; i++)
+                    routingBadges.Add(CreateBadge("Ghost_ROUTE_" + i, "↔", new Color(0.1f, 0.78f, 1f), new Vector2(52f, 48f), 30, true));
             }
             SetBadgeVisibility(false, false);
             SetRoutingVisibility(false);
@@ -128,8 +134,16 @@ namespace Seo.UI
             var text = badge.GetComponentInChildren<Text>();
             if (text != null) text.text = label;
             var image = badge.transform.Find("Background")?.GetComponent<Image>();
-            Color color = input ? new Color(0.2f, 0.72f, 1f) : new Color(1f, 0.58f, 0.12f);
-            if (image != null) image.color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.96f);
+            Color color = input ? new Color(0.05f, 0.78f, 1f) : new Color(1f, 0.48f, 0.05f);
+            if (image != null) image.color = new Color(color.r * 0.78f, color.g * 0.78f, color.b * 0.78f, 0.99f);
+        }
+
+        private static string DirectionArrow(Vector2Int direction)
+        {
+            if (direction == Vector2Int.right) return "▶";
+            if (direction == Vector2Int.left) return "◀";
+            if (direction == Vector2Int.up) return "▲";
+            return "▼";
         }
 
         private static float GridHalfCell(Bounds bounds, Vector3 direction)
@@ -155,7 +169,8 @@ namespace Seo.UI
             return bounds;
         }
 
-        private static GameObject CreateBadge(string objectName, string label, Color color, Vector2 size)
+        private static GameObject CreateBadge(string objectName, string label, Color color, Vector2 size,
+            int fontSize, bool highContrast)
         {
             var root = new GameObject(objectName, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             var canvas = root.GetComponent<Canvas>();
@@ -170,7 +185,9 @@ namespace Seo.UI
             backgroundRect.anchorMax = Vector2.one;
             backgroundRect.offsetMin = Vector2.zero;
             backgroundRect.offsetMax = Vector2.zero;
-            background.GetComponent<Image>().color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.96f);
+            float colorStrength = highContrast ? 0.78f : 0.45f;
+            background.GetComponent<Image>().color = new Color(color.r * colorStrength, color.g * colorStrength,
+                color.b * colorStrength, highContrast ? 0.99f : 0.96f);
 
             var textObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
             textObject.transform.SetParent(root.transform, false);
@@ -182,12 +199,19 @@ namespace Seo.UI
 
             var text = textObject.GetComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 15;
+            text.fontSize = fontSize;
             text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = Color.white;
             text.raycastTarget = false;
             text.text = label;
+            if (highContrast)
+            {
+                var outline = textObject.AddComponent<Outline>();
+                outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+                outline.effectDistance = new Vector2(2f, -2f);
+                outline.useGraphicAlpha = true;
+            }
             return root;
         }
     }
