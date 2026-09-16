@@ -177,9 +177,9 @@
             "machineID": "Synthesizer",
             "timeToCraft": 3.0,
             "inputItems": [
-                "IronPlate",
-                "IronPlate",
-                "CoalBundle"
+                "CopperWire",
+                "CopperWire",
+                "RefinedQuartz"
             ],
             "outputItems": [
                 "EnergyCell"

@@ -23,6 +23,10 @@ namespace Factory.Building
         // 전송, 광물 노드 위에만 지을 수 있음) — Bae님 데이터엔 이걸 구분할 필드가 없어서
         // 문자열 id로 직접 비교한다.
         private const string MinerMachineId = "Miner";
+        // 미니 코어: 메인 코어랑 똑같이 UniversalPorts지만, 별도 창고가 아니라 메인 코어의
+        // InputBuffer/OutputBuffer를 그대로 참조(엔더상자처럼 내용물 공유) — Confirm()에서
+        // LinkToMainCore로 배선한다.
+        private const string MiniCoreMachineId = "MiniCore";
 
         private static readonly Vector2Int[] FourDirs =
         {
@@ -235,6 +239,7 @@ namespace Factory.Building
                     Anchor = currentCell,
                     Footprint = runtime.Footprint,
                 };
+                if (selectedMachineId == MiniCoreMachineId) LinkToMainCore(processor);
                 int index = driver.World.AddProcessor(processor);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Processor, index);
                 TryAutoConnectAdjacentBelts(processor, index);
@@ -243,6 +248,27 @@ namespace Factory.Building
 
             CancelPlacement();
             return true;
+        }
+
+        // 미니 코어를 메인 코어와 같은 창고를 보는 "창구"로 만든다 — 새로 할당된 자기 전용
+        // 버퍼 배열을 버리고, 메인 코어의 InputBuffer/OutputBuffer를 그대로(참조로) 물린다.
+        // int[]는 참조 타입이라 이렇게만 해도 한쪽에서 넣은 게 다른 쪽에서도 그대로 보인다
+        // (마인크래프트 엔더상자와 같은 원리). Capacity도 코어 값(9999)을 그대로 맞춰서,
+        // 수용 가능 여부 판정이 어느 창구로 넣든 항상 같은 기준이 되게 한다.
+        // 코어가 아직 없는 경우(이론상 불가 — CoreSpawner가 게임 시작 시 항상 먼저 만듦)엔
+        // 그냥 독립된 자기 버퍼로 남겨서 최소한 자체적으로는 동작하게 둔다.
+        private void LinkToMainCore(ProcessorInstance processor)
+        {
+            processor.UniversalPorts = true;
+
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return;
+            var core = driver.World.Processors[coreIndex];
+            if (core == null) return;
+
+            processor.InputBuffer = core.InputBuffer;
+            processor.OutputBuffer = core.OutputBuffer;
+            processor.Capacity = core.Capacity;
         }
 
         private GameObject GetVisualPrefab(string machineId)
@@ -261,6 +287,15 @@ namespace Factory.Building
             if (processor.RoutingRole != RoutingRole.None)
             {
                 TryAutoConnectRoutingNode(processor, index);
+                return;
+            }
+
+            // 코어/미니 코어(UniversalPorts)는 고정 Facing이 없어서 GetPortCells(고정 입/출력면
+            // 기준)를 쓸 수 없다 — 라우팅 노드처럼 4방향을 직접 훑되, 입/출력 구분은 Facing이
+            // 아니라 그 벨트 자신의 상태(막다른 끝=입력, 상류 없음=출력)로만 정한다.
+            if (processor.UniversalPorts)
+            {
+                TryAutoConnectUniversalPorts(processor, index);
                 return;
             }
 
@@ -313,6 +348,31 @@ namespace Factory.Building
                 else if (IsChainStart(segments, seg))
                 {
                     seg.SourceProcessorId = index;
+                }
+            }
+        }
+
+        // UniversalPorts(코어/미니 코어) 전용 자동 연결. footprint 1x1 전제(현재 이 값을 쓰는
+        // 건 미니 코어뿐 — 메인 코어는 게임 시작 시 벨트가 없는 상태에서 CoreSpawner로 미리
+        // 놓이므로 이 경로를 탈 일이 없다).
+        private void TryAutoConnectUniversalPorts(ProcessorInstance processor, int index)
+        {
+            var grid = driver.World.Grid;
+            var segments = driver.World.Segments;
+
+            for (int d = 0; d < FourDirs.Length; d++)
+            {
+                if (!grid.TryGetOccupant(processor.Anchor + FourDirs[d], out var occ) || occ.Type != CellOccupantType.Belt) continue;
+
+                var segment = segments[occ.InstanceIndex];
+                bool isDeadEnd = segment.NextSegmentId == null && segment.TargetProcessorId == null;
+                if (isDeadEnd)
+                {
+                    segment.TargetProcessorId = index;
+                }
+                else if (IsChainStart(segments, segment))
+                {
+                    segment.SourceProcessorId = index;
                 }
             }
         }
