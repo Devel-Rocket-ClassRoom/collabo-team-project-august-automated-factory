@@ -140,7 +140,7 @@ namespace Seo.UI
 
         private void UpdateSelectionUI()
         {
-            bool hasTargets = currentSelection.Count > 0;
+            bool hasTargets = demolishTool != null && demolishTool.HasSelection;
             if (confirmButton != null) confirmButton.interactable = hasTargets;
 
             int signature = currentSelection.Count;
@@ -159,6 +159,13 @@ namespace Seo.UI
             if (!hasTargets)
             {
                 SetSummary("철거 영역을 드래그하세요 · 코어는 자동으로 제외됩니다", SeoUITheme.Current.Warning);
+                return;
+            }
+
+            if (currentSelection.Count == 0)
+            {
+                SetSummary("철거 예정 · 전력 시설/전선 포함\n철거 확정을 누르면 선택 영역의 전력 시설을 제거합니다",
+                    SeoUITheme.Current.Danger);
                 return;
             }
 

@@ -14,6 +14,8 @@ namespace Factory.Building
     public class BeltDragTool : MonoBehaviour, IBuildTool
     {
         public static Func<IReadOnlyList<Vector2Int>, bool> PathPermission { get; set; }
+        // 전력 시설처럼 WorldGrid 밖에서 관리되는 오브젝트의 점유 판정 확장점.
+        public static Func<Vector2Int, bool> ExternalCellBlocked { get; set; }
         private enum EndpointRole
         {
             None,
@@ -300,7 +302,8 @@ namespace Factory.Building
 
             for (int i = 0; i < beltCells.Count; i++)
             {
-                if (grid.IsOccupied(beltCells[i])) return; // 이미 다른 벨트/기계가 있는 칸과는 겹칠 수 없음
+                if (grid.IsOccupied(beltCells[i]) || (ExternalCellBlocked?.Invoke(beltCells[i]) ?? false))
+                    return; // 기존 건물뿐 아니라 발전기/송전탑 위에도 벨트를 놓지 않는다.
             }
 
             var createdSegments = new List<BeltSegment>(beltCells.Count);
