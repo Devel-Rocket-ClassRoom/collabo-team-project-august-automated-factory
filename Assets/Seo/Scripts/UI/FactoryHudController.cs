@@ -452,6 +452,18 @@ namespace Seo.UI
                 controller.SetMode(PowerBuildMode.None);
         }
 
+        // 튜토리얼은 기존 버튼을 대신 만들지 않고 현재 HUD의 해당 페이지를 열어
+        // 플레이어가 실제 게임 UI를 그대로 누르게 한다.
+        public void OpenProductionForTutorial()
+        {
+            if (built) SetCategory(Category.Production);
+        }
+
+        public void OpenLogisticsForTutorial()
+        {
+            if (built) SetCategory(Category.Logistics);
+        }
+
         private void CollapseAfterToolSelection()
         {
             openCategory = null;

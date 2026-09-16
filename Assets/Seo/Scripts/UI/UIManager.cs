@@ -27,6 +27,11 @@ namespace Seo.UI
         private float nextDiscoveryTime;
         private bool selectionPending;
 
+        public bool HasSelection => selectedIndex >= 0;
+        public MachineInstanceKind SelectedKind => selectedKind;
+        public int SelectedIndex => selectedIndex;
+        public bool IsMachineInfoOpen => machineInfoPanel != null && machineInfoPanel.IsOpen;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateRuntimeInstance()
         {
