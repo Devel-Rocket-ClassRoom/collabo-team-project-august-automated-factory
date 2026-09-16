@@ -38,8 +38,8 @@ namespace Seo.UI
         private float toastUntil;
         private float nextDiscovery;
         private bool built;
-        private readonly Button[] powerModeButtons = new Button[4];
-        private readonly Color[] powerModeButtonColors = new Color[4];
+        private readonly Button[] powerModeButtons = new Button[3];
+        private readonly Color[] powerModeButtonColors = new Color[3];
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateRuntimeInstance()
@@ -309,17 +309,17 @@ namespace Seo.UI
 
         private void BuildPowerButtons()
         {
-            string[] labels = { "발전기", "전선", "송전탑", "전력 철거", "SAVE", "LOAD" };
+            string[] labels = { "발전기", "전선", "송전탑", "SAVE", "LOAD" };
             PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
-                PowerBuildMode.TransmissionTower, PowerBuildMode.Remove };
+                PowerBuildMode.TransmissionTower };
 
             for (int i = 0; i < labels.Length; i++)
             {
                 int captured = i;
-                var color = i == 3 ? SeoUITheme.Current.Danger : (Color?)null;
+                Color? color = null;
                 var button = SeoUIFactory.CreateButton(powerPage.transform, "PowerAction_" + labels[i], labels[i], () =>
                 {
-                    if (captured < 4)
+                    if (captured < 3)
                     {
                         var controller = FindFirstObjectByType<PowerBuildController>();
                         if (controller != null)
@@ -335,7 +335,7 @@ namespace Seo.UI
                     {
                         var save = FindFirstObjectByType<PowerSaveManager>();
                         if (save == null) return;
-                        if (captured == 4)
+                        if (captured == 3)
                         {
                             save.Save();
                             ShowToast("공장이 저장되었습니다");
@@ -343,7 +343,7 @@ namespace Seo.UI
                         else ShowToast(save.Load() ? "공장을 불러왔습니다" : "저장 파일이 없습니다");
                     }
                 }, color);
-                if (i < 4)
+                if (i < 3)
                 {
                     powerModeButtons[i] = button;
                     powerModeButtonColors[i] = color ?? Color.white;
@@ -370,7 +370,11 @@ namespace Seo.UI
             confirmButton = MoveActionButton("ConfirmButton", bar.transform, 0f);
             demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, 116f, SeoUITheme.Current.Danger);
             var confirmAction = confirmButton != null ? confirmButton.GetComponent<Button>() : null;
-            if (confirmAction != null) confirmAction.onClick.AddListener(HandlePlacementConfirmed);
+            if (confirmAction != null)
+            {
+                confirmAction.onClick.AddListener(HandlePlacementConfirmed);
+                confirmAction.onClick.AddListener(HandlePowerPlacementConfirmed);
+            }
             var demolishAction = demolishConfirmButton != null ? demolishConfirmButton.GetComponent<Button>() : null;
             if (demolishAction != null) demolishAction.onClick.AddListener(HandleDemolitionConfirmed);
 
@@ -407,8 +411,7 @@ namespace Seo.UI
         {
             CancelActiveBuildMode();
             var powerController = FindFirstObjectByType<PowerBuildController>();
-            if (powerController != null && powerController.Mode != PowerBuildMode.None)
-                powerController.SetMode(PowerBuildMode.None);
+            if (powerController != null) powerController.SetMode(PowerBuildMode.Remove);
 
             editModeActive = true;
             openCategory = null;
@@ -418,8 +421,12 @@ namespace Seo.UI
             SetTabState(logisticsTab, false);
             SetTabState(powerTab, false);
             if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
-            if (buildRouter != null) buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
-            ShowToast("편집 모드 · 철거 대상을 선택하세요");
+            if (buildRouter != null)
+            {
+                buildRouter.enabled = true;
+                buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
+            }
+            ShowToast("편집 모드 · 기계·벨트·전력 시설을 선택하세요");
         }
 
         private void HandleDemolitionConfirmed()
@@ -457,6 +464,14 @@ namespace Seo.UI
             buildRouter.SetMode(BuildInputRouter.Mode.PlaceMachine);
             pendingPlacementMachineId = machineId;
             ShowToast("연속 설치 모드 · 취소 버튼으로 종료");
+        }
+
+        private void HandlePowerPlacementConfirmed()
+        {
+            var controller = FindFirstObjectByType<PowerBuildController>();
+            if (controller == null || !controller.HasPendingNodePlacement) return;
+            if (controller.ConfirmPendingPlacement()) ShowToast("전력 시설을 설치했습니다");
+            else ShowToast(controller.LastMessage);
         }
 
         private static GameObject MoveActionButton(string name, Transform parent, float x, Color? tint = null)
@@ -571,12 +586,14 @@ namespace Seo.UI
             var mode = buildRouter != null ? buildRouter.CurrentMode : BuildInputRouter.Mode.None;
             bool placingMachine = mode == BuildInputRouter.Mode.PlaceMachine;
             bool placingMiner = placingMachine && machineTool != null && machineTool.SelectedMachineId == "Miner";
+            var powerController = FindFirstObjectByType<PowerBuildController>();
+            bool placingPower = powerController != null && powerController.HasPendingNodePlacement;
 
             if (rotateButton != null) rotateButton.SetActive(placingMachine && !placingMiner);
             if (confirmButton != null)
             {
-                confirmButton.SetActive(placingMachine);
-                SetActionButtonX(confirmButton, placingMiner ? -116f : 0f);
+                confirmButton.SetActive(placingMachine || placingPower);
+                SetActionButtonX(confirmButton, placingMiner || placingPower ? -116f : 0f);
             }
             if (demolishConfirmButton != null)
             {
@@ -585,15 +602,15 @@ namespace Seo.UI
             }
             if (cancelButton != null)
             {
-                cancelButton.SetActive(mode != BuildInputRouter.Mode.None);
+                cancelButton.SetActive(mode != BuildInputRouter.Mode.None || placingPower);
                 float x = placingMachine ? (placingMiner ? 116f : 232f)
-                    : mode == BuildInputRouter.Mode.Demolish ? -116f : 0f;
+                    : placingPower ? 116f : mode == BuildInputRouter.Mode.Demolish ? -116f : 0f;
                 SetActionButtonX(cancelButton, x);
             }
 
             var parent = rotateButton != null ? rotateButton.transform.parent.gameObject
                 : demolishConfirmButton != null ? demolishConfirmButton.transform.parent.gameObject : null;
-            if (parent != null) parent.SetActive(mode != BuildInputRouter.Mode.None);
+            if (parent != null) parent.SetActive(mode != BuildInputRouter.Mode.None || placingPower);
         }
 
         private static void SetActionButtonX(GameObject button, float x)
@@ -631,7 +648,7 @@ namespace Seo.UI
             var controller = FindFirstObjectByType<PowerBuildController>();
             PowerBuildMode activeMode = controller != null ? controller.Mode : PowerBuildMode.None;
             PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
-                PowerBuildMode.TransmissionTower, PowerBuildMode.Remove };
+                PowerBuildMode.TransmissionTower };
 
             for (int i = 0; i < powerModeButtons.Length; i++)
             {

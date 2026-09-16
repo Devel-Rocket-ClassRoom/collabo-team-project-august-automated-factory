@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Factory.Buildings;
 using Factory.Simulation;
@@ -11,6 +12,8 @@ namespace Factory.Building
     // 코어는 선택 대상에서 항상 제외한다 — 지워지면 게임이 통째로 망가진다.
     public class DemolishTool : MonoBehaviour, IBuildTool
     {
+        public static Func<RectInt, bool> ExternalConfirm { get; set; }
+        public static Func<RectInt, bool> ExternalHasTargets { get; set; }
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SimulationDriver driver;
         [SerializeField] private BuildInputRouter router;
@@ -22,6 +25,11 @@ namespace Factory.Building
         private GameObject selectionBox;
         private Vector2Int startCell;
         private bool dragging;
+        private RectInt selectionBounds;
+        private bool hasSelectionArea;
+
+        public bool HasSelection => selected.Count > 0
+            || (hasSelectionArea && (ExternalHasTargets?.Invoke(selectionBounds) ?? false));
 
         public void Initialize(Camera targetCamera, SimulationDriver driver)
         {
@@ -88,6 +96,8 @@ namespace Factory.Building
             int maxX = Mathf.Max(startCell.x, currentCell.x);
             int minY = Mathf.Min(startCell.y, currentCell.y);
             int maxY = Mathf.Max(startCell.y, currentCell.y);
+            selectionBounds = new RectInt(minX, minY, maxX - minX + 1, maxY - minY + 1);
+            hasSelectionArea = true;
 
             var grid = driver.World.Grid;
             for (int x = minX; x <= maxX; x++)
@@ -130,13 +140,16 @@ namespace Factory.Building
         private void ClearSelection()
         {
             selected.Clear();
+            hasSelectionArea = false;
             if (selectionBox != null) selectionBox.SetActive(false);
         }
 
         // "철거 확정" 버튼에서 호출.
         public bool Confirm()
         {
-            if (driver == null || driver.World == null || selected.Count == 0) return false;
+            if (driver == null || driver.World == null) return false;
+            bool externalChanged = hasSelectionArea && (ExternalConfirm?.Invoke(selectionBounds) ?? false);
+            if (selected.Count == 0 && !externalChanged) return false;
 
             var world = driver.World;
             var grid = world.Grid;
