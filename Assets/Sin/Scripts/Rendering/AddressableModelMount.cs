@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -19,14 +20,20 @@ namespace Factory.Rendering
         private GameObject placeholder;
         private bool destroyed;
         private bool alignToGround;
+        private Action onLoaded;
 
         // alignToGround: 기계/광맥처럼 "칸 중심 높이에 뜬 스폰 루트" 밑에 모델을 지면(y=0)까지
         // 내려서 맞출 때만 true. 벨트 위 아이템처럼 루트 자체가 이미 원하는 위치(벨트 표면 위)를
         // 매 프레임 그대로 따라가야 하는 경우엔 false로 둬서 모델이 루트 기준 그대로 놓이게 한다.
-        public void Mount(string addressableKey, GameObject fallbackPlaceholder, bool alignToGround = true)
+        // onLoaded: 실제 모델이 다 로드/배치된 직후 호출된다 — 예를 들어 배치 고스트는 폴백
+        // 박스를 미리 초록/빨강으로 칠해두더라도, 그 뒤 비동기로 얹히는 진짜 모델은 원래
+        // 색(칠 안 된 상태)으로 나타나서 "설치된 것처럼" 보이는 문제가 있었다. 이 콜백으로
+        // 로드 완료 시점에 다시 칠할 수 있게 한다.
+        public void Mount(string addressableKey, GameObject fallbackPlaceholder, bool alignToGround = true, Action onLoaded = null)
         {
             placeholder = fallbackPlaceholder;
             this.alignToGround = alignToGround;
+            this.onLoaded = onLoaded;
             if (string.IsNullOrEmpty(addressableKey)) return; // 키 없음 -> 폴백 박스 유지
 
             handle = Addressables.InstantiateAsync(addressableKey, transform, instantiateInWorldSpace: false);
@@ -48,6 +55,7 @@ namespace Factory.Rendering
             }
 
             if (placeholder != null) placeholder.SetActive(false);
+            onLoaded?.Invoke();
         }
 
         private void OnDestroy()
