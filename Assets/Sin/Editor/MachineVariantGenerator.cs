@@ -46,6 +46,9 @@ public static class MachineVariantGenerator
     public static readonly Entry[] Machines =
     {
         E("Core",        "Prefab_Core",        "SM_Core_Processor", 2),
+        // 미니 코어: 메인 코어와 같은 모델을 재사용 — footprint=1이라 자동으로 더 작게 나온다
+        // (BakeStartingTransform이 footprint 비례로 스케일을 잡음). "미니" 느낌이 자연스러움.
+        E("MiniCore",    "Prefab_MiniCore",    "SM_Core_Processor", 1),
         E("Miner",       "Prefab_Miner",       "SM_Reactor",        1),
         E("Smelter",     "Prefab_Smelter",     "SM_Thermal_T1",     1),
         E("Former",      "Prefab_Former",      "SM_BioChem_T1",     1),

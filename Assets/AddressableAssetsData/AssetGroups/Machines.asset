@@ -50,6 +50,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fe77917c01cc1ea46b1dca31a4f8e440
+    m_Address: Prefab_MiniCore
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: c746699b192cd4c4fb3c8a5c9e22964e, type: 2}
   m_SchemaSet:

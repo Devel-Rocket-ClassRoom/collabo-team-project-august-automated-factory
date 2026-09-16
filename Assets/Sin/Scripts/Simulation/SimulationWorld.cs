@@ -74,8 +74,20 @@ namespace Factory.Simulation
             if (index < 0 || index >= Processors.Count || Processors[index] == null) return;
 
             var processor = Processors[index];
-            for (int r = 0; r < processor.InputBuffer.Length; r++) RefundToCore(r, processor.InputBuffer[r]);
-            for (int r = 0; r < processor.OutputBuffer.Length; r++) RefundToCore(r, processor.OutputBuffer[r]);
+
+            // 미니 코어처럼 InputBuffer/OutputBuffer가 메인 코어의 배열을 그대로(참조로) 공유하는
+            // 경우엔 환불하면 안 된다 — RefundToCore가 "지금 이 배열에 든 값"을 "같은 배열"에
+            // 또 더하는 꼴이라 자원이 그대로 두 배로 뻥튀기된다. 창구(미니 코어)만 없어질 뿐
+            // 창고(공유 배열) 내용물은 이미 코어 쪽에 고스란히 남아있으니 그냥 둔다.
+            bool sharesCoreBuffer = CoreProcessorIndex >= 0 && CoreProcessorIndex < Processors.Count
+                && Processors[CoreProcessorIndex] != null
+                && ReferenceEquals(processor.InputBuffer, Processors[CoreProcessorIndex].InputBuffer);
+
+            if (!sharesCoreBuffer)
+            {
+                for (int r = 0; r < processor.InputBuffer.Length; r++) RefundToCore(r, processor.InputBuffer[r]);
+                for (int r = 0; r < processor.OutputBuffer.Length; r++) RefundToCore(r, processor.OutputBuffer[r]);
+            }
             Processors[index] = null;
 
             // 이 프로세서를 참조하던 벨트 세그먼트들의 연결을 끊는다 — 안 그러면 다음 틱에

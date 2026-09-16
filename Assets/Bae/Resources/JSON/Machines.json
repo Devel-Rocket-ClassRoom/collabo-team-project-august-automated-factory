@@ -51,6 +51,16 @@
             "prefabName": "Prefab_Miner"
         },
         {
+            "machineID": "MiniCore",
+            "machineName": "미니 코어",
+            "powerConsumption": 0,
+            "inputSlots": 0,
+            "outputSlots": 0,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": "Prefab_MiniCore"
+        },
+        {
             "machineID": "ProcessingMachine",
             "machineName": "가공기",
             "powerConsumption": 60,
