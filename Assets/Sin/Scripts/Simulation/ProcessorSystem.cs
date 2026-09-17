@@ -7,7 +7,8 @@ namespace Factory.Simulation
     // 레시피 id로 분기하지 않는다 — 새 레시피를 데이터로 추가해도 이 코드는 그대로 통과한다.
     public sealed class ProcessorSystem
     {
-        public void Tick(float deltaSeconds, GameDatabase database, List<ProcessorInstance> processors)
+        public void Tick(float deltaSeconds, GameDatabase database, List<ProcessorInstance> processors,
+            FactoryStatistics statistics = null)
         {
             for (int i = 0; i < processors.Count; i++)
             {
@@ -28,7 +29,7 @@ namespace Factory.Simulation
                     // TryConsumeInputs가 입력을 소비해버리는데, 산출은 Capacity에서 잘려
                     // 증발하기 때문(출력 벨트 없음/막힘으로 OutputBuffer가 꽉 찬 상황).
                     if (!HasOutputSpace(processor, recipe)) continue;
-                    if (!TryConsumeInputs(processor, recipe)) continue;
+                    if (!TryConsumeInputs(processor, recipe, statistics)) continue;
                     processor.ActiveRecipeId = processor.RecipeId;
                     processor.IsProcessing = true;
                     processor.Progress = 0f;
@@ -56,20 +57,21 @@ namespace Factory.Simulation
                     }
 
                     processor.Progress -= activeRecipe.ProcessSeconds;
-                    ProduceOutputs(processor, activeRecipe);
+                    ProduceOutputs(processor, activeRecipe, statistics);
                     processor.IsProcessing = false;
 
                     if (processor.RecipeId < 0) break;
                     var nextRecipe = database.Recipes[processor.RecipeId];
                     if (!HasOutputSpace(processor, nextRecipe)) break;
-                    if (!TryConsumeInputs(processor, nextRecipe)) break;
+                    if (!TryConsumeInputs(processor, nextRecipe, statistics)) break;
                     processor.ActiveRecipeId = processor.RecipeId;
                     processor.IsProcessing = true;
                 }
             }
         }
 
-        private static bool TryConsumeInputs(ProcessorInstance processor, in RecipeRuntime recipe)
+        private static bool TryConsumeInputs(ProcessorInstance processor, in RecipeRuntime recipe,
+            FactoryStatistics statistics)
         {
             var inputs = recipe.Inputs;
             for (int i = 0; i < inputs.Length; i++)
@@ -80,6 +82,7 @@ namespace Factory.Simulation
             for (int i = 0; i < inputs.Length; i++)
             {
                 processor.InputBuffer[inputs[i].ResourceId] -= inputs[i].Amount;
+                statistics?.RecordConsumed(inputs[i].ResourceId, inputs[i].Amount);
             }
             return true;
         }
@@ -99,7 +102,8 @@ namespace Factory.Simulation
             return true;
         }
 
-        private static void ProduceOutputs(ProcessorInstance processor, in RecipeRuntime recipe)
+        private static void ProduceOutputs(ProcessorInstance processor, in RecipeRuntime recipe,
+            FactoryStatistics statistics)
         {
             var outputs = recipe.Outputs;
             for (int i = 0; i < outputs.Length; i++)
@@ -109,6 +113,7 @@ namespace Factory.Simulation
                 processor.OutputBuffer[resourceId] = System.Math.Min(
                     processor.OutputBuffer[resourceId] + amount,
                     processor.Capacity);
+                statistics?.RecordProduced(resourceId, amount);
             }
         }
     }

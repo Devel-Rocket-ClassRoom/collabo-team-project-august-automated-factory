@@ -7,7 +7,8 @@ namespace Factory.Simulation
     // 코어가 가득 차 있으면 BufferedOutput에 대기시켰다가 다음 틱에 다시 시도한다(잃지 않음).
     public sealed class MinerSystem
     {
-        public void Tick(float deltaSeconds, List<MinerInstance> miners, List<ProcessorInstance> processors, int coreProcessorIndex)
+        public void Tick(float deltaSeconds, List<MinerInstance> miners, List<ProcessorInstance> processors,
+            int coreProcessorIndex, FactoryStatistics statistics = null)
         {
             ProcessorInstance core = coreProcessorIndex >= 0 && coreProcessorIndex < processors.Count
                 ? processors[coreProcessorIndex]
@@ -23,9 +24,10 @@ namespace Factory.Simulation
                 while (miner.Progress >= miner.MineIntervalSeconds)
                 {
                     miner.Progress -= miner.MineIntervalSeconds;
-                    miner.BufferedOutput = System.Math.Min(
-                        miner.BufferedOutput + miner.YieldPerCycle,
+                    int previousOutput = miner.BufferedOutput;
+                    miner.BufferedOutput = System.Math.Min(previousOutput + miner.YieldPerCycle,
                         SimulationConstants.ResourceBufferCapacity);
+                    statistics?.RecordProduced(miner.OutputResourceId, miner.BufferedOutput - previousOutput);
                 }
 
                 if (core == null) continue;

@@ -12,6 +12,7 @@ namespace Factory.Simulation
     {
         public readonly GameDatabase Database;
         public readonly WorldGrid Grid = new WorldGrid();
+        public FactoryStatistics Statistics { get; }
 
         public List<MinerInstance> Miners { get; } = new List<MinerInstance>();
         public List<ProcessorInstance> Processors { get; } = new List<ProcessorInstance>();
@@ -29,6 +30,7 @@ namespace Factory.Simulation
         public SimulationWorld(GameDatabase database)
         {
             Database = database;
+            Statistics = new FactoryStatistics(database.ResourceCount);
         }
 
         public int AddMiner(MinerInstance miner)
@@ -138,8 +140,9 @@ namespace Factory.Simulation
 
         public void Tick(float deltaSeconds)
         {
-            minerSystem.Tick(deltaSeconds, Miners, Processors, CoreProcessorIndex);
-            processorSystem.Tick(deltaSeconds, Database, Processors);
+            Statistics.Advance(deltaSeconds);
+            minerSystem.Tick(deltaSeconds, Miners, Processors, CoreProcessorIndex, Statistics);
+            processorSystem.Tick(deltaSeconds, Database, Processors, Statistics);
             beltSystem.Tick(deltaSeconds, Segments, Processors, Database);
             // 벨트가 이번 틱에 라우팅 노드 InputBuffer로 배달한 것을, 곧바로 출력 벨트에 분배/병합한다.
             routingSystem.Tick(Processors, Segments);
