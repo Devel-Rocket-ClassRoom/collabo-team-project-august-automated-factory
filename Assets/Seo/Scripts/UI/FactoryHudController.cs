@@ -14,7 +14,7 @@ namespace Seo.UI
     // 팀의 배치/전력/저장 로직은 그대로 두고, 이미 존재하는 버튼을 Seo 전용 HUD로 재배치한다.
     public sealed class FactoryHudController : MonoBehaviour
     {
-        private enum Category { Production, Logistics, Power }
+        private enum Category { Production, Logistics, Power, System }
 
         private sealed class CoreResourceEntry
         {
@@ -28,12 +28,13 @@ namespace Seo.UI
         private GameObject productionPage;
         private GameObject logisticsPage;
         private GameObject powerPage;
+        private GameObject systemPage;
         private GameObject dockRoot;
         private GameObject sideMenuRoot;
-        private Button menuToggleButton;
         private Button productionTab;
         private Button logisticsTab;
         private Button powerTab;
+        private Button systemTab;
         private Button editModeButton;
         private Text categoryTitle;
         private Category? openCategory;
@@ -165,7 +166,9 @@ namespace Seo.UI
             var resourceClose = SeoUIFactory.CreateButton(resourceCard.transform, "Close", "×",
                 ToggleCoreResourcePanel);
             SeoUIFactory.SetRect(resourceClose.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
-                Vector2.one, new Vector2(-16f, -12f), new Vector2(58f, 42f));
+                Vector2.one, new Vector2(-18f, -16f), new Vector2(68f, 58f));
+            var resourceCloseLabel = resourceClose.GetComponentInChildren<Text>(true);
+            if (resourceCloseLabel != null) resourceCloseLabel.fontSize = 38;
             coreResourceContent = resourceCard.transform;
             coreResourceEmptyText = SeoUIFactory.CreateText(resourceCard.transform, "Empty", "보유 자원이 없습니다", 20,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -420,10 +423,9 @@ namespace Seo.UI
                 return;
             }
 
-            if ((dockRoot != null && dockRoot.activeSelf) || (sideMenuRoot != null && sideMenuRoot.activeSelf))
+            if (dockRoot != null && dockRoot.activeSelf)
             {
                 CloseCategoryPanel(true);
-                SetSideMenuVisible(false);
                 return;
             }
 
@@ -441,7 +443,7 @@ namespace Seo.UI
         private void BuildBottomDock()
         {
             var dock = SeoUIFactory.CreatePanel(safeRoot, "SeoToolFlyout", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(348f, 0f), new Vector2(650f, 660f));
+                new Vector2(0f, 0.5f), new Vector2(164f, 0f), new Vector2(650f, 660f));
             dock.rectTransform.pivot = new Vector2(0f, 0.5f);
             dockRoot = dock.gameObject;
             BuildSideMenu();
@@ -455,11 +457,13 @@ namespace Seo.UI
             productionPage = CreatePage(dock.transform, "ProductionPage");
             logisticsPage = CreatePage(dock.transform, "LogisticsPage");
             powerPage = CreatePage(dock.transform, "PowerPage");
+            systemPage = CreatePage(dock.transform, "SystemPage");
 
             MovePaletteButton("PaletteButton_Miner", productionPage.transform, 0, "⛏");
-            MovePaletteButton("PaletteButton_Smelter", productionPage.transform, 1, "♨");
-            MovePaletteButton("PaletteButton_Former", productionPage.transform, 2, "▰");
-            MovePaletteButton("PaletteButton_Synthesizer", productionPage.transform, 3, "⚙");
+            MovePaletteButton("PaletteButton_Smelter", productionPage.transform, 1, string.Empty, null, "smelter");
+            MovePaletteButton("PaletteButton_Former", productionPage.transform, 2, string.Empty, null, "former");
+            MovePaletteButton("PaletteButton_Synthesizer", productionPage.transform, 3, string.Empty, null,
+                "synthesizer");
 
             // 물류 설비는 방향 하나만 그려서는 역할을 구분하기 어렵다. 실제 흐름 형태를
             // 축약한 도식으로 표시한다: 직선 / 1→3 분기 / 3→1 합류 / 저장 코어.
@@ -471,6 +475,7 @@ namespace Seo.UI
             if (legacyDemolishButton != null) legacyDemolishButton.SetActive(false);
 
             BuildPowerButtons();
+            BuildSystemButtons();
             BuildDockCloseButton(dock.transform);
             BuildContextBar(dock.transform);
             CloseCategoryPanel(false);
@@ -487,63 +492,19 @@ namespace Seo.UI
 
         private void BuildSideMenu()
         {
-            menuToggleButton = SeoUIFactory.CreateButton(safeRoot, "SeoMainMenuButton", "≡  메뉴",
-                ToggleSideMenu);
-            SeoUIFactory.SetRect(menuToggleButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(164f, 84f));
-            var menuLabel = menuToggleButton.GetComponentInChildren<Text>(true);
-            if (menuLabel != null) menuLabel.fontSize = 25;
-            menuToggleButton.transition = Selectable.Transition.None;
-
-            var menu = SeoUIFactory.CreatePanel(safeRoot, "SeoToolRail", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(202f, 0f), new Vector2(132f, 694f));
-            menu.rectTransform.pivot = new Vector2(0f, 0.5f);
+            var menu = SeoUIFactory.CreatePanel(safeRoot, "SeoToolRail", new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(24f, -306f), new Vector2(132f, 734f));
+            menu.rectTransform.pivot = new Vector2(0f, 1f);
+            menu.color = Color.clear;
+            menu.raycastTarget = false;
             sideMenuRoot = menu.gameObject;
 
             productionTab = CreateTab(menu.transform, "생산", "⚙", 0, Category.Production);
             logisticsTab = CreateTab(menu.transform, "물류", "⇄", 1, Category.Logistics);
             powerTab = CreateTab(menu.transform, "전력", "⚡", 2, Category.Power);
             editModeButton = CreateRailButton(menu.transform, "EditMode", "편집", "✎", 3, EnterEditMode);
-            SetTabState(editModeButton, false);
-            sideMenuRoot.SetActive(false);
-            UpdateMenuToggleVisual(false);
-        }
-
-        private void ToggleSideMenu()
-        {
-            if (sideMenuRoot == null) return;
-            if (editModeActive)
-            {
-                ShowToast("취소 버튼으로 편집 모드를 종료하세요");
-                return;
-            }
-            bool willOpen = !sideMenuRoot.activeSelf;
-            if (willOpen)
-            {
-                CloseCategoryPanel(true);
-                sideMenuRoot.SetActive(true);
-            }
-            else
-            {
-                CloseCategoryPanel(true);
-                sideMenuRoot.SetActive(false);
-            }
-            UpdateMenuToggleVisual(willOpen);
-        }
-
-        private void UpdateMenuToggleVisual(bool open)
-        {
-            if (menuToggleButton == null) return;
-            var image = menuToggleButton.GetComponent<Image>();
-            if (image != null)
-                image.color = open ? Color.Lerp(SeoUITheme.Current.Primary, Color.white, 0.72f)
-                    : ToolCardIdleColor;
-            var label = menuToggleButton.GetComponentInChildren<Text>(true);
-            if (label != null)
-            {
-                label.text = open ? "×  메뉴 닫기" : "≡  메뉴";
-                label.color = open ? SeoUITheme.Current.Text : SeoUITheme.Current.Muted;
-            }
+            systemTab = CreateTab(menu.transform, "저장", "▣", 4, Category.System);
+            sideMenuRoot.SetActive(true);
         }
 
         private Button CreateTab(Transform parent, string label, string icon, int index, Category category)
@@ -556,7 +517,7 @@ namespace Seo.UI
         {
             var button = SeoUIFactory.CreateButton(parent, name, label, action);
             SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(11f, -12f - index * 134f), new Vector2(110f, 122f));
+                new Vector2(0f, 1f), new Vector2(11f, -8f - index * 120f), new Vector2(110f, 112f));
             var labelText = button.GetComponentInChildren<Text>(true);
             if (labelText != null)
             {
@@ -568,7 +529,8 @@ namespace Seo.UI
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             SeoUIFactory.SetRect(iconText.rectTransform, new Vector2(0.16f, 0.42f), new Vector2(0.84f, 0.84f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            iconText.color = SeoUITheme.Current.Text;
+            iconText.color = SeoUITheme.Current.Primary;
+            SetTabState(button, false);
             return button;
         }
 
@@ -612,32 +574,65 @@ namespace Seo.UI
 
             if (!string.IsNullOrEmpty(diagramKind))
             {
-                CreateLogisticsDiagram(go.transform, diagramKind);
+                CreateToolDiagram(go.transform, diagramKind);
                 return;
             }
 
-            var iconText = SeoUIFactory.CreateText(go.transform, "ToolIcon", icon, 40,
+            var iconText = SeoUIFactory.CreateText(go.transform, "ToolIcon", icon, 56,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             SeoUIFactory.SetRect(iconText.rectTransform, new Vector2(0.14f, 0.40f), new Vector2(0.86f, 0.80f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             iconText.color = SeoUITheme.Current.Primary;
             iconText.resizeTextForBestFit = true;
-            iconText.resizeTextMinSize = 22;
-            iconText.resizeTextMaxSize = 40;
+            iconText.resizeTextMinSize = 30;
+            iconText.resizeTextMaxSize = 56;
             iconText.lineSpacing = 0.72f;
         }
 
-        private static void CreateLogisticsDiagram(Transform parent, string kind)
+        private static void CreateToolDiagram(Transform parent, string kind)
         {
             var root = new GameObject("ToolDiagram", typeof(RectTransform));
             root.transform.SetParent(parent, false);
             SeoUIFactory.SetRect(root.GetComponent<RectTransform>(), new Vector2(0.5f, 0.64f),
                 new Vector2(0.5f, 0.64f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(118f, 62f));
-            root.transform.localScale = Vector3.one * 1.25f;
+            root.transform.localScale = Vector3.one * 1.08f;
             Color color = SeoUITheme.Current.Primary;
 
             switch (kind)
             {
+                case "smelter":
+                    // 용광로 몸체 + 굴뚝 + 내부 열선.
+                    CreateDiagramLine(root.transform, new Vector2(-35f, 20f), new Vector2(31f, 20f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(31f, 20f), new Vector2(31f, -22f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(31f, -22f), new Vector2(-35f, -22f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-35f, -22f), new Vector2(-35f, 20f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(17f, 20f), new Vector2(17f, 31f), 7f, color);
+                    CreateDiagramLine(root.transform, new Vector2(9f, 31f), new Vector2(25f, 31f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-20f, -9f), new Vector2(-20f, 10f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-3f, -9f), new Vector2(-3f, 10f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(14f, -9f), new Vector2(14f, 10f), 5f, color);
+                    break;
+                case "former":
+                    // 위·아래 금형 사이로 내려오는 프레스 피스톤.
+                    CreateDiagramLine(root.transform, new Vector2(-43f, 25f), new Vector2(43f, 25f), 7f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(0f, 10f), new Vector2(12f, 25f), color);
+                    CreateDiagramArrow(root.transform, new Vector2(0f, 3f), new Vector2(0f, -18f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(0f, -24f), new Vector2(34f, 12f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-43f, -31f), new Vector2(43f, -31f), 7f, color);
+                    break;
+                case "synthesizer":
+                    // 두 재료가 중앙 조립실로 들어가 하나의 결과물로 나오는 흐름.
+                    CreateDiagramBlock(root.transform, new Vector2(-42f, 20f), new Vector2(12f, 12f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(-42f, -20f), new Vector2(12f, 12f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-34f, 20f), new Vector2(-14f, 7f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-34f, -20f), new Vector2(-14f, -7f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-14f, 16f), new Vector2(16f, 16f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(16f, 16f), new Vector2(16f, -16f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(16f, -16f), new Vector2(-14f, -16f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-14f, -16f), new Vector2(-14f, 16f), 5f, color);
+                    CreateDiagramBlock(root.transform, Vector2.zero, new Vector2(12f, 12f), color);
+                    CreateDiagramArrow(root.transform, new Vector2(16f, 0f), new Vector2(48f, 0f), color);
+                    break;
                 case "belt":
                     CreateDiagramLine(root.transform, new Vector2(-45f, 15f), new Vector2(25f, 15f), 4f, color);
                     CreateDiagramLine(root.transform, new Vector2(-45f, -15f), new Vector2(25f, -15f), 4f, color);
@@ -704,8 +699,8 @@ namespace Seo.UI
 
         private void BuildPowerButtons()
         {
-            string[] labels = { "발전기", "전선", "송전탑", "저장", "불러오기", "게임 종료" };
-            string[] icons = { "⚡", "━", "♜", "↓", "↑", "×" };
+            string[] labels = { "발전기", "전선", "송전탑" };
+            string[] icons = { "⚡", "━", "♜" };
             PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
                 PowerBuildMode.TransmissionTower };
             Color inactiveColor = ToolCardIdleColor;
@@ -716,34 +711,14 @@ namespace Seo.UI
                 Color? color = inactiveColor;
                 var button = SeoUIFactory.CreateButton(powerPage.transform, "PowerAction_" + labels[i], labels[i], () =>
                 {
-                    if (captured < 3)
+                    var controller = FindFirstObjectByType<PowerBuildController>();
+                    if (controller != null)
                     {
-                        var controller = FindFirstObjectByType<PowerBuildController>();
-                        if (controller != null)
-                        {
-                            controller.ToggleMode(modes[captured]);
-                            ShowToast(controller.Mode == modes[captured]
-                                ? labels[captured] + " 모드"
-                                : labels[captured] + " 모드 종료");
-                            if (controller.Mode == modes[captured]) CollapseAfterToolSelection();
-                        }
-                    }
-                    else
-                    {
-                        if (captured == 3)
-                        {
-                            var save = FindFirstObjectByType<PowerSaveManager>();
-                            if (save == null) return;
-                            save.Save();
-                            ShowToast("공장이 저장되었습니다");
-                        }
-                        else if (captured == 4)
-                        {
-                            var save = FindFirstObjectByType<PowerSaveManager>();
-                            if (save == null) return;
-                            ShowToast(save.Load() ? "공장을 불러왔습니다" : "저장 파일이 없습니다");
-                        }
-                        else ShowExitDialog();
+                        controller.ToggleMode(modes[captured]);
+                        ShowToast(controller.Mode == modes[captured]
+                            ? labels[captured] + " 모드"
+                            : labels[captured] + " 모드 종료");
+                        if (controller.Mode == modes[captured]) CollapseAfterToolSelection();
                     }
                 }, color);
                 button.transition = Selectable.Transition.None;
@@ -753,6 +728,36 @@ namespace Seo.UI
                     powerModeButtonColors[i] = inactiveColor;
                 }
 
+                LayoutToolCard(button.gameObject, i, icons[i]);
+            }
+        }
+
+        private void BuildSystemButtons()
+        {
+            string[] labels = { "저장", "불러오기", "게임 종료" };
+            string[] icons = { "↓", "↑", "×" };
+            for (int i = 0; i < labels.Length; i++)
+            {
+                int captured = i;
+                var button = SeoUIFactory.CreateButton(systemPage.transform, "SystemAction_" + labels[i], labels[i],
+                    () =>
+                    {
+                        if (captured == 2)
+                        {
+                            ShowExitDialog();
+                            return;
+                        }
+
+                        var save = FindFirstObjectByType<PowerSaveManager>();
+                        if (save == null) return;
+                        if (captured == 0)
+                        {
+                            save.Save();
+                            ShowToast("공장이 저장되었습니다");
+                        }
+                        else ShowToast(save.Load() ? "공장을 불러왔습니다" : "저장 파일이 없습니다");
+                    }, ToolCardIdleColor);
+                button.transition = Selectable.Transition.None;
                 LayoutToolCard(button.gameObject, i, icons[i]);
             }
         }
@@ -818,6 +823,7 @@ namespace Seo.UI
             SetTabState(productionTab, false);
             SetTabState(logisticsTab, false);
             SetTabState(powerTab, false);
+            SetTabState(systemTab, false);
             SetTabState(editModeButton, true);
             if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
             if (buildRouter != null)
@@ -910,12 +916,15 @@ namespace Seo.UI
             if (productionPage != null) productionPage.SetActive(category == Category.Production);
             if (logisticsPage != null) logisticsPage.SetActive(category == Category.Logistics);
             if (powerPage != null) powerPage.SetActive(category == Category.Power);
+            if (systemPage != null) systemPage.SetActive(category == Category.System);
             if (categoryTitle != null)
                 categoryTitle.text = category == Category.Production ? "생산 도구"
-                    : category == Category.Logistics ? "물류 도구" : "전력·저장 도구";
+                    : category == Category.Logistics ? "물류 도구"
+                    : category == Category.Power ? "전력 도구" : "저장·시스템";
             SetTabState(productionTab, category == Category.Production);
             SetTabState(logisticsTab, category == Category.Logistics);
             SetTabState(powerTab, category == Category.Power);
+            SetTabState(systemTab, category == Category.System);
             SetTabState(editModeButton, false);
             var controller = FindFirstObjectByType<PowerBuildController>();
             if (category != Category.Power && controller != null && controller.Mode != PowerBuildMode.None)
@@ -941,13 +950,14 @@ namespace Seo.UI
             SetTabState(productionTab, false);
             SetTabState(logisticsTab, false);
             SetTabState(powerTab, false);
+            SetTabState(systemTab, false);
             SetSideMenuVisible(true);
         }
 
         private void SetSideMenuVisible(bool visible)
         {
-            if (sideMenuRoot != null) sideMenuRoot.SetActive(visible);
-            UpdateMenuToggleVisual(visible);
+            // 메인 카테고리 툴바는 자원/전력/코어 버튼 아래에 항상 유지한다.
+            if (sideMenuRoot != null && !sideMenuRoot.activeSelf) sideMenuRoot.SetActive(true);
         }
 
         private void CloseCategoryPanel(bool cancelBuildMode)
@@ -958,6 +968,7 @@ namespace Seo.UI
             SetTabState(productionTab, false);
             SetTabState(logisticsTab, false);
             SetTabState(powerTab, false);
+            SetTabState(systemTab, false);
             if (!editModeActive) SetTabState(editModeButton, false);
 
             var controller = FindFirstObjectByType<PowerBuildController>();
@@ -981,11 +992,15 @@ namespace Seo.UI
             if (button == null) return;
             var image = button.GetComponent<Image>();
             if (image != null)
-                image.color = selected ? Color.white : new Color(0.22f, 0.4f, 0.48f, 0.82f);
+                image.color = selected ? new Color(0.04f, 0.42f, 0.54f, 0.98f) : ToolCardIdleColor;
 
             var label = button.GetComponentInChildren<Text>(true);
             if (label != null)
-                label.color = selected ? SeoUITheme.Current.Text : SeoUITheme.Current.Muted;
+                label.color = Color.white;
+
+            var icon = button.transform.Find("Icon")?.GetComponent<Text>();
+            if (icon != null)
+                icon.color = selected ? Color.white : SeoUITheme.Current.Primary;
         }
 
         private void UpdateContextActions()
