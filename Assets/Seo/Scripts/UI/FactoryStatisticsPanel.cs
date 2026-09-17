@@ -47,6 +47,13 @@ namespace Seo.UI
         }
 
         private const float RefreshInterval = 0.25f;
+        private static readonly Color ReportBackground = new Color(0.018f, 0.045f, 0.075f, 0.995f);
+        private static readonly Color CardBackground = new Color(0.045f, 0.105f, 0.15f, 1f);
+        private static readonly Color RowEven = new Color(0.07f, 0.15f, 0.205f, 1f);
+        private static readonly Color RowOdd = new Color(0.052f, 0.12f, 0.175f, 1f);
+        private static readonly Color ProductionColor = new Color(0f, 0.88f, 1f, 1f);
+        private static readonly Color ConsumptionColor = new Color(1f, 0.62f, 0.08f, 1f);
+        private static readonly Color BarBackground = new Color(0.12f, 0.22f, 0.29f, 1f);
         private readonly List<ResourceRow> rows = new List<ResourceRow>();
         private readonly List<SectionHeader> sectionHeaders = new List<SectionHeader>();
         private SimulationDriver driver;
@@ -133,6 +140,7 @@ namespace Seo.UI
             var panel = SeoUIFactory.CreatePanel(parent, "FactoryStatisticsPanel", new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 820f));
             panel.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            MakeSolid(panel, ReportBackground);
             panelRoot = panel.gameObject;
             var title = CreateText(panel.transform, "Title", "생산 흐름 보고서", 30, FontStyle.Bold,
                 new Vector2(32f, -18f), new Vector2(700f, 46f));
@@ -188,8 +196,9 @@ namespace Seo.UI
         private void BuildPowerReport(Transform parent)
         {
             var card = SeoUIFactory.CreatePanel(parent, "PowerReport", new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(28f, -104f), new Vector2(1184f, 184f), SeoUITheme.Current.Card);
+                new Vector2(28f, -104f), new Vector2(1184f, 184f), CardBackground);
             card.rectTransform.pivot = new Vector2(0f, 1f);
+            MakeSolid(card, CardBackground);
             var accent = SeoUIFactory.CreatePanel(card.transform, "Accent", new Vector2(0f, 0f),
                 new Vector2(0f, 1f), Vector2.zero, new Vector2(7f, 0f), SeoUITheme.Current.Warning);
             accent.rectTransform.pivot = new Vector2(0f, 0.5f);
@@ -218,14 +227,14 @@ namespace Seo.UI
                 new Vector2(x, -80f), new Vector2(330f, 38f));
             var background = SeoUIFactory.CreatePanel(parent, name + "Bar", new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(x, -132f), new Vector2(330f, 14f),
-                new Color(1f, 1f, 1f, 0.1f));
+                BarBackground);
             background.rectTransform.pivot = new Vector2(0f, 1f);
+            MakeSolid(background, BarBackground);
             fill = SeoUIFactory.CreatePanel(background.transform, "Fill", Vector2.zero, Vector2.one,
                 Vector2.zero, Vector2.zero, color);
             fill.rectTransform.offsetMin = Vector2.zero;
             fill.rectTransform.offsetMax = Vector2.zero;
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
+            MakeSolid(fill, color);
             return value;
         }
 
@@ -235,7 +244,7 @@ namespace Seo.UI
                 new Vector2(32f, -304f), new Vector2(300f, 34f));
             title.color = SeoUITheme.Current.Primary;
             var columns = CreateText(parent, "Columns",
-                "실제 생산 / 최적 생산                 실제 소비 / 최적 소비", 16, FontStyle.Bold,
+                "분당 실제 생산 / 최적 생산          분당 실제 소비 / 최적 소비", 16, FontStyle.Bold,
                 new Vector2(430f, -306f), new Vector2(510f, 30f));
             columns.color = SeoUITheme.Current.Muted;
             columns.alignment = TextAnchor.UpperRight;
@@ -330,9 +339,8 @@ namespace Seo.UI
 
         private int CompareProduction(ProductEntry a, ProductEntry b, bool descending)
         {
-            FactoryStatistics statistics = driver.World.Statistics;
-            float aRate = statistics.GetProducedPerHour(a.ResourceId);
-            float bRate = statistics.GetProducedPerHour(b.ResourceId);
+            float aRate = GetDisplayedProductionPerMinute(a.ResourceId, a.MachineOrder);
+            float bRate = GetDisplayedProductionPerMinute(b.ResourceId, b.MachineOrder);
             int result = aRate.CompareTo(bRate);
             if (descending) result = -result;
             if (result != 0) return result;
@@ -414,8 +422,8 @@ namespace Seo.UI
 
         private int CompareRows(ResourceRow a, ResourceRow b, bool descending)
         {
-            float aRate = driver.World.Statistics.GetProducedPerHour(a.ResourceId);
-            float bRate = driver.World.Statistics.GetProducedPerHour(b.ResourceId);
+            float aRate = GetDisplayedProductionPerMinute(a.ResourceId, a.MachineOrder);
+            float bRate = GetDisplayedProductionPerMinute(b.ResourceId, b.MachineOrder);
             int result = aRate.CompareTo(bRate);
             if (descending) result = -result;
             if (result != 0) return result;
@@ -461,8 +469,9 @@ namespace Seo.UI
         {
             var header = SeoUIFactory.CreatePanel(rowContainer, "Section_" + label,
                 new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -y),
-                new Vector2(1184f, 38f), new Color(0.02f, 0.2f, 0.27f, 0.98f));
+                new Vector2(1184f, 38f), new Color(0.02f, 0.3f, 0.39f, 1f));
             header.rectTransform.pivot = new Vector2(0f, 1f);
+            MakeSolid(header, new Color(0.02f, 0.3f, 0.39f, 1f));
             var text = CreateText(header.transform, "Label", $"{label}  ──────────  생산 품목 {count}종",
                 18, FontStyle.Bold, new Vector2(18f, -6f), new Vector2(600f, 28f));
             text.color = SeoUITheme.Current.Primary;
@@ -481,9 +490,9 @@ namespace Seo.UI
             var card = SeoUIFactory.CreatePanel(rowContainer, machineKey + "_" + resource.Key,
                 new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -y),
                 new Vector2(1184f, 62f), index % 2 == 0
-                    ? new Color(0.035f, 0.1f, 0.15f, 0.96f)
-                    : new Color(0.025f, 0.075f, 0.12f, 0.96f));
+                    ? RowEven : RowOdd);
             card.rectTransform.pivot = new Vector2(0f, 1f);
+            MakeSolid(card, index % 2 == 0 ? RowEven : RowOdd);
             var chip = SeoUIFactory.CreatePanel(card.transform, "Color", new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(18f, 38f), resource.Color);
             chip.rectTransform.pivot = new Vector2(0f, 0.5f);
@@ -506,23 +515,23 @@ namespace Seo.UI
                 Rates = rates,
                 State = state,
                 ProductionFill = CreateFlowBar(card.transform, "Production", new Vector2(278f, -13f),
-                    SeoUITheme.Current.Primary),
+                    ProductionColor),
                 ConsumptionFill = CreateFlowBar(card.transform, "Consumption", new Vector2(278f, -38f),
-                    SeoUITheme.Current.Warning),
+                    ConsumptionColor),
             });
         }
 
         private static Image CreateFlowBar(Transform parent, string name, Vector2 position, Color color)
         {
             var background = SeoUIFactory.CreatePanel(parent, name + "Bar", new Vector2(0f, 1f),
-                new Vector2(0f, 1f), position, new Vector2(450f, 12f), new Color(1f, 1f, 1f, 0.09f));
+                new Vector2(0f, 1f), position, new Vector2(450f, 14f), BarBackground);
             background.rectTransform.pivot = new Vector2(0f, 1f);
+            MakeSolid(background, BarBackground);
             var fill = SeoUIFactory.CreatePanel(background.transform, "Fill", Vector2.zero, Vector2.one,
                 Vector2.zero, Vector2.zero, color);
             fill.rectTransform.offsetMin = Vector2.zero;
             fill.rectTransform.offsetMax = Vector2.zero;
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
+            MakeSolid(fill, color);
             return fill;
         }
 
@@ -548,7 +557,7 @@ namespace Seo.UI
             FactoryStatistics statistics = driver.World.Statistics;
             float seconds = statistics.ObservedSeconds;
             periodText.text = seconds < 1f ? "측정 준비 중"
-                : $"최근 {seconds:0}초 실제 가동 기록 · 설치 설비의 이론 최대치와 비교";
+                : $"최근 {seconds:0}초 실제 가동 기록 · 분당 생산량 · 설치 설비의 이론 최대치와 비교";
 
             int actualPower = CalculateActivePower();
             int optimalPower = powerGrid != null ? powerGrid.RequestedPower : CalculateConfiguredPower();
@@ -557,9 +566,9 @@ namespace Seo.UI
             optimalPowerText.text = $"{optimalPower:N0} MW";
             supplyPowerText.text = $"{supplyPower:N0} MW";
             float scale = Mathf.Max(1f, actualPower, optimalPower, supplyPower);
-            actualPowerFill.fillAmount = actualPower / scale;
-            optimalPowerFill.fillAmount = optimalPower / scale;
-            supplyPowerFill.fillAmount = supplyPower / scale;
+            SetBarFill(actualPowerFill, actualPower / scale);
+            SetBarFill(optimalPowerFill, optimalPower / scale);
+            SetBarFill(supplyPowerFill, supplyPower / scale);
             bool insufficient = optimalPower > supplyPower;
             bool idle = !insufficient && optimalPower > 0 && actualPower < optimalPower;
             powerStateText.text = insufficient ? "● 공급 부족" : idle ? "● 일부 설비 대기 중" : "● 정상 가동";
@@ -572,12 +581,12 @@ namespace Seo.UI
             for (int i = 0; i < rows.Count; i++)
             {
                 ResourceRow row = rows[i];
-                float actualProduced = statistics.GetProducedPerHour(row.ResourceId);
-                float actualConsumed = statistics.GetConsumedPerHour(row.ResourceId);
+                float actualProduced = GetDisplayedProductionPerMinute(row.ResourceId, row.MachineOrder);
+                float actualConsumed = statistics.GetConsumedPerHour(row.ResourceId) / 60f;
                 float optimalProduced = theoreticalProduction[row.ResourceId];
                 float optimalConsumed = theoreticalConsumption[row.ResourceId];
-                row.ProductionFill.fillAmount = Ratio(actualProduced, optimalProduced);
-                row.ConsumptionFill.fillAmount = Ratio(actualConsumed, optimalConsumed);
+                SetBarFill(row.ProductionFill, Ratio(actualProduced, optimalProduced));
+                SetBarFill(row.ConsumptionFill, Ratio(actualConsumed, optimalConsumed));
                 row.Rates.text = $"{actualProduced:N0} / {optimalProduced:N0}       " +
                     $"{actualConsumed:N0} / {optimalConsumed:N0}";
                 bool hasLine = optimalProduced > 0.01f || optimalConsumed > 0.01f;
@@ -597,7 +606,7 @@ namespace Seo.UI
             {
                 var miner = world.Miners[i];
                 if (miner != null && miner.MineIntervalSeconds > 0f)
-                    produced[miner.OutputResourceId] += miner.YieldPerCycle * 3600f / miner.MineIntervalSeconds;
+                    produced[miner.OutputResourceId] += miner.YieldPerCycle * 60f / miner.MineIntervalSeconds;
             }
             for (int i = 0; i < world.Processors.Count; i++)
             {
@@ -608,12 +617,35 @@ namespace Seo.UI
                 if (recipeId < 0) continue;
                 var recipe = world.Database.Recipes[recipeId];
                 if (recipe.ProcessSeconds <= 0f) continue;
-                float cycles = 3600f / recipe.ProcessSeconds;
+                float cycles = 60f / recipe.ProcessSeconds;
                 for (int n = 0; n < recipe.Inputs.Length; n++)
                     consumed[recipe.Inputs[n].ResourceId] += recipe.Inputs[n].Amount * cycles;
                 for (int n = 0; n < recipe.Outputs.Length; n++)
                     produced[recipe.Outputs[n].ResourceId] += recipe.Outputs[n].Amount * cycles;
             }
+        }
+
+        private float GetDisplayedProductionPerMinute(int resourceId, int machineOrder)
+        {
+            if (driver == null || driver.World == null) return 0f;
+            if (machineOrder != 0)
+                return driver.World.Statistics.GetProducedPerHour(resourceId) / 60f;
+
+            // 채굴은 주기가 고정이므로 짧은 측정 구간을 환산하지 않는다. 실제로 캘 수 있는
+            // 채굴기는 SO 이론 속도를 그대로 표시하고, 전력이 없거나 출력 버퍼가 꽉 차서
+            // 채굴할 수 없는 채굴기만 0으로 계산한다.
+            float rate = 0f;
+            var miners = driver.World.Miners;
+            for (int i = 0; i < miners.Count; i++)
+            {
+                var miner = miners[i];
+                if (miner == null || miner.OutputResourceId != resourceId
+                    || !miner.IsPowered
+                    || miner.BufferedOutput >= SimulationConstants.ResourceBufferCapacity
+                    || miner.MineIntervalSeconds <= 0f) continue;
+                rate += miner.YieldPerCycle * 60f / miner.MineIntervalSeconds;
+            }
+            return rate;
         }
 
         private int CalculateActivePower()
@@ -665,6 +697,24 @@ namespace Seo.UI
         {
             if (optimal <= 0.01f) return actual > 0.01f ? 1f : 0f;
             return Mathf.Clamp01(actual / optimal);
+        }
+
+        private static void MakeSolid(Image image, Color color)
+        {
+            if (image == null) return;
+            image.sprite = null;
+            image.type = Image.Type.Simple;
+            image.color = color;
+        }
+
+        private static void SetBarFill(Image image, float amount)
+        {
+            if (image == null) return;
+            RectTransform rect = image.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = new Vector2(Mathf.Clamp01(amount), 1f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private static Text CreateText(Transform parent, string name, string value, int fontSize,
