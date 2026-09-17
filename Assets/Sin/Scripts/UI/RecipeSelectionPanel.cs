@@ -83,7 +83,15 @@ namespace Factory.UI
                 // 패널이 열려있는 동안 이 프로세서가 철거됐을 수 있다(SimulationWorld.RemoveProcessor
                 // 참고 — 그 자리는 null로 비워짐).
                 var processor = driver.World.Processors[targetProcessorIndex];
-                if (processor != null) processor.RecipeId = recipeId;
+                if (processor != null && processor.RecipeId != recipeId)
+                {
+                    // 다른 레시피로 바꾸는 거면 안에 남아있던 재료/산출물을 코어로 비운다 —
+                    // 안 그러면 옛 레시피 재료가 새 레시피랑 뒤섞이거나, 출력 벨트가 예전
+                    // 산출물에 계속 묶여서 새 산출물을 영영 안 실어나른다(SimulationWorld.
+                    // FlushProcessorBuffers 참고).
+                    driver.World.FlushProcessorBuffers(targetProcessorIndex);
+                    processor.RecipeId = recipeId;
+                }
             }
             Close();
         }
