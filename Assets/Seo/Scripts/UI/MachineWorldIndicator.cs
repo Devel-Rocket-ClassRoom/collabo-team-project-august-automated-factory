@@ -276,15 +276,16 @@ namespace Seo.UI
                 return;
             }
 
-            if (powerGrid != null && !powerGrid.IsMachinePowered(CellOccupantType.Processor, instanceIndex))
-            {
-                statusBadge.SetContent("전력 부족", SeoUITheme.Current.Danger);
-                return;
-            }
-
+            // 분류기/합류기는 전력을 쓰지 않는 물류 설비이므로 전력 표시보다 먼저 판정한다.
             if (processor.RoutingRole != RoutingRole.None)
             {
                 statusBadge.SetContent("물류 가동", SeoUITheme.Current.Success);
+                return;
+            }
+
+            if (powerGrid != null && !powerGrid.IsMachinePowered(CellOccupantType.Processor, instanceIndex))
+            {
+                statusBadge.SetContent("전력 부족", SeoUITheme.Current.Danger);
                 return;
             }
 
