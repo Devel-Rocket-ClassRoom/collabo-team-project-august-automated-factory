@@ -20,3 +20,19 @@ MonoBehaviour:
   gridWidth: 1
   gridHeight: 1
   prefabName: Prefab_Miner
+  buildCostItems:
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete

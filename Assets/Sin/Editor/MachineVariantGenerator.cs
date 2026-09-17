@@ -74,6 +74,8 @@ public static class MachineVariantGenerator
         E("GoldOre",    "Prefab_Deposit_GoldOre",    "SM_Gold_Node",    1),
         E("QuartzOre",  "Prefab_Deposit_QuartzOre",  "SM_Quartz_Node",  1),
         E("UraniumOre", "Prefab_Deposit_UraniumOre", "SM_Uranium_Node", 1),
+        // 콘크리트 노드: 딱 맞는 콘크리트 원석 에셋이 없어 아이템 쪽과 같은 SM_Bauxite_Node 재사용.
+        E("Concrete",   "Prefab_Deposit_Concrete",   "SM_Bauxite_Node", 1),
     };
 
     // 아이템(벨트 위에 놓일 자원): GameId = Bae님 ItemData.itemID. OZEA에 딱 맞는 완제품

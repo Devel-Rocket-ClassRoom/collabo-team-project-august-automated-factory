@@ -50,11 +50,14 @@ namespace Factory.Data
         public readonly Vector2Int Footprint;
         // Addressables 키(예: "Prefab_Smelter"). 비어 있으면 폴백 박스로 그린다.
         public readonly string PrefabName;
+        // 설치(배치)에 드는 자원 — 코어에서 이만큼 차감해야 지을 수 있다. 비어있으면 무료.
+        public readonly ResourceAmount[] BuildCost;
 
-        public MachineRuntime(string key, Vector2Int footprint, string prefabName)
+        public MachineRuntime(string key, Vector2Int footprint, string prefabName, ResourceAmount[] buildCost)
         {
             Key = key;
             Footprint = footprint;
+            BuildCost = buildCost;
             PrefabName = prefabName;
         }
     }
@@ -155,7 +158,8 @@ namespace Factory.Data
 
             var (machines, machineIdByKey) = BuildIndexed(
                 machineDataList, m => m.machineID,
-                def => new MachineRuntime(def.machineID, new Vector2Int(Mathf.Max(1, def.gridWidth), Mathf.Max(1, def.gridHeight)), def.prefabName));
+                def => new MachineRuntime(def.machineID, new Vector2Int(Mathf.Max(1, def.gridWidth), Mathf.Max(1, def.gridHeight)), def.prefabName,
+                    ResolveIngredients(def.buildCostItems, resourceIdByKey)));
 
             // 레시피/광물노드는 resourceIdByKey가 먼저 완성되어 있어야 재료를 id로 풀 수 있다.
             var (recipes, recipeIdByKey) = BuildIndexed(
