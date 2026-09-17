@@ -17,6 +17,6 @@ MonoBehaviour:
   powerConsumption: 60
   inputSlots: 3
   outputSlots: 1
-  gridWidth: 1
-  gridHeight: 1
+  gridWidth: 2
+  gridHeight: 3
   prefabName: Prefab_ProcessingMachine
