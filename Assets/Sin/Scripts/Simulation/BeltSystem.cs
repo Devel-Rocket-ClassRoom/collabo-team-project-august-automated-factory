@@ -94,26 +94,47 @@ namespace Factory.Simulation
             // 멈춘다(사용자 결정: 전력 끊기면 들어오는 것도 나가는 것도 다 멈춰야 함).
             if (!processor.IsPowered) return;
 
+            // 코어가 "받는 쪽이 실제로 요청한 자원만 내준다"는 원칙(LoadFromCore)을 여기도
+            // 그대로 적용한다 — 안 그러면 일반 기계는 만들어지는 대로 뭐든 무조건 벨트에
+            // 실어버려서, 그 벨트 끝의 기계가 원하지 않는 자원이어도(예: 합성기는 금괴가
+            // 필요한데 철괴가 옴) 계속 밀어넣다가 못 들어가고 벨트에 쌓이기만 한다(사용자
+            // 보고 — "연결만 되어 있으면 자동으로 출력된다"는 게 문제).
+            var target = BeltRouting.ResolveTerminal(segment, processors, segments);
+            if (target == null) return; // 막다른 벨트 -> 받을 대상 없음, 안 내보낸다
+
             var buffer = processor.OutputBuffer;
 
-            // 이 라인이 이미 특정 자원으로 굳어졌으면 그것만 계속 내준다("벨트 하나당 한 종류").
-            if (segment.LockedSourceResourceId.HasValue)
+            // 목적지 레시피가 잠금 당시와 달라졌으면(레시피 변경 등) 담당을 다시 정한다.
+            if (segment.LockedSourceResourceId.HasValue && segment.LockedForRecipeId != target.RecipeId)
             {
-                int lockedId = segment.LockedSourceResourceId.Value;
-                if (buffer[lockedId] <= 0) return;
-                buffer[lockedId]--;
-                segment.Items.Insert(0, new BeltItem(lockedId, 0f));
-                return;
+                segment.LockedSourceResourceId = null;
             }
 
-            for (int resourceId = 0; resourceId < buffer.Length; resourceId++)
+            if (!segment.LockedSourceResourceId.HasValue)
             {
-                if (buffer[resourceId] <= 0) continue;
-                buffer[resourceId]--;
-                segment.Items.Insert(0, new BeltItem(resourceId, 0f));
-                segment.LockedSourceResourceId = resourceId;
-                return;
+                if (target.UniversalPorts)
+                {
+                    // 코어/미니 코어는 뭐든 받아준다 — 지금 버퍼에 있는 아무 자원이나 담당시킨다.
+                    for (int r = 0; r < buffer.Length; r++)
+                    {
+                        if (buffer[r] > 0) { segment.LockedSourceResourceId = r; break; }
+                    }
+                }
+                else if (target.RecipeId >= 0)
+                {
+                    AssignLaneResource(segment, segments, target, database.Recipes[target.RecipeId].Inputs, processors);
+                }
+                // target.RecipeId < 0(레시피 미지정)이면 뭘 원하는지 모르니 담당을 안 정한다
+                // -> 아래에서 LockedSourceResourceId가 여전히 null이라 이번 틱은 대기.
+                segment.LockedForRecipeId = target.RecipeId;
             }
+
+            if (!segment.LockedSourceResourceId.HasValue) return;
+
+            int lockedId = segment.LockedSourceResourceId.Value;
+            if (buffer[lockedId] <= 0) return; // 담당 자원이 아직 안 만들어짐(또는 애초에 이 기계가 안 만드는 자원) -> 대기
+            buffer[lockedId]--;
+            segment.Items.Insert(0, new BeltItem(lockedId, 0f));
         }
 
         // 코어는 쌓아둔 걸 아무 벨트에나 무조건 흘려보내지 않는다 — 이 벨트 체인 끝에 실제로
