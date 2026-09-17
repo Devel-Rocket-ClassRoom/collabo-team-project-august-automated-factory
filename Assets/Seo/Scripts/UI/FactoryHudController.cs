@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Seo.UI
@@ -14,6 +15,13 @@ namespace Seo.UI
     public sealed class FactoryHudController : MonoBehaviour
     {
         private enum Category { Production, Logistics, Power }
+
+        private sealed class CoreResourceEntry
+        {
+            public int ResourceId;
+            public GameObject Root;
+            public Text Amount;
+        }
 
         private Canvas canvas;
         private RectTransform safeRoot;
@@ -33,6 +41,13 @@ namespace Seo.UI
         private GameObject confirmButton;
         private GameObject demolishConfirmButton;
         private GameObject cancelButton;
+        private Button coreResourceButton;
+        private Button powerStatusButton;
+        private GameObject coreResourcePanel;
+        private GameObject powerDetailPanel;
+        private GameObject exitDialogRoot;
+        private Transform coreResourceContent;
+        private Text coreResourceEmptyText;
         private Text powerText;
         private Text toastText;
         private GameObject toastRoot;
@@ -41,9 +56,11 @@ namespace Seo.UI
         private string pendingPlacementMachineId;
         private bool editModeActive;
         private float toastUntil;
+        private float nextCoreResourceRefresh;
         private float nextDiscovery;
         private bool built;
         private static readonly Color ToolCardIdleColor = new Color(0.10f, 0.18f, 0.20f, 0.92f);
+        private readonly List<CoreResourceEntry> coreResourceEntries = new List<CoreResourceEntry>();
         private readonly Button[] powerModeButtons = new Button[3];
         private readonly Color[] powerModeButtonColors = new Color[3];
 
@@ -63,12 +80,21 @@ namespace Seo.UI
             }
 
             if (!built) return;
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                HandleBackPressed();
             TrackActivePlacement();
             UpdateContextActions();
             UpdatePowerStatus();
             UpdatePowerButtonStates();
             DecorateRecipePanel();
             HideLegacyPowerPanel();
+
+            if (coreResourcePanel != null && coreResourcePanel.activeSelf
+                && Time.unscaledTime >= nextCoreResourceRefresh)
+            {
+                RefreshCoreResourcePanel();
+                nextCoreResourceRefresh = Time.unscaledTime + 0.25f;
+            }
 
             if (toastRoot != null) toastRoot.SetActive(Time.unscaledTime < toastUntil);
         }
@@ -114,45 +140,49 @@ namespace Seo.UI
 
         private void BuildTopHud()
         {
-            var resourceCard = SeoUIFactory.CreatePanel(safeRoot, "SeoResourceCard", new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(28f, -24f), new Vector2(620f, 142f));
-            var resourceRt = resourceCard.rectTransform;
-            resourceRt.pivot = new Vector2(0f, 1f);
-            CreateCardAccent(resourceCard.transform, SeoUITheme.Current.Primary);
-
             var line1 = GameObject.Find("HudLine1")?.GetComponent<Text>();
             var line2 = GameObject.Find("HudLine2")?.GetComponent<Text>();
-            if (line1 != null)
-            {
-                line1.transform.SetParent(resourceCard.transform, false);
-                SeoUIFactory.SetRect(line1.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f), new Vector2(30f, -16f), new Vector2(560f, 36f));
-                line1.fontSize = 24;
-                line1.fontStyle = FontStyle.Bold;
-                line1.color = SeoUITheme.Current.Primary;
-            }
-            if (line2 != null)
-            {
-                line2.transform.SetParent(resourceCard.transform, false);
-                SeoUIFactory.SetRect(line2.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f), new Vector2(30f, -60f), new Vector2(560f, 64f));
-                line2.fontSize = 25;
-                line2.fontStyle = FontStyle.Bold;
-                line2.resizeTextForBestFit = true;
-                line2.resizeTextMinSize = 18;
-                line2.resizeTextMaxSize = 25;
-                line2.horizontalOverflow = HorizontalWrapMode.Wrap;
-                line2.verticalOverflow = VerticalWrapMode.Truncate;
-            }
+            if (line1 != null) line1.gameObject.SetActive(false);
+            if (line2 != null) line2.gameObject.SetActive(false);
 
-            var powerCard = SeoUIFactory.CreatePanel(safeRoot, "SeoPowerCard", Vector2.one, Vector2.one,
-                new Vector2(-28f, -24f), new Vector2(540f, 142f));
-            powerCard.rectTransform.pivot = Vector2.one;
+            coreResourceButton = CreateTopHudButton("SeoCoreResourceButton", "▣\n자원", new Vector2(28f, -24f),
+                ToggleCoreResourcePanel, SeoUITheme.Current.Primary);
+            powerStatusButton = CreateTopHudButton("SeoPowerStatusButton", "⚡\n전력", new Vector2(28f, -118f),
+                TogglePowerDetailPanel, SeoUITheme.Current.Warning);
+            CreateTopHudButton("SeoFocusCoreButton", "◎\n코어로", new Vector2(28f, -212f),
+                FocusCore, SeoUITheme.Current.Success);
+
+            var resourceCard = SeoUIFactory.CreatePanel(safeRoot, "SeoResourceCard", new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(166f, -24f), new Vector2(820f, 380f));
+            resourceCard.rectTransform.pivot = new Vector2(0f, 1f);
+            coreResourcePanel = resourceCard.gameObject;
+            CreateCardAccent(resourceCard.transform, SeoUITheme.Current.Primary);
+            var resourceTitle = SeoUIFactory.CreateText(resourceCard.transform, "Title", "코어 보유 자원", 24,
+                TextAnchor.MiddleLeft, FontStyle.Bold);
+            SeoUIFactory.SetRect(resourceTitle.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(28f, -12f), new Vector2(-120f, 42f));
+            resourceTitle.color = SeoUITheme.Current.Primary;
+            var resourceClose = SeoUIFactory.CreateButton(resourceCard.transform, "Close", "×",
+                ToggleCoreResourcePanel);
+            SeoUIFactory.SetRect(resourceClose.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
+                Vector2.one, new Vector2(-16f, -12f), new Vector2(58f, 42f));
+            coreResourceContent = resourceCard.transform;
+            coreResourceEmptyText = SeoUIFactory.CreateText(resourceCard.transform, "Empty", "보유 자원이 없습니다", 20,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            SeoUIFactory.SetRect(coreResourceEmptyText.rectTransform, new Vector2(0f, 0f), Vector2.one,
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -14f), new Vector2(-40f, -70f));
+            coreResourceEmptyText.color = SeoUITheme.Current.Muted;
+            coreResourcePanel.SetActive(false);
+
+            var powerCard = SeoUIFactory.CreatePanel(safeRoot, "SeoPowerCard", new Vector2(0f, 1f),
+                new Vector2(0f, 1f), new Vector2(166f, -118f), new Vector2(580f, 142f));
+            powerCard.rectTransform.pivot = new Vector2(0f, 1f);
+            powerDetailPanel = powerCard.gameObject;
             CreateCardAccent(powerCard.transform, SeoUITheme.Current.Warning);
             var powerTitle = SeoUIFactory.CreateText(powerCard.transform, "PowerTitle", "공장 전력 현황", 23,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             SeoUIFactory.SetRect(powerTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(30f, -14f), new Vector2(480f, 34f));
+                new Vector2(0f, 1f), new Vector2(30f, -14f), new Vector2(500f, 34f));
             powerTitle.color = SeoUITheme.Current.Warning;
 
             powerText = SeoUIFactory.CreateText(powerCard.transform, "PowerStatus", "전력 시스템 연결 중", 21,
@@ -165,6 +195,7 @@ namespace Seo.UI
             powerText.resizeTextMaxSize = 21;
             powerText.horizontalOverflow = HorizontalWrapMode.Wrap;
             powerText.verticalOverflow = VerticalWrapMode.Truncate;
+            powerDetailPanel.SetActive(false);
 
             var toastPanel = SeoUIFactory.CreatePanel(safeRoot, "SeoToast", new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f), new Vector2(0f, -32f), new Vector2(460f, 52f),
@@ -174,6 +205,229 @@ namespace Seo.UI
             toastText = SeoUIFactory.CreateText(toastPanel.transform, "Label", string.Empty, 20,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             toastRoot.SetActive(false);
+
+            BuildExitDialog();
+        }
+
+        private Button CreateTopHudButton(string name, string label, Vector2 position,
+            UnityEngine.Events.UnityAction action, Color accent)
+        {
+            var button = SeoUIFactory.CreateButton(safeRoot, name, label, action, ToolCardIdleColor);
+            SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(0f, 1f), position, new Vector2(124f, 82f));
+            var text = button.GetComponentInChildren<Text>(true);
+            if (text != null)
+            {
+                text.fontSize = 19;
+                text.color = accent;
+            }
+            return button;
+        }
+
+        private void ToggleCoreResourcePanel()
+        {
+            if (coreResourcePanel == null) return;
+            bool show = !coreResourcePanel.activeSelf;
+            coreResourcePanel.SetActive(show);
+            if (powerDetailPanel != null) powerDetailPanel.SetActive(false);
+            if (show)
+            {
+                coreResourcePanel.transform.SetAsLastSibling();
+                RefreshCoreResourcePanel();
+            }
+        }
+
+        private void TogglePowerDetailPanel()
+        {
+            if (powerDetailPanel == null) return;
+            bool show = !powerDetailPanel.activeSelf;
+            powerDetailPanel.SetActive(show);
+            if (coreResourcePanel != null) coreResourcePanel.SetActive(false);
+            if (show) powerDetailPanel.transform.SetAsLastSibling();
+        }
+
+        private void RefreshCoreResourcePanel()
+        {
+            var driver = FindFirstObjectByType<Factory.Simulation.SimulationDriver>();
+            if (driver == null || driver.World == null || coreResourceContent == null) return;
+
+            var resources = driver.World.Database.Resources;
+            if (coreResourceEntries.Count == 0)
+            {
+                for (int i = 0; i < resources.Count; i++)
+                {
+                    var resource = resources[i];
+                    var card = SeoUIFactory.CreatePanel(coreResourceContent, "CoreResource_" + resource.Key,
+                        new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(120f, 66f),
+                        new Color(0.035f, 0.10f, 0.14f, 0.96f));
+                    card.rectTransform.pivot = new Vector2(0f, 1f);
+
+                    var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer),
+                        typeof(Image));
+                    iconObject.transform.SetParent(card.transform, false);
+                    SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0f, 1f),
+                        new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(7f, -10f), new Vector2(44f, 44f));
+                    var icon = iconObject.GetComponent<Image>();
+                    icon.preserveAspect = true;
+                    icon.raycastTarget = false;
+                    RecipeResourceIconCache.Assign(icon, resource.PrefabName, resource.Color);
+
+                    var name = SeoUIFactory.CreateText(card.transform, "Name", resource.DisplayName, 14,
+                        TextAnchor.MiddleLeft, FontStyle.Bold);
+                    SeoUIFactory.SetRect(name.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                        new Vector2(0f, 1f), new Vector2(56f, -7f), new Vector2(58f, 24f));
+                    name.resizeTextForBestFit = true;
+                    name.resizeTextMinSize = 10;
+                    name.resizeTextMaxSize = 14;
+                    name.verticalOverflow = VerticalWrapMode.Truncate;
+
+                    var amount = SeoUIFactory.CreateText(card.transform, "Amount", "×0", 20,
+                        TextAnchor.MiddleLeft, FontStyle.Bold);
+                    SeoUIFactory.SetRect(amount.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                        new Vector2(0f, 1f), new Vector2(56f, -32f), new Vector2(58f, 28f));
+                    amount.color = SeoUITheme.Current.Primary;
+                    coreResourceEntries.Add(new CoreResourceEntry
+                    {
+                        ResourceId = i,
+                        Root = card.gameObject,
+                        Amount = amount,
+                    });
+                }
+            }
+
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count
+                || driver.World.Processors[coreIndex] == null)
+            {
+                for (int i = 0; i < coreResourceEntries.Count; i++) coreResourceEntries[i].Root.SetActive(false);
+                coreResourceEmptyText.text = "코어를 찾을 수 없습니다";
+                coreResourceEmptyText.gameObject.SetActive(true);
+                return;
+            }
+
+            var core = driver.World.Processors[coreIndex];
+            int visible = 0;
+            for (int i = 0; i < coreResourceEntries.Count; i++)
+            {
+                CoreResourceEntry entry = coreResourceEntries[i];
+                int count = core.InputBuffer[entry.ResourceId];
+                bool hasResource = count > 0;
+                entry.Root.SetActive(hasResource);
+                if (!hasResource) continue;
+
+                int column = visible % 6;
+                int row = visible / 6;
+                entry.Root.GetComponent<RectTransform>().anchoredPosition =
+                    new Vector2(24f + column * 128f, -62f - row * 74f);
+                entry.Amount.text = "×" + count.ToString("N0");
+                visible++;
+            }
+
+            coreResourceEmptyText.text = "보유 자원이 없습니다";
+            coreResourceEmptyText.gameObject.SetActive(visible == 0);
+        }
+
+        private void FocusCore()
+        {
+            GameObject core = GameObject.Find("Core");
+            var cameraRig = FindFirstObjectByType<TouchCameraRig>();
+            if (core == null || cameraRig == null)
+            {
+                ShowToast("코어 위치를 찾을 수 없습니다");
+                return;
+            }
+
+            cameraRig.FocusWorldPoint(core.transform.position);
+            ShowToast("코어로 이동했습니다");
+        }
+
+        private void BuildExitDialog()
+        {
+            var panel = SeoUIFactory.CreatePanel(safeRoot, "SeoExitDialog", new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 240f),
+                new Color(0.015f, 0.04f, 0.06f, 0.99f));
+            exitDialogRoot = panel.gameObject;
+            var title = SeoUIFactory.CreateText(panel.transform, "Title", "게임을 종료하시겠습니까?", 28,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            SeoUIFactory.SetRect(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -34f), new Vector2(-40f, 70f));
+
+            var cancel = SeoUIFactory.CreateButton(panel.transform, "Cancel", "계속하기",
+                () => exitDialogRoot.SetActive(false));
+            SeoUIFactory.SetRect(cancel.GetComponent<RectTransform>(), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-126f, 34f),
+                new Vector2(220f, 64f));
+            var exit = SeoUIFactory.CreateButton(panel.transform, "Exit", "게임 종료", QuitGame,
+                SeoUITheme.Current.Danger);
+            SeoUIFactory.SetRect(exit.GetComponent<RectTransform>(), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(126f, 34f),
+                new Vector2(220f, 64f));
+            exitDialogRoot.SetActive(false);
+        }
+
+        private void ShowExitDialog()
+        {
+            if (exitDialogRoot == null) return;
+            exitDialogRoot.SetActive(true);
+            exitDialogRoot.transform.SetAsLastSibling();
+        }
+
+        private static void QuitGame()
+        {
+            Application.Quit();
+        }
+
+        private void HandleBackPressed()
+        {
+            if (exitDialogRoot != null && exitDialogRoot.activeSelf)
+            {
+                exitDialogRoot.SetActive(false);
+                return;
+            }
+
+            var recipePanel = RecipeSelectionPanel.Instance;
+            if (recipePanel != null && recipePanel.gameObject.activeSelf)
+            {
+                recipePanel.Close();
+                return;
+            }
+
+            if (coreResourcePanel != null && coreResourcePanel.activeSelf)
+            {
+                coreResourcePanel.SetActive(false);
+                return;
+            }
+            if (powerDetailPanel != null && powerDetailPanel.activeSelf)
+            {
+                powerDetailPanel.SetActive(false);
+                return;
+            }
+
+            var statisticsPanel = GameObject.Find("FactoryStatisticsPanel");
+            if (statisticsPanel != null && statisticsPanel.activeSelf)
+            {
+                statisticsPanel.SetActive(false);
+                return;
+            }
+
+            var powerController = FindFirstObjectByType<PowerBuildController>();
+            bool activeBuild = editModeActive
+                || (buildRouter != null && buildRouter.CurrentMode != BuildInputRouter.Mode.None)
+                || (powerController != null && powerController.Mode != PowerBuildMode.None);
+            if (activeBuild)
+            {
+                CancelCurrentInteraction();
+                return;
+            }
+
+            if ((dockRoot != null && dockRoot.activeSelf) || (sideMenuRoot != null && sideMenuRoot.activeSelf))
+            {
+                CloseCategoryPanel(true);
+                SetSideMenuVisible(false);
+                return;
+            }
+
+            ShowExitDialog();
         }
 
         private static void CreateCardAccent(Transform parent, Color color)
@@ -379,6 +633,7 @@ namespace Seo.UI
             root.transform.SetParent(parent, false);
             SeoUIFactory.SetRect(root.GetComponent<RectTransform>(), new Vector2(0.5f, 0.64f),
                 new Vector2(0.5f, 0.64f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(118f, 62f));
+            root.transform.localScale = Vector3.one * 1.25f;
             Color color = SeoUITheme.Current.Primary;
 
             switch (kind)
@@ -449,8 +704,8 @@ namespace Seo.UI
 
         private void BuildPowerButtons()
         {
-            string[] labels = { "발전기", "전선", "송전탑", "SAVE", "LOAD" };
-            string[] icons = { "⚡", "━", "♜", "↓", "↑" };
+            string[] labels = { "발전기", "전선", "송전탑", "저장", "불러오기", "게임 종료" };
+            string[] icons = { "⚡", "━", "♜", "↓", "↑", "×" };
             PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
                 PowerBuildMode.TransmissionTower };
             Color inactiveColor = ToolCardIdleColor;
@@ -475,14 +730,20 @@ namespace Seo.UI
                     }
                     else
                     {
-                        var save = FindFirstObjectByType<PowerSaveManager>();
-                        if (save == null) return;
                         if (captured == 3)
                         {
+                            var save = FindFirstObjectByType<PowerSaveManager>();
+                            if (save == null) return;
                             save.Save();
                             ShowToast("공장이 저장되었습니다");
                         }
-                        else ShowToast(save.Load() ? "공장을 불러왔습니다" : "저장 파일이 없습니다");
+                        else if (captured == 4)
+                        {
+                            var save = FindFirstObjectByType<PowerSaveManager>();
+                            if (save == null) return;
+                            ShowToast(save.Load() ? "공장을 불러왔습니다" : "저장 파일이 없습니다");
+                        }
+                        else ShowExitDialog();
                     }
                 }, color);
                 button.transition = Selectable.Transition.None;
@@ -789,6 +1050,18 @@ namespace Seo.UI
             powerText.text =
                 $"{warningLight}   사용 / 공급  {powerAmount} MW\n" +
                 $"가동 기계   {grid.PoweredMachineCount} / {grid.TotalMachineCount}대";
+
+            if (powerStatusButton != null)
+            {
+                var image = powerStatusButton.GetComponent<Image>();
+                if (image != null)
+                    image.color = shortage
+                        ? new Color(0.42f, 0.08f, 0.07f, 0.96f)
+                        : new Color(0.05f, 0.25f, 0.20f, 0.96f);
+                var label = powerStatusButton.GetComponentInChildren<Text>(true);
+                if (label != null) label.color = shortage
+                    ? SeoUITheme.Current.Danger : SeoUITheme.Current.Success;
+            }
         }
 
         private void UpdatePowerButtonStates()

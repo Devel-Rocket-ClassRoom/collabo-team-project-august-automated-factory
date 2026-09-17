@@ -72,13 +72,6 @@ namespace Choi.SaveLoad
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                if (Mode == PowerBuildMode.None) ClearPowerRangeSelection();
-                else SetMode(PowerBuildMode.None);
-                return;
-            }
-
             if (!TryGetPointerState(out Vector2 screenPosition, out int? pointerId,
                     out bool pressed, out bool held, out bool released))
             {

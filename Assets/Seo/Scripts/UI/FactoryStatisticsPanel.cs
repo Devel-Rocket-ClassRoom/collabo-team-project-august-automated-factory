@@ -493,14 +493,19 @@ namespace Seo.UI
                     ? RowEven : RowOdd);
             card.rectTransform.pivot = new Vector2(0f, 1f);
             MakeSolid(card, index % 2 == 0 ? RowEven : RowOdd);
-            var chip = SeoUIFactory.CreatePanel(card.transform, "Color", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(18f, 38f), resource.Color);
-            chip.rectTransform.pivot = new Vector2(0f, 0.5f);
-            chip.raycastTarget = false;
+            var iconObject = new GameObject("ResourceIcon", typeof(RectTransform), typeof(CanvasRenderer),
+                typeof(Image));
+            iconObject.transform.SetParent(card.transform, false);
+            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(16f, 0f), new Vector2(48f, 48f));
+            var icon = iconObject.GetComponent<Image>();
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            RecipeResourceIconCache.Assign(icon, resource.PrefabName, resource.Color);
             CreateText(card.transform, "Name", resource.DisplayName, 20, FontStyle.Bold,
-                new Vector2(50f, -8f), new Vector2(210f, 30f));
+                new Vector2(76f, -8f), new Vector2(184f, 30f));
             var state = CreateText(card.transform, "State", "대기", 15, FontStyle.Bold,
-                new Vector2(50f, -34f), new Vector2(210f, 22f));
+                new Vector2(76f, -34f), new Vector2(184f, 22f));
             state.color = SeoUITheme.Current.Muted;
             var rates = CreateText(card.transform, "Rates", string.Empty, 18, FontStyle.Bold,
                 new Vector2(760f, -18f), new Vector2(390f, 30f));
