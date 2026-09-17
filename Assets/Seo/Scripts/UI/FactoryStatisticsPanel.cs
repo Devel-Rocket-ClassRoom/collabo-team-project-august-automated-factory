@@ -118,15 +118,16 @@ namespace Seo.UI
             var openButton = SeoUIFactory.CreateButton(toolRail, "SeoStatisticsButton", "생산\n보고서",
                 TogglePanel);
             SeoUIFactory.SetRect(openButton.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(11f, -548f), new Vector2(110f, 122f));
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(11f, -608f), new Vector2(110f, 112f));
             var openImage = openButton.GetComponent<Image>();
-            if (openImage != null) openImage.color = new Color(0.22f, 0.4f, 0.48f, 0.82f);
+            if (openImage != null) openImage.color = new Color(0.10f, 0.18f, 0.20f, 0.92f);
+            openButton.transition = Selectable.Transition.None;
             var openLabel = openButton.GetComponentInChildren<Text>(true);
             if (openLabel != null)
             {
                 openLabel.fontSize = 13;
                 openLabel.alignment = TextAnchor.MiddleCenter;
-                openLabel.color = SeoUITheme.Current.Muted;
+                openLabel.color = Color.white;
                 SeoUIFactory.SetRect(openLabel.rectTransform, new Vector2(0.16f, 0.14f), new Vector2(0.84f, 0.43f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
@@ -135,7 +136,7 @@ namespace Seo.UI
             SeoUIFactory.SetRect(reportIcon.rectTransform, new Vector2(0.16f, 0.43f), new Vector2(0.84f, 0.84f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             // 다른 레일 버튼도 비선택 상태에서는 프레임/라벨만 흐리고 아이콘은 선명하게 유지한다.
-            reportIcon.color = SeoUITheme.Current.Text;
+            reportIcon.color = SeoUITheme.Current.Primary;
 
             var panel = SeoUIFactory.CreatePanel(parent, "FactoryStatisticsPanel", new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 820f));
