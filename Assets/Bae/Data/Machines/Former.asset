@@ -20,3 +20,34 @@ MonoBehaviour:
   gridWidth: 1
   gridHeight: 1
   prefabName: Prefab_Former
+  buildCostItems:
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - IronPlate
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot

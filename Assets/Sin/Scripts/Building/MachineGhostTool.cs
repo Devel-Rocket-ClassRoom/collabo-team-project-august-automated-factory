@@ -224,6 +224,9 @@ namespace Factory.Building
                 free = false;
             }
 
+            // 건설 비용도 미리보기에 반영 — 코어에 재료가 모자라면 자리가 비어있어도 무효(빨강)로 보여준다.
+            if (free && !HasBuildResources(selectedMachineRuntime)) free = false;
+
             lastPlacementFree = free; // Addressables 모델이 나중에 로드됐을 때 다시 칠할 기준값.
 
             // 실제 모델의 텍스처/모양은 유지하고 색조만 유효/무효 색으로 — 자식 렌더러(다중 파츠
@@ -245,6 +248,8 @@ namespace Factory.Building
             var footprint = EffectiveFootprint(runtime.Footprint, currentFacing);
             var footprintCells = GridUtility.GetFootprintCells(currentCell, footprint);
             if (!grid.IsFootprintFree(footprintCells)) return false;
+            if (!HasBuildResources(runtime)) return false;
+            DeductBuildResources(runtime);
 
             Vector3 worldPos = GridUtility.GetFootprintCenter(currentCell, footprint, 0.5f);
             Quaternion rotation = FacingToRotation(currentFacing);
@@ -311,6 +316,44 @@ namespace Factory.Building
             processor.InputBuffer = core.InputBuffer;
             processor.OutputBuffer = core.OutputBuffer;
             processor.Capacity = core.Capacity;
+        }
+
+        // 건설 비용은 코어(중앙 창고)에서 차감한다 — 미니 코어를 통해서 넣어둔 자원도 같은
+        // 배열을 보므로 그쪽으로 지어도 문제없다. Core가 아직 없으면(이론상 불가) 그냥 무료로
+        // 취급한다 — 확인할 창고 자체가 없으니 막을 이유가 없다.
+        private bool HasBuildResources(MachineRuntime runtime)
+        {
+            if (runtime.BuildCost == null || runtime.BuildCost.Length == 0) return true;
+            if (driver == null || driver.World == null) return true;
+
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return true;
+            var core = driver.World.Processors[coreIndex];
+            if (core == null) return true;
+
+            for (int i = 0; i < runtime.BuildCost.Length; i++)
+            {
+                var cost = runtime.BuildCost[i];
+                if (core.InputBuffer[cost.ResourceId] < cost.Amount) return false;
+            }
+            return true;
+        }
+
+        private void DeductBuildResources(MachineRuntime runtime)
+        {
+            if (runtime.BuildCost == null || runtime.BuildCost.Length == 0) return;
+            if (driver == null || driver.World == null) return;
+
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return;
+            var core = driver.World.Processors[coreIndex];
+            if (core == null) return;
+
+            for (int i = 0; i < runtime.BuildCost.Length; i++)
+            {
+                var cost = runtime.BuildCost[i];
+                core.InputBuffer[cost.ResourceId] -= cost.Amount;
+            }
         }
 
         private GameObject GetVisualPrefab(string machineId)

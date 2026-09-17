@@ -221,6 +221,7 @@ MonoBehaviour:
   cornerLeftPrefab: {fileID: 647577401235280781, guid: 5e2889f32d394d6468360f58e1a798ec, type: 3}
   beltSurfaceY: 0.06
   cornerScale: 1.08
+  concreteCostPerTile: 3
 --- !u!4 &20674336
 Transform:
   m_ObjectHideFlags: 0
@@ -2722,6 +2723,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Simulation.CoreSpawner
   driver: {fileID: 38120341}
   corePrefab: {fileID: 3541852005448857136, guid: c64e1bdbb94738e47ae0cfacd1189c23, type: 3}
+  debugGiveAllResources: 1
+  debugResourceAmount: 500
 --- !u!4 &1107773575
 Transform:
   m_ObjectHideFlags: 0

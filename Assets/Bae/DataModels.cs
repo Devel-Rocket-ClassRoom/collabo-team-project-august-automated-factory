@@ -34,6 +34,9 @@ namespace Bae.Data
         public int gridWidth = 1;      // 그리드 가로 칸 수 (기본값 1)
         public int gridHeight = 1;     // 그리드 세로 칸 수 (기본값 1)
         public string prefabName;      // 3D 프리팹 리소스 이름
+        // 건설 비용 — inputItems/outputItems와 같은 컨벤션(자원 id를 필요한 개수만큼 반복).
+        // 예: ["Concrete","Concrete","Concrete"] = 콘크리트 3개. 비워두면 무료로 설치 가능.
+        public List<string> buildCostItems = new List<string>();
     }
 
     [Serializable]

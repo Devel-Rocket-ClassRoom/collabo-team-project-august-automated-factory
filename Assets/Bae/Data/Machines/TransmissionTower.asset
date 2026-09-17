@@ -20,3 +20,24 @@ MonoBehaviour:
   gridWidth: 1
   gridHeight: 1
   prefabName: Prefab_TransmissionTower
+  buildCostItems:
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot

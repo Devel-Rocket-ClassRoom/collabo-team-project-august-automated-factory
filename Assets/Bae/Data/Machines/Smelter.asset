@@ -20,3 +20,34 @@ MonoBehaviour:
   gridWidth: 1
   gridHeight: 1
   prefabName: Prefab_Smelter
+  buildCostItems:
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre
+  - IronOre

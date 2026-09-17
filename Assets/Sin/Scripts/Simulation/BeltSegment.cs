@@ -12,6 +12,11 @@ namespace Factory.Simulation
         public float SpeedUnitsPerSecond = SimulationConstants.DefaultBeltSpeed;
         public float ItemSpacing = SimulationConstants.DefaultItemSpacing;
 
+        // 이 칸을 지을 때 낸 콘크리트 양(BeltDragTool.concreteCostPerTile) — 철거 시 이만큼
+        // 그대로 돌려준다(SimulationWorld.RefundBeltCost). 나중에 비용이 바뀌어도 이미 지어진
+        // 벨트는 자기가 실제로 낸 값을 기억하고 있어야 하므로 상수 참조가 아니라 값으로 저장.
+        public int ConcreteCost;
+
         // 체인의 첫 세그먼트에만 하나가 설정됨: 기계 산출물을 이 세그먼트로 실어 나른다.
         // 채굴기는 원격 전송(코어로 직배송)이라 벨트 소스가 될 수 없다 — Processor만 있음.
         public int? SourceProcessorId;

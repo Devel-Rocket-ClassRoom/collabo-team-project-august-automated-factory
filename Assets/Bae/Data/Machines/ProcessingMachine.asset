@@ -20,3 +20,34 @@ MonoBehaviour:
   gridWidth: 2
   gridHeight: 3
   prefabName: Prefab_ProcessingMachine
+  buildCostItems:
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - Gear
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - EnergyCell
+  - IronBeam
+  - IronBeam
+  - IronBeam
+  - IronBeam
+  - IronBeam

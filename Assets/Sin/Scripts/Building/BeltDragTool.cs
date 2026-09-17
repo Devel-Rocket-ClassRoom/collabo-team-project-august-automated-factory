@@ -43,6 +43,9 @@ namespace Factory.Building
         [SerializeField] private float beltSurfaceY = 0.06f;
         // 코너 Quad 를 살짝 키워 직선과의 이음새를 덮는다(1 = 그대로, 1.08 = 8% 크게).
         [SerializeField] private float cornerScale = 1.08f;
+        // 벨트 한 칸 놓는 데 드는 콘크리트(건설 비용). 기계 건설 비용(MachineGhostTool)과
+        // 같은 원리로 코어 창고에서 차감한다.
+        [SerializeField] private int concreteCostPerTile = 3;
 
         private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly List<Vector2Int> path = new List<Vector2Int>();
@@ -312,10 +315,14 @@ namespace Factory.Building
                     return; // 기존 건물뿐 아니라 발전기/송전탑 위에도 벨트를 놓지 않는다.
             }
 
+            // 새로 놓을 칸 수만큼 콘크리트를 코어에서 뗀다 — 모자라면 한 칸도 안 짓고
+            // 그대로 취소한다(반쯤 지어지는 것 방지, 기계 건설 비용과 같은 원칙).
+            if (!TryDeductBeltCost(beltCells.Count)) return;
+
             var createdSegments = new List<BeltSegment>(beltCells.Count);
             for (int i = 0; i < beltCells.Count; i++)
             {
-                createdSegments.Add(new BeltSegment { Id = driver.World.Segments.Count + i, Length = 1f });
+                createdSegments.Add(new BeltSegment { Id = driver.World.Segments.Count + i, Length = 1f, ConcreteCost = concreteCostPerTile });
             }
 
             if (startOccupied && startRole == EndpointRole.Source)
@@ -370,6 +377,27 @@ namespace Factory.Building
                 RerenderSegmentStrip(startOccupant.InstanceIndex);
             if (endOccupied && endRole == EndpointRole.Target && endOccupant.Type == CellOccupantType.Belt)
                 RerenderSegmentStrip(endOccupant.InstanceIndex);
+        }
+
+        // 기계 건설 비용(MachineGhostTool)과 같은 원칙 — 코어(중앙 창고)에서 콘크리트를 뗀다.
+        // 코어가 없거나 콘크리트 자원 자체가 정의 안 돼 있으면(이론상 불가) 그냥 무료로 둔다.
+        private bool TryDeductBeltCost(int cellCount)
+        {
+            if (concreteCostPerTile <= 0 || cellCount <= 0) return true;
+            if (driver == null || driver.World == null) return true;
+
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return true;
+            var core = driver.World.Processors[coreIndex];
+            if (core == null) return true;
+
+            if (!driver.World.Database.TryGetResourceId("Concrete", out int concreteId)) return true;
+
+            int totalCost = cellCount * concreteCostPerTile;
+            if (core.InputBuffer[concreteId] < totalCost) return false;
+
+            core.InputBuffer[concreteId] -= totalCost;
+            return true;
         }
 
         // 새 벨트 칸 없이 기존 벨트를 기존 제련로/기존 벨트에 직접 연결한다 (둘이 바로 붙어있는 경우).

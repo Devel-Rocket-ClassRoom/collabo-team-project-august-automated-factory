@@ -20,3 +20,34 @@ MonoBehaviour:
   gridWidth: 1
   gridHeight: 1
   prefabName: Prefab_Generator
+  buildCostItems:
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - IronIngot
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle
+  - CoalBundle

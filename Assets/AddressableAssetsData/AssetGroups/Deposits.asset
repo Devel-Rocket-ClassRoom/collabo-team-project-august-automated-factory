@@ -15,6 +15,11 @@ MonoBehaviour:
   m_GroupName: Deposits
   m_GUID: 7b960b805b7c43a4f83514f00cbb3083
   m_SerializeEntries:
+  - m_GUID: 079417840e96700428216dbb9143c7a9
+    m_Address: Prefab_Deposit_Concrete
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 085d69e7a3f3bba46a0e1bfc5c4af64f
     m_Address: Prefab_Deposit_UraniumOre
     m_ReadOnly: 0

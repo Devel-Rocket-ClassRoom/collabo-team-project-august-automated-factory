@@ -16,14 +16,17 @@ namespace Factory.Simulation
         // 최초 테스트용 고정 배치 몇 개(철 2군데 + 석탄, 합성기가 서로 다른 두 자원을 받는 걸
         // 확인하려고 둠). 이후 광맥은 여기 코드를 고치는 대신 OreDepositMarker를 씬에 놓는
         // 것을 권장 — 재컴파일 없이 Scene 뷰에서 바로 배치/이동 가능.
+        // 코어의 전력 범위(PowerGridSystem.CoreRangeSize=12, 코어 중심 기준 ±6칸) 안에 전부
+        // 들어오도록 배치 — 송전탑 없이도 시작부터 여섯 광맥 모두 전력이 들어온다.
         private static readonly (Vector2Int cell, string depositId)[] FixedDeposits =
         {
             (new Vector2Int(4, 3), "IronOreDeposit"),
             (new Vector2Int(-4, 3), "CoalDeposit"),
-            (new Vector2Int(-4, 5), "CopperOreDeposit"),
-            (new Vector2Int(6, 4), "GoldOreDeposit"),
-            (new Vector2Int(2, 6), "QuartzOreDeposit"),
-            (new Vector2Int(-2, 6), "UraniumOreDeposit"),
+            (new Vector2Int(-4, -3), "CopperOreDeposit"),
+            (new Vector2Int(4, -3), "GoldOreDeposit"),
+            (new Vector2Int(0, 4), "QuartzOreDeposit"),
+            (new Vector2Int(0, -4), "UraniumOreDeposit"),
+            (new Vector2Int(-4, 0), "ConcreteDeposit"),
         };
 
         private void Start()

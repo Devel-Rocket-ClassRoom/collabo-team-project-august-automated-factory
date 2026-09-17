@@ -68,6 +68,7 @@ namespace Factory.Simulation
             if (index < 0 || index >= Miners.Count || Miners[index] == null) return;
 
             RefundToCore(Miners[index].OutputResourceId, Miners[index].BufferedOutput);
+            RefundBuildCost(Miners[index].MachineId);
             Miners[index] = null;
         }
 
@@ -90,6 +91,9 @@ namespace Factory.Simulation
                 for (int r = 0; r < processor.InputBuffer.Length; r++) RefundToCore(r, processor.InputBuffer[r]);
                 for (int r = 0; r < processor.OutputBuffer.Length; r++) RefundToCore(r, processor.OutputBuffer[r]);
             }
+            // 미니 코어처럼 버퍼를 공유하는 경우도 지을 때 자기 몫의 건설 비용은 따로
+            // 냈으므로(MachineGhostTool.DeductBuildResources), 버퍼 환불 여부와 무관하게 항상 돌려준다.
+            RefundBuildCost(processor.MachineId);
             Processors[index] = null;
 
             // 이 프로세서를 참조하던 벨트 세그먼트들의 연결을 끊는다 — 안 그러면 다음 틱에
@@ -148,6 +152,7 @@ namespace Factory.Simulation
 
             var items = Segments[id].Items;
             for (int j = 0; j < items.Count; j++) RefundToCore(items[j].ResourceId, 1);
+            RefundBeltCost(Segments[id].ConcreteCost);
             Segments[id] = null;
 
             // 이 세그먼트로 흘러들던 상류 세그먼트의 연결을 끊는다(RemoveProcessor가
@@ -175,6 +180,26 @@ namespace Factory.Simulation
             var core = Processors[CoreProcessorIndex];
             if (core == null) return;
             core.InputBuffer[resourceId] = System.Math.Min(core.InputBuffer[resourceId] + amount, core.Capacity);
+        }
+
+        // 기계를 지을 때 뗀 건설 비용(MachineGhostTool.DeductBuildResources)을 철거 시 그대로
+        // 돌려준다 — 버퍼 환불(위)은 "짓고 나서 만들거나 실어나르던 재료"고, 이건 "짓는 데
+        // 자체에 든 재료"라 별개다.
+        private void RefundBuildCost(int machineId)
+        {
+            if (machineId < 0 || machineId >= Database.Machines.Count) return;
+            var cost = Database.Machines[machineId].BuildCost;
+            if (cost == null) return;
+            for (int i = 0; i < cost.Length; i++) RefundToCore(cost[i].ResourceId, cost[i].Amount);
+        }
+
+        // 벨트는 Bae님 스키마 밖의 별도 비용 체계라(BeltDragTool.concreteCostPerTile) 각
+        // 세그먼트가 자기가 지어질 때 낸 콘크리트 양을 직접 들고 있다가 철거 시 그만큼만 돌려준다.
+        private void RefundBeltCost(int concreteCost)
+        {
+            if (concreteCost <= 0) return;
+            if (!Database.TryGetResourceId("Concrete", out int concreteId)) return;
+            RefundToCore(concreteId, concreteCost);
         }
 
         public void Tick(float deltaSeconds)
