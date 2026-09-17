@@ -125,10 +125,14 @@ namespace Factory.Simulation
             var target = BeltRouting.ResolveTerminal(segment, processors, segments);
             if (target == null) return; // 막다른 벨트 -> 요청하는 대상이 없음
 
-            // 출발지와 도착지가 같은 코어인 자기 루프: 레시피를 지정받은 기계가 없는데도
-            // 코어 내용물이 계속 흘러나와 제자리를 도는 무의미한 순환이 된다(사용자가 보고).
-            // 받을 대상이 없는 것과 같으니 막다른 벨트처럼 아무것도 내주지 않는다.
-            if (ReferenceEquals(target, core)) return;
+            // 출발지와 도착지가 "같은 창고"인 자기 루프: 코어 내용물이 계속 흘러나와 제자리를
+            // 도는 무의미한 순환이 된다(사용자가 보고). 미니 코어는 메인 코어랑 다른
+            // ProcessorInstance 오브젝트라 ReferenceEquals(target, core)만으론 못 걸러진다 —
+            // 실제로는 InputBuffer 배열 자체를 공유(LinkToMainCore)하니, 그 배열이 같은지로
+            // 판정해야 "미니 코어↔메인 코어" 사이도 자기 루프로 잡힌다(실제로 겪은 버그: 다른
+            // 기계가 코어 자원을 쓰고 있을 때 미니 코어를 코어에 연결하면 그 자원이 미니
+            // 코어~코어 사이를 의미 없이 왕복 운반됨).
+            if (ReferenceEquals(target.InputBuffer, core.InputBuffer)) return;
 
             if (target.UniversalPorts)
             {
