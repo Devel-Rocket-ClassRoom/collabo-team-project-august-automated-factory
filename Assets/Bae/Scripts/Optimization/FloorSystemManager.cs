@@ -16,8 +16,10 @@ namespace Optimization
         [Header("Grid Settings (그리드 설정)")]
         public float tileSize = 1f;
         public int chunkSize = 16;
-        public int mapWidth = 2500;
-        public int mapLength = 2500;
+        public int mapWidth = 1000;
+        public int mapLength = 1000;
+        [Tooltip("현재 개방된 맵의 가로세로 길이입니다. 이 범위 밖은 어두운 색으로 표시됩니다.")]
+        public int unlockedSize = 250;
         public Vector3 globalOffset = new Vector3(0.5f, 0f, 0.5f);
 
         [Header("Performance Settings (모바일 최적화)")]
@@ -50,6 +52,7 @@ namespace Optimization
             chunkManager.chunkSize = chunkSize;
             chunkManager.mapWidth = mapWidth;
             chunkManager.mapLength = mapLength;
+            chunkManager.unlockedSize = unlockedSize;
             chunkManager.globalOffset = globalOffset;
             chunkManager.tilesPerFrame = tilesPerFrame;
 
@@ -66,6 +69,16 @@ namespace Optimization
             // Start the system
             chunkManager.Initialize(pool);
             viewportCuller.SetCullingEnabled(true);
+        }
+
+        public void SetUnlockedSize(int newSize)
+        {
+            unlockedSize = newSize;
+            if (chunkManager != null)
+            {
+                chunkManager.unlockedSize = newSize;
+                chunkManager.RefreshAllActiveChunks();
+            }
         }
     }
 }

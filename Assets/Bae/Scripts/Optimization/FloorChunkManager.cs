@@ -7,24 +7,39 @@ namespace Optimization
     public class FloorChunkManager : MonoBehaviour
     {
         [Header("Grid Settings")]
-        public int mapWidth = 2500;
-        public int mapLength = 2500;
-        public int chunkSize = 16; // Each chunk is 50x50 tiles
+        public int mapWidth = 1000;
+        public int mapLength = 1000;
+        public int chunkSize = 50; // Each chunk is 50x50 tiles
         public float tileSize = 1f;
+        public int unlockedSize = 250; // The area that is actually playable and visually lit
         public Vector3 globalOffset = new Vector3(0.5f, 0f, 0.5f);
         public int tilesPerFrame = 150;
 
         private FloorObjectPool pool;
         private HashSet<Vector2Int> loadedChunks = new HashSet<Vector2Int>();
         private Dictionary<Vector2Int, List<GameObject>> activeChunkObjects = new Dictionary<Vector2Int, List<GameObject>>();
+        private Queue<Vector2Int> chunksToLoad = new Queue<Vector2Int>();
+        private Coroutine loadCoroutine;
+
+        private Material unlockedMat;
+        private Material lockedMat;
 
         public void Initialize(FloorObjectPool pool)
         {
             this.pool = pool;
-        }
 
-        private Queue<Vector2Int> chunksToLoad = new Queue<Vector2Int>();
-        private Coroutine loadCoroutine;
+            // Setup darkened material for locked areas
+            if (pool.prefab != null)
+            {
+                Renderer r = pool.prefab.GetComponentInChildren<Renderer>();
+                if (r != null && r.sharedMaterial != null)
+                {
+                    unlockedMat = r.sharedMaterial;
+                    lockedMat = new Material(unlockedMat);
+                    lockedMat.color = new Color(0.2f, 0.2f, 0.2f, 1f); // Darkened
+                }
+            }
+        }
 
         public void LoadChunk(Vector2Int chunkCoord)
         {
@@ -72,6 +87,18 @@ namespace Optimization
 
                         Vector3 pos = new Vector3(x * tileSize - offsetX, 0, z * tileSize - offsetZ) + globalOffset;
                         GameObject piece = pool.GetObject(pos);
+                        
+                        // Apply darkened material if outside unlocked area
+                        if (unlockedMat != null && lockedMat != null)
+                        {
+                            bool isLocked = Mathf.Abs(x - mapWidth / 2) > unlockedSize / 2 || Mathf.Abs(z - mapLength / 2) > unlockedSize / 2;
+                            Renderer r = piece.GetComponentInChildren<Renderer>();
+                            if (r != null)
+                            {
+                                r.sharedMaterial = isLocked ? lockedMat : unlockedMat;
+                            }
+                        }
+
                         chunkPieces.Add(piece);
 
                         count++;
@@ -120,6 +147,33 @@ namespace Optimization
             foreach (var chunk in chunksToUnload)
             {
                 UnloadChunk(chunk);
+            }
+        }
+
+        public void RefreshAllActiveChunks()
+        {
+            if (unlockedMat == null || lockedMat == null) return;
+            
+            foreach (var kvp in activeChunkObjects)
+            {
+                foreach (GameObject piece in kvp.Value)
+                {
+                    if (piece.activeInHierarchy)
+                    {
+                        // Calculate x and z based on position
+                        float offsetX = mapWidth * tileSize / 2f;
+                        float offsetZ = mapLength * tileSize / 2f;
+                        int x = Mathf.RoundToInt((piece.transform.position.x - globalOffset.x + offsetX) / tileSize);
+                        int z = Mathf.RoundToInt((piece.transform.position.z - globalOffset.z + offsetZ) / tileSize);
+                        
+                        bool isLocked = Mathf.Abs(x - mapWidth / 2f) > unlockedSize / 2f || Mathf.Abs(z - mapLength / 2f) > unlockedSize / 2f;
+                        Renderer r = piece.GetComponentInChildren<Renderer>();
+                        if (r != null)
+                        {
+                            r.sharedMaterial = isLocked ? lockedMat : unlockedMat;
+                        }
+                    }
+                }
             }
         }
     }

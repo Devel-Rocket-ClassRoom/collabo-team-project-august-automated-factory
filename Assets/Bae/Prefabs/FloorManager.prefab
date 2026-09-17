@@ -47,6 +47,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c698d933413426c4286be491beaea104, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Bae::Optimization.FloorObjectPool
+  prefab: {fileID: 0}
 --- !u!114 &216829867835139577
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -59,10 +60,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1b72d9646e1c5a4c8939addd91ce933, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Bae::Optimization.FloorChunkManager
-  mapWidth: 2500
-  mapLength: 2500
+  mapWidth: 1000
+  mapLength: 1000
   chunkSize: 16
   tileSize: 1
+  unlockedSize: 250
   globalOffset: {x: 0.5, y: 0, z: 0.5}
   tilesPerFrame: 150
 --- !u!114 &5652805579767625690
@@ -97,8 +99,9 @@ MonoBehaviour:
   targetCamera: {fileID: 0}
   tileSize: 1
   chunkSize: 16
-  mapWidth: 2500
-  mapLength: 2500
+  mapWidth: 1000
+  mapLength: 1000
+  unlockedSize: 250
   globalOffset: {x: 0.5, y: 0, z: 0.5}
   viewRadius: 30
   updateInterval: 0.05
