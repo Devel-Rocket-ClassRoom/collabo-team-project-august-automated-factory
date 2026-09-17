@@ -127,7 +127,7 @@ namespace Factory.Building
                 HandleRightButtonPan(position, mouse.rightButton.wasPressedThisFrame, mouse.rightButton.wasReleasedThisFrame, overUI);
 
             float scroll = mouse.scroll.ReadValue().y;
-            if (CameraInputEnabled && Mathf.Abs(scroll) > 0.01f && cameraRig != null)
+            if (CameraInputEnabled && !overUI && Mathf.Abs(scroll) > 0.01f && cameraRig != null)
             {
                 // 휠 한 칸(scroll notch)은 터치 핀치 델타보다 훨씬 작은 값이라, 같은
                 // zoomSpeed를 그대로 곱하면 체감상 너무 느리다 — 휠 전용으로 크게 배율을 준다.

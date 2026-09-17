@@ -406,6 +406,15 @@ namespace Choi.SaveLoad
             return indicators.TryGetValue(key, out GameObject indicator) && indicator != null && indicator.name.EndsWith("_ON", StringComparison.Ordinal);
         }
 
+        // 정전 중에는 Processor.RecipeId가 실행 차단을 위해 -1이 되므로, 보고서 UI는
+        // 플레이어가 실제로 선택해 둔 레시피를 이 경로로 조회한다.
+        public int GetConfiguredRecipeId(ProcessorInstance processor)
+        {
+            if (processor == null) return -1;
+            return processorDesiredRecipe.TryGetValue(processor, out int recipeId)
+                ? recipeId : processor.RecipeId;
+        }
+
         public bool TryGetCorePowerCenter(out Vector2 center)
         {
             if (TryGetCore(out ProcessorInstance core))
