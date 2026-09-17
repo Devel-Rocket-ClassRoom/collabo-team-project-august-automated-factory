@@ -74,6 +74,16 @@ namespace Factory.Building
             ApplyTransform();
         }
 
+        public void FocusWorldPoint(Vector3 worldPoint)
+        {
+            if (targetCamera == null) targetCamera = Camera.main;
+            if (targetCamera == null) return;
+
+            // 카메라의 현재 각도와 줌은 유지하고, 화면 중심 피벗만 목표 위치로 옮긴다.
+            pivot = new Vector3(worldPoint.x, 0f, worldPoint.z);
+            ApplyTransform();
+        }
+
         private void ApplyTransform()
         {
             if (targetCamera == null) return;
