@@ -53,6 +53,12 @@ public static class MachineVariantGenerator
         E("Smelter",     "Prefab_Smelter",     "SM_Thermal_T1",     1),
         E("Former",      "Prefab_Former",      "SM_BioChem_T1",     1),
         E("Synthesizer", "Prefab_Synthesizer", "SM_Fusion_T1",      2),
+        // 가공기: 제련로(Thermal_T1)/성형기(BioChem_T1)/합성기(Fusion_T1)랑 같은 급(_T1)
+        // 시리즈 중 아직 안 쓴 Nuclear_T1 — 최고급 공정(60MW)에 어울리는 존재감.
+        // footprint가 3x2(비정사각형)라 이 생성기의 단일 footprint 스케일 계산으론 완벽히
+        // 안 맞을 수 있다 — 일단 큰 쪽(3) 기준으로 시작값만 잡고, 배리언트에서 직접 크기/
+        // 위치를 마저 맞춘다(다른 배리언트도 다 그렇게 하는 방식).
+        E("ProcessingMachine", "Prefab_ProcessingMachine", "SM_Nuclear_T1", 3),
         // 분류기/합류기: OZEA 원본 없이 손으로 만든 평면 Quad 배리언트를 쓴다
         // (Assets/Sin/Prefabs/Machines/Prefab_Splitter.prefab 등). OZEA 이름은 비워둠 → Setup All 이 배리언트 경로만 본다.
         E("Splitter", "Prefab_Splitter", "", 1),

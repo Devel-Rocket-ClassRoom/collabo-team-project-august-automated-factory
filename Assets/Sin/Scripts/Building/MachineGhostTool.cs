@@ -94,6 +94,13 @@ namespace Factory.Building
                 ghost = new GameObject("Ghost");
                 ghost.transform.SetParent(transform, false);
                 var placeholder = BuildVisuals.CreateBox(Vector3.zero, new Vector3(footprint.x, 1f, footprint.y), invalidColor, ghost.transform, withCollider: false);
+                // 고스트 박스는 회전 컨벤션(FacingToRotation이 기본 방향에도 90도를 먹임)을
+                // 반영 안 한 raw footprint 치수라, 정사각형이 아닌 기계는 실제 모델과 다른
+                // 비율로 잠깐 보인다("세로였다가 눕는 것처럼" 보이는 원인). 실제 모델은 어차피
+                // 금방(비동기 로드 완료 시) 덮어써서 이 박스를 대체하니, 아예 안 보이게 숨겨두고
+                // 모델이 로드되면 그때 처음 나타나게 한다 — 잘못된 비율의 박스가 눈에 띄는 것보다
+                // 아주 잠깐 아무것도 없는 게 낫다.
+                placeholder.SetActive(false);
                 var mount = ghost.AddComponent<AddressableModelMount>();
                 var capturedGhost = ghost; // 콜백이 나중에(비동기) 불릴 때 그 사이 ghost 필드가 다른 걸 가리킬 수 있으니 지금 값을 붙잡아둔다.
                 mount.Mount(addressableKey, placeholder, onLoaded: () =>
@@ -140,7 +147,29 @@ namespace Factory.Building
         public void RotateFacing()
         {
             currentFacing = new Vector2Int(-currentFacing.y, currentFacing.x);
-            if (ghost != null) ghost.transform.rotation = FacingToRotation(currentFacing);
+            if (ghost == null) return;
+
+            ghost.transform.rotation = FacingToRotation(currentFacing);
+
+            // 회전으로 footprint의 가로/세로가 바뀌면(EffectiveFootprint) 칸 중심 위치도
+            // 같이 옮겨야 한다 — 안 그러면 다음 터치/드래그가 들어올 때까지(PlaceGhostAlongRay가
+            // 다시 계산할 때까지) 옛 위치에서 그대로 회전만 해서 칸이랑 안 맞아 보인다(사용자
+            // 보고: 회전 직후엔 삐뚤어져 보이다가 손으로 옮기면 그제서야 맞아떨어짐).
+            if (hasValidCell)
+            {
+                var footprint = EffectiveFootprint(selectedMachineRuntime.Footprint, currentFacing);
+                ghost.transform.position = GridUtility.GetFootprintCenter(currentCell, footprint, 0.5f);
+            }
+        }
+
+        // Machines.json의 Footprint(가로/세로)는 "동쪽을 볼 때" 기준이다. 위/아래를 보게
+        // 회전하면 실제로 차지하는 칸도 가로/세로가 서로 바뀌어야 한다 — 안 그러면(예전
+        // 버그) 화면에 보이는 모델만 돌아가고 실제 점유 칸/포트 칸 수는 그대로 남아서,
+        // 정사각형이 아닌 기계는 방향에 따라 입출력 칸 수가 의도치 않게 달라진다(가공기
+        // 2x3에서 실제로 겪음 — 세로로 놓으면 3/3인데 가로로 돌리면 2/2가 됨).
+        private static Vector2Int EffectiveFootprint(Vector2Int baseFootprint, Vector2Int facing)
+        {
+            return facing.y != 0 ? new Vector2Int(baseFootprint.y, baseFootprint.x) : baseFootprint;
         }
 
         private static Quaternion FacingToRotation(Vector2Int facing)
@@ -182,7 +211,7 @@ namespace Factory.Building
             hasValidCell = true;
 
             ghost.SetActive(true);
-            var footprint = selectedMachineRuntime.Footprint;
+            var footprint = EffectiveFootprint(selectedMachineRuntime.Footprint, currentFacing);
             ghost.transform.position = GridUtility.GetFootprintCenter(currentCell, footprint, 0.5f);
 
             bool free = driver == null || driver.World == null
@@ -213,10 +242,11 @@ namespace Factory.Building
             if (!db.TryGetMachineId(selectedMachineId, out int machineId)) return false;
 
             var runtime = db.Machines[machineId];
-            var footprintCells = GridUtility.GetFootprintCells(currentCell, runtime.Footprint);
+            var footprint = EffectiveFootprint(runtime.Footprint, currentFacing);
+            var footprintCells = GridUtility.GetFootprintCells(currentCell, footprint);
             if (!grid.IsFootprintFree(footprintCells)) return false;
 
-            Vector3 worldPos = GridUtility.GetFootprintCenter(currentCell, runtime.Footprint, 0.5f);
+            Vector3 worldPos = GridUtility.GetFootprintCenter(currentCell, footprint, 0.5f);
             Quaternion rotation = FacingToRotation(currentFacing);
 
             if (selectedMachineId == MinerMachineId)
@@ -236,7 +266,7 @@ namespace Factory.Building
                 };
                 int index = driver.World.AddMiner(miner);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Miner, index);
-                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), runtime.PrefabName, worldPos, rotation, MachineInstanceKind.Miner, index, new Color(0.55f, 0.4f, 0.25f), runtime.Footprint);
+                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), runtime.PrefabName, worldPos, rotation, MachineInstanceKind.Miner, index, new Color(0.55f, 0.4f, 0.25f), footprint);
             }
             else
             {
@@ -249,13 +279,13 @@ namespace Factory.Building
                     RoutingRole = RoutingRoles.For(selectedMachineId),
                     Facing = currentFacing,
                     Anchor = currentCell,
-                    Footprint = runtime.Footprint,
+                    Footprint = footprint,
                 };
                 if (selectedMachineId == MiniCoreMachineId) LinkToMainCore(processor);
                 int index = driver.World.AddProcessor(processor);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Processor, index);
                 TryAutoConnectAdjacentBelts(processor, index);
-                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), runtime.PrefabName, worldPos, rotation, MachineInstanceKind.Processor, index, new Color(0.6f, 0.15f, 0.1f), runtime.Footprint);
+                SpawnMachineVisual(GetVisualPrefab(selectedMachineId), runtime.PrefabName, worldPos, rotation, MachineInstanceKind.Processor, index, new Color(0.6f, 0.15f, 0.1f), footprint);
             }
 
             CancelPlacement();
