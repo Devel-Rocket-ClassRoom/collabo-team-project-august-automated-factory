@@ -490,7 +490,10 @@ namespace Choi.SaveLoad
             for (int i = 0; i < driver.World.Processors.Count; i++)
             {
                 ProcessorInstance processor = driver.World.Processors[i];
-                if (processor == null || processor.UniversalPorts) continue;
+                // 코어와 분류기/합류기는 전력을 소비하지 않는 물류 설비다. 전력망 평가에
+                // 포함하면 실제 라우팅은 계속되는데 상태 UI만 '전력 부족'으로 표시된다.
+                if (processor == null || processor.UniversalPorts
+                    || processor.RoutingRole != RoutingRole.None) continue;
                 if (!processorBaseSpeed.ContainsKey(processor)) processorBaseSpeed[processor] = Mathf.Max(0.0001f, processor.SpeedMultiplier);
                 if (!processorDesiredRecipe.TryGetValue(processor, out int desiredRecipe))
                 {
@@ -539,7 +542,8 @@ namespace Choi.SaveLoad
             for (int i = 0; i < driver.World.Processors.Count; i++)
             {
                 ProcessorInstance processor = driver.World.Processors[i];
-                if (processor == null || processor.UniversalPorts) continue;
+                if (processor == null || processor.UniversalPorts
+                    || processor.RoutingRole != RoutingRole.None) continue;
                 processor.SpeedMultiplier = 0f;
                 processor.RecipeId = -1;
             }
