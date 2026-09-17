@@ -143,6 +143,12 @@ namespace Factory.Rendering
             if (!string.IsNullOrEmpty(prefabName))
             {
                 slot.HasModel = true;
+                // 실제 모델이 있으면 폴백(구)은 아예 안 보여준다 — 안 그러면 Addressables가
+                // 비동기로 늦게 얹히는 한두 프레임 동안 엉뚱한 구 모양이 세상에 막 나온
+                // 자원마다 잠깐씩 번쩍여서 눈에 띈다(사용자 보고 — 기계 고스트 박스 때와
+                // 같은 원인). 로드 실패 시엔 어차피 이 프레임 이후로도 안 보이는 게 낫다
+                // (틀린 색 구가 계속 떠 있는 것보단 조용히 안 보이는 편).
+                fallback.SetActive(false);
                 var mount = new GameObject("Model");
                 mount.transform.SetParent(slot.Root, false);
                 // alignToGround: false — 슬롯 루트가 이미 벨트 위 원하는 높이를 매 프레임 그대로
