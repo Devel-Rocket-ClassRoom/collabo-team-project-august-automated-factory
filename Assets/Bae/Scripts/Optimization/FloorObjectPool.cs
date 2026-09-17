@@ -5,7 +5,7 @@ namespace Optimization
 {
     public class FloorObjectPool : MonoBehaviour
     {
-        private GameObject prefab;
+        public GameObject prefab;
         private Queue<GameObject> pool = new Queue<GameObject>();
 
         public void Initialize(GameObject prefabToPool, int initialSize = 1000)
