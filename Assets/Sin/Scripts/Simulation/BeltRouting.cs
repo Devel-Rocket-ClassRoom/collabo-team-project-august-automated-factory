@@ -12,7 +12,7 @@ namespace Factory.Simulation
     public static class BeltRouting
     {
         public static bool IsRequestingConsumer(ProcessorInstance p)
-            => p != null && (p.RecipeId >= 0 || p.UniversalPorts);
+            => p != null && (p.RecipeId >= 0 || p.UniversalPorts || p.IsGeneratorFuelPort);
 
         // segment에서 NextSegmentId를 따라간 최종 목적 기계. 라우팅 노드(분류기/합류기)는 종착이
         // 아니라 통과 지점이라, 그 출력 갈래 중 "요청하는 기계"로 이어지는 갈래를 우선 따라간다

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Factory.Building;
+using Factory.Buildings;
 using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -32,6 +33,7 @@ namespace Choi.SaveLoad
         private readonly List<Vector2Int> cableDragPath = new List<Vector2Int>();
 
         private PowerGridSystem powerGrid;
+        private PowerStructureVisualCatalog visualCatalog;
         private SimulationDriver driver;
         private BuildInputRouter buildRouter;
         private MachineGhostTool machineTool;
@@ -56,6 +58,7 @@ namespace Choi.SaveLoad
         private void Awake()
         {
             powerGrid = GetComponent<PowerGridSystem>() ?? FindAnyObjectByType<PowerGridSystem>();
+            visualCatalog = Resources.Load<PowerStructureVisualCatalog>("PowerStructureVisualCatalog");
             driver = FindAnyObjectByType<SimulationDriver>();
             buildRouter = FindAnyObjectByType<BuildInputRouter>();
             machineTool = FindAnyObjectByType<MachineGhostTool>();
@@ -200,19 +203,10 @@ namespace Choi.SaveLoad
             for (int i = 0; i < powerGrid.Nodes.Count; i++)
             {
                 PowerNodeRuntime node = powerGrid.Nodes[i];
-                float height = node.Kind == PowerNodeKind.Generator ? 0.5f
-                    : node.Kind == PowerNodeKind.TransmissionTower ? 1.15f : 0.035f;
-                Vector3 center = GridUtility.CellToWorldCenter(node.Cell, height);
-
                 GameObject visual;
                 if (node.Kind == PowerNodeKind.Generator)
                 {
-                    visual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                    visual.transform.position = center;
-                    visual.transform.localScale = new Vector3(0.72f, 0.5f, 0.72f);
-                    BuildVisuals.Colorize(visual, powerGrid.IsBlackout
-                        ? new Color(0.24f, 0.12f, 0.1f)
-                        : new Color(1f, 0.62f, 0.08f));
+                    visual = CreateNodeVisual(node.Kind, node.Cell);
                 }
                 else if (node.Kind == PowerNodeKind.Cable || node.Kind == PowerNodeKind.Junction)
                 {
@@ -221,16 +215,23 @@ namespace Choi.SaveLoad
                 }
                 else
                 {
-                    visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                    visual.transform.position = center;
-                    visual.transform.localScale = new Vector3(0.42f, 1.05f, 0.42f);
-                    BuildVisuals.Colorize(visual, new Color(0.72f, 0.25f, 1f));
+                    visual = CreateNodeVisual(node.Kind, node.Cell);
                 }
 
                 if (visual != null)
                 {
-                    Destroy(visual.GetComponent<Collider>());
                     visual.name = $"PowerNode_{node.Id}_{node.Kind}";
+                    if (node.Kind == PowerNodeKind.Generator)
+                    {
+                        var effect = visual.AddComponent<GeneratorElectricArcEffect>();
+                        effect.Initialize(powerGrid, node.Id);
+                        // 기존 콜라이더는 Destroy 대기 상태일 수 있으므로 선택용은 항상 새로 만든다.
+                        var selectionCollider = visual.AddComponent<BoxCollider>();
+                        selectionCollider.center = new Vector3(0f, 0.55f, 0f);
+                        selectionCollider.size = new Vector3(0.9f, 1.1f, 0.9f);
+                        var view = visual.AddComponent<MachineView>();
+                        view.Initialize(MachineInstanceKind.Processor, node.FuelProcessorIndex, driver);
+                    }
                     visuals.Add(visual);
                 }
 
@@ -357,21 +358,55 @@ namespace Choi.SaveLoad
             Color color = valid ? new Color(0.3f, 0.9f, 0.4f, 0.85f) : new Color(0.9f, 0.2f, 0.2f, 0.85f);
             if (mode == PowerBuildMode.Generator)
             {
-                nodePlacementGhost = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                nodePlacementGhost.transform.position = GridUtility.CellToWorldCenter(pendingNodeCell, 0.5f);
-                nodePlacementGhost.transform.localScale = new Vector3(0.72f, 0.5f, 0.72f);
+                nodePlacementGhost = CreateNodeVisual(PowerNodeKind.Generator, pendingNodeCell);
             }
             else
             {
-                nodePlacementGhost = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                nodePlacementGhost.transform.position = GridUtility.CellToWorldCenter(pendingNodeCell, 1.15f);
-                nodePlacementGhost.transform.localScale = new Vector3(0.42f, 1.05f, 0.42f);
+                nodePlacementGhost = CreateNodeVisual(PowerNodeKind.TransmissionTower, pendingNodeCell);
                 ClearPlacementPreview();
                 CreateTowerRange(pendingNodeCell, placementPreview, new Color(0.35f, 0.9f, 1f));
             }
             nodePlacementGhost.name = "PowerNodePlacementGhost";
-            Destroy(nodePlacementGhost.GetComponent<Collider>());
-            BuildVisuals.Colorize(nodePlacementGhost, color);
+            RemoveColliders(nodePlacementGhost);
+            TintRenderers(nodePlacementGhost, color);
+        }
+
+        private GameObject CreateNodeVisual(PowerNodeKind kind, Vector2Int cell)
+        {
+            GameObject prefab = visualCatalog != null ? visualCatalog.GetPrefab(kind) : null;
+            if (prefab != null)
+            {
+                GameObject instance = Instantiate(prefab);
+                instance.transform.position = GridUtility.CellToWorldCenter(cell, 0f);
+                RemoveColliders(instance);
+                return instance;
+            }
+            bool generator = kind == PowerNodeKind.Generator;
+            GameObject fallback = GameObject.CreatePrimitive(generator ? PrimitiveType.Cylinder : PrimitiveType.Capsule);
+            fallback.transform.position = GridUtility.CellToWorldCenter(cell, generator ? 0.5f : 1.15f);
+            fallback.transform.localScale = generator ? new Vector3(0.72f, 0.5f, 0.72f) : new Vector3(0.42f, 1.05f, 0.42f);
+            BuildVisuals.Colorize(fallback, generator ? new Color(1f, 0.62f, 0.08f) : new Color(0.72f, 0.25f, 1f));
+            RemoveColliders(fallback);
+            return fallback;
+        }
+
+        private static void RemoveColliders(GameObject root)
+        {
+            if (root == null) return;
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++) Destroy(colliders[i]);
+        }
+
+        private static void TintRenderers(GameObject root, Color color)
+        {
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                var block = new MaterialPropertyBlock();
+                renderers[i].GetPropertyBlock(block);
+                block.SetColor("_BaseColor", color); block.SetColor("_Color", color);
+                renderers[i].SetPropertyBlock(block);
+            }
         }
 
         private bool IsNodePlacementValid(Vector2Int cell)

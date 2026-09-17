@@ -219,6 +219,7 @@ namespace Seo.UI
                 return selectedIndex < driver.World.Miners.Count && driver.World.Miners[selectedIndex] != null;
             return selectedIndex < driver.World.Processors.Count
                 && driver.World.Processors[selectedIndex] != null
+                && !driver.World.Processors[selectedIndex].IsGeneratorFuelPort
                 && selectedIndex != driver.World.CoreProcessorIndex;
         }
 
@@ -255,7 +256,7 @@ namespace Seo.UI
             if (selectedIndex < 0 || selectedIndex >= driver.World.Processors.Count) return;
 
             var processor = driver.World.Processors[selectedIndex];
-            if (processor == null || processor.UniversalPorts) return;
+            if (processor == null || processor.UniversalPorts || processor.IsGeneratorFuelPort) return;
 
             string machineKey = driver.World.Database.Machines[processor.MachineId].Key;
             machineInfoPanel.Close();

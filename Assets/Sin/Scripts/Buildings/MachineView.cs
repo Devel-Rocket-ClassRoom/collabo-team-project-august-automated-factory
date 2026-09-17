@@ -43,7 +43,7 @@ namespace Factory.Buildings
                     LogProcessorState(processor);
 
                     // 코어(UniversalPorts)는 레시피 개념이 없는 순수 저장소라 선택 UI는 안 연다.
-                    if (processor.UniversalPorts) break;
+                    if (processor.UniversalPorts || processor.IsGeneratorFuelPort) break;
 
                     var machineId = driver.World.Database.Machines[processor.MachineId].Key;
                     RecipeSelectionPanel.Instance?.Open(instanceIndex, machineId);
