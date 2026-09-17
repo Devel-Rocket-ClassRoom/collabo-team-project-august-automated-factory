@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Factory.Building;
 using Factory.Buildings;
+using Factory.Data;
 using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -49,6 +50,7 @@ namespace Choi.SaveLoad
         private bool hasPendingNodePlacement;
         private bool isDraggingNodePlacement;
         private Vector2Int pendingNodeCell;
+        private bool lastGhostValid = true;
 
         public PowerBuildMode Mode { get; private set; }
         public string LastMessage { get; private set; } = "전력 도구 대기";
@@ -75,6 +77,11 @@ namespace Choi.SaveLoad
 
         private void Update()
         {
+            // 터치/드래그 이벤트가 없어도(가만히 놓여있는 동안도) 자원 상태가 바뀔 수 있으니
+            // 매 프레임 가볍게 재확인한다 — 안 그러면 자원이 다시 채워져도 손을 한 번 더 대야
+            // 초록으로 바뀐다(HandleNodePlacementDrag는 press/드래그 이벤트가 있을 때만 돈다).
+            if (hasPendingNodePlacement) RefreshPlacementGhostValidity();
+
             if (!TryGetPointerState(out Vector2 screenPosition, out int? pointerId,
                     out bool pressed, out bool held, out bool released))
             {
@@ -257,7 +264,13 @@ namespace Choi.SaveLoad
                         LastMessage = "발전기는 빈 칸에만 놓을 수 있습니다";
                         return;
                     }
+                    if (!TryPayBuildCost("Generator"))
+                    {
+                        LastMessage = "자원이 부족합니다";
+                        return;
+                    }
                     changed = powerGrid.TryAddNode(PowerNodeKind.Generator, cell);
+                    if (!changed) RefundBuildCost("Generator"); // 놓을 자리 자체가 없었으면 뗀 자원 그대로 돌려준다.
                     LastMessage = changed ? $"발전기 설치: {cell}" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Cable:
@@ -269,11 +282,30 @@ namespace Choi.SaveLoad
                         LastMessage = "송전탑은 빈 칸에만 놓을 수 있습니다";
                         return;
                     }
+                    if (!TryPayBuildCost("TransmissionTower"))
+                    {
+                        LastMessage = "자원이 부족합니다";
+                        return;
+                    }
                     changed = powerGrid.TryAddNode(PowerNodeKind.TransmissionTower, cell);
+                    if (!changed) RefundBuildCost("TransmissionTower");
                     LastMessage = changed ? $"송전탑 설치: {cell} · 공급 범위 15x15" : "이미 전력 시설이 있는 칸입니다";
                     break;
                 case PowerBuildMode.Remove:
-                    changed = powerGrid.RemoveNode(cell) || powerGrid.RemoveConnectionAt(cell);
+                    if (powerGrid.TryGetNode(cell, out PowerNodeRuntime removedNode))
+                    {
+                        changed = powerGrid.RemoveNode(cell, out int nodeRefund);
+                        if (changed)
+                        {
+                            RefundBuildCost(NodeMachineKey(removedNode.Kind));
+                            RefundCopperWire(nodeRefund);
+                        }
+                    }
+                    else
+                    {
+                        changed = powerGrid.RemoveConnectionAt(cell, out int cableRefund);
+                        if (changed) RefundCopperWire(cableRefund);
+                    }
                     LastMessage = changed ? $"전력 시설 철거: {cell}" : "철거할 전력 시설이 없습니다";
                     break;
             }
@@ -298,7 +330,9 @@ namespace Choi.SaveLoad
             if (!HasPendingNodePlacement) return false;
             if (!IsNodePlacementValid(pendingNodeCell))
             {
-                LastMessage = "전력 시설은 비어 있는 칸에만 놓을 수 있습니다";
+                LastMessage = CanAffordBuildCost(ModeMachineKey(Mode))
+                    ? "전력 시설은 비어 있는 칸에만 놓을 수 있습니다"
+                    : "자원이 부족합니다";
                 return false;
             }
             ApplyAt(pendingNodeCell);
@@ -369,6 +403,19 @@ namespace Choi.SaveLoad
             nodePlacementGhost.name = "PowerNodePlacementGhost";
             RemoveColliders(nodePlacementGhost);
             TintRenderers(nodePlacementGhost, color);
+            lastGhostValid = valid;
+        }
+
+        // RebuildNodePlacementGhost처럼 오브젝트를 통째로 다시 만들진 않고 색만 매 프레임
+        // 다시 칠한다 — 미리보기 오브젝트 하나뿐이라 부담 없고, "바뀔 때만" 최적화를 없애서
+        // 상태 비교 로직 자체의 버그 가능성을 원천적으로 없앤다.
+        private void RefreshPlacementGhostValidity()
+        {
+            if (nodePlacementGhost == null) return;
+            bool valid = IsNodePlacementValid(pendingNodeCell);
+            lastGhostValid = valid;
+            Color color = valid ? new Color(0.3f, 0.9f, 0.4f, 0.85f) : new Color(0.9f, 0.2f, 0.2f, 0.85f);
+            TintRenderers(nodePlacementGhost, color);
         }
 
         private GameObject CreateNodeVisual(PowerNodeKind kind, Vector2Int cell)
@@ -413,11 +460,104 @@ namespace Choi.SaveLoad
         {
             if (powerGrid != null && powerGrid.IsCoreCell(cell)) return false;
             if (powerGrid != null && powerGrid.TryGetNode(cell, out _)) return false;
+            // 자원이 모자라면 칸 자체는 비어 있어도 배치 불가로 취급한다 — 일반 기계 고스트가
+            // 자원 부족 시 빨갛게 뜨는 것과 같은 시각 피드백을 여기도 맞춰준다.
+            if (!CanAffordBuildCost(ModeMachineKey(Mode))) return false;
             if (driver == null || driver.World == null) return true;
             // 광물 노드는 WorldGrid의 건물 점유와 별도 레이어지만, 색깔 있는 광맥 위에
             // 전력 시설이 겹치면 채굴기를 영원히 놓지 못하므로 배치 불가 칸으로 취급한다.
             if (driver.World.Grid.TryGetOreDeposit(cell, out _)) return false;
             return !driver.World.Grid.IsOccupied(cell);
+        }
+
+        private string ModeMachineKey(PowerBuildMode mode)
+        {
+            if (mode == PowerBuildMode.Generator) return "Generator";
+            if (mode == PowerBuildMode.TransmissionTower) return "TransmissionTower";
+            return null;
+        }
+
+        // 발전기/송전탑도 Bae님 스키마에 buildCostItems가 정의된 "기계"라 일반 기계 건설
+        // 비용(MachineGhostTool.HasBuildResources/DeductBuildResources)과 같은 원칙을 그대로
+        // 따른다 — 다만 이 둘은 MachineGhostTool이 아니라 이 컨트롤러가 직접 배치를 처리하므로
+        // (PowerGridSystem.TryAddNode), 그쪽 코드를 못 타고 비용 체크가 통째로 빠져 있었다.
+        private static string NodeMachineKey(PowerNodeKind kind)
+        {
+            if (kind == PowerNodeKind.Generator) return "Generator";
+            if (kind == PowerNodeKind.TransmissionTower) return "TransmissionTower";
+            return null;
+        }
+
+        // 실제 확인/차감/환불 계산은 BuildCostUtility(MachineGhostTool/SimulationWorld와 공유)에
+        // 맡긴다 — 예전엔 여기 따로 구현하다가 고스트 색깔 판정과 실제 설치 판정 기준이
+        // 어긋나는 버그가 났었다. 이 파일은 machineKey(문자열) → cost/core로 바꿔주는 것만 한다.
+        private bool CanAffordBuildCost(string machineKey)
+        {
+            if (!TryGetBuildCost(machineKey, out ResourceAmount[] cost, out ProcessorInstance core)) return true;
+            return BuildCostUtility.CanAfford(core, cost);
+        }
+
+        private bool TryPayBuildCost(string machineKey)
+        {
+            if (!TryGetBuildCost(machineKey, out ResourceAmount[] cost, out ProcessorInstance core)) return true;
+            return BuildCostUtility.TryPay(core, cost);
+        }
+
+        // 전선은 Bae님 스키마의 "기계"가 아니라 연결 하나당 고정 비용이라(칸 수와 무관 —
+        // 드래그 한 번에 완성되는 단일 조작이라 벨트처럼 칸당으로 셀 이유가 없다) 여기 따로
+        // 상수로 둔다. 재료는 이미 생산되는 구리선(CopperWire) 재사용 — 전선용 아이템을
+        // 새로 만들 필요 없이 바로 적용 가능해서.
+        private const int CableCopperWireCost = 10;
+
+        private bool TryPayCableCost(out int paidAmount)
+        {
+            paidAmount = 0;
+            if (driver == null || driver.World == null) return true; // 코어가 없으면 확인할 창고가 없으니 무료 취급.
+            if (!driver.World.Database.TryGetResourceId("CopperWire", out int resourceId)) return true;
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return true;
+            ProcessorInstance core = driver.World.Processors[coreIndex];
+            if (core == null) return true;
+
+            var cost = new[] { new ResourceAmount(resourceId, CableCopperWireCost) };
+            if (!BuildCostUtility.TryPay(core, cost)) return false;
+            paidAmount = CableCopperWireCost;
+            return true;
+        }
+
+        private void RefundCopperWire(int amount)
+        {
+            if (amount <= 0) return;
+            if (driver == null || driver.World == null) return;
+            if (!driver.World.Database.TryGetResourceId("CopperWire", out int resourceId)) return;
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return;
+            ProcessorInstance core = driver.World.Processors[coreIndex];
+            BuildCostUtility.Refund(core, new[] { new ResourceAmount(resourceId, amount) });
+        }
+
+        private void RefundBuildCost(string machineKey)
+        {
+            if (!TryGetBuildCost(machineKey, out ResourceAmount[] cost, out ProcessorInstance core)) return;
+            BuildCostUtility.Refund(core, cost);
+        }
+
+        // cost/core를 못 구하면(코어가 아직 없다 등) true를 돌려주지 않는 쪽(TryPayBuildCost 등)이
+        // "일단 통과시킨다"고 알아서 판단하도록, 여기서는 그냥 못 구했다는 사실만 알려준다.
+        private bool TryGetBuildCost(string machineKey, out ResourceAmount[] cost, out ProcessorInstance core)
+        {
+            cost = null;
+            core = null;
+            if (string.IsNullOrEmpty(machineKey)) return false; // 전선/분기점처럼 대응하는 기계가 없는 종류.
+            if (driver == null || driver.World == null) return false;
+            var db = driver.World.Database;
+            if (!db.TryGetMachineId(machineKey, out int machineId)) return false;
+            cost = db.Machines[machineId].BuildCost;
+            if (cost == null || cost.Length == 0) return false;
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return false;
+            core = driver.World.Processors[coreIndex];
+            return core != null;
         }
 
         private bool IsPowerStructureCell(Vector2Int cell)
@@ -454,8 +594,20 @@ namespace Choi.SaveLoad
                 for (int y = bounds.yMin; y < bounds.yMax; y++)
                 {
                     var cell = new Vector2Int(x, y);
-                    if (powerGrid.RemoveNode(cell)) changed = true;
-                    while (powerGrid.RemoveConnectionAt(cell)) changed = true;
+                    if (powerGrid.TryGetNode(cell, out PowerNodeRuntime node))
+                    {
+                        if (powerGrid.RemoveNode(cell, out int nodeRefund))
+                        {
+                            changed = true;
+                            RefundBuildCost(NodeMachineKey(node.Kind));
+                            RefundCopperWire(nodeRefund);
+                        }
+                    }
+                    while (powerGrid.RemoveConnectionAt(cell, out int cableRefund))
+                    {
+                        changed = true;
+                        RefundCopperWire(cableRefund);
+                    }
                 }
             }
             if (changed)
@@ -550,10 +702,21 @@ namespace Choi.SaveLoad
                 return;
             }
 
+            if (!TryPayCableCost(out int paidCopperWire))
+            {
+                isCableDragging = false;
+                ClearPlacementPreview();
+                cableDragPath.Clear();
+                cableStartNode = null;
+                LastMessage = "자원이 부족합니다";
+                return;
+            }
+
             List<Vector2Int> finalPath = IsGeneratorTowerPair(cableStartNode, endNode)
                 ? new List<Vector2Int> { cableStartNode.Cell, endNode.Cell }
                 : new List<Vector2Int>(cableDragPath);
-            bool installed = powerGrid.TryAddConnection(cableStartNode, endNode, finalPath);
+            bool installed = powerGrid.TryAddConnection(cableStartNode, endNode, finalPath, paidCopperWire);
+            if (!installed) RefundCopperWire(paidCopperWire); // 연결이 이미 있었던 것 등으로 무산되면 그대로 돌려준다.
 
             isCableDragging = false;
             ClearPlacementPreview();

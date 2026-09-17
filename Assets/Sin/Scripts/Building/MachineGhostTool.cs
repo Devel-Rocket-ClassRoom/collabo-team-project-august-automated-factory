@@ -214,6 +214,26 @@ namespace Factory.Building
             var footprint = EffectiveFootprint(selectedMachineRuntime.Footprint, currentFacing);
             ghost.transform.position = GridUtility.GetFootprintCenter(currentCell, footprint, 0.5f);
 
+            // 새로 만들어지거나 다른 칸으로 옮겨간 고스트라 이전 유효 상태(lastPlacementFree)와
+            // 우연히 같을 수 있으니, 여기서는 무조건 다시 칠한다(강제).
+            lastPlacementFree = !ComputeFree();
+            RecomputeValidityAndTint();
+        }
+
+        // 손을 떼고 가만히 들고 있는 동안(터치/드래그 이벤트가 없는 동안)도 코어 자원이
+        // 바뀔 수 있으니 매 프레임 재확인한다 — 안 그러면 자원이 채워져도 한 번 더 만져야
+        // (PlaceGhostAlongRay가 다시 불려야) 초록으로 바뀐다. TintPreserveShape는 슬롯마다
+        // 머티리얼을 새로 복제하는 무거운 작업이라 RecomputeValidityAndTint 쪽에서 값이
+        // 실제로 바뀔 때만 다시 칠하도록 걸러준다.
+        private void Update()
+        {
+            if (!hasValidCell || ghost == null) return;
+            RecomputeValidityAndTint();
+        }
+
+        private bool ComputeFree()
+        {
+            var footprint = EffectiveFootprint(selectedMachineRuntime.Footprint, currentFacing);
             bool free = driver == null || driver.World == null
                 || driver.World.Grid.IsFootprintFree(GridUtility.GetFootprintCells(currentCell, footprint));
 
@@ -226,7 +246,13 @@ namespace Factory.Building
 
             // 건설 비용도 미리보기에 반영 — 코어에 재료가 모자라면 자리가 비어있어도 무효(빨강)로 보여준다.
             if (free && !HasBuildResources(selectedMachineRuntime)) free = false;
+            return free;
+        }
 
+        private void RecomputeValidityAndTint()
+        {
+            bool free = ComputeFree();
+            if (free == lastPlacementFree) return; // 안 바뀌었으면 머티리얼 새로 안 만든다.
             lastPlacementFree = free; // Addressables 모델이 나중에 로드됐을 때 다시 칠할 기준값.
 
             // 실제 모델의 텍스처/모양은 유지하고 색조만 유효/무효 색으로 — 자식 렌더러(다중 파츠
@@ -320,40 +346,28 @@ namespace Factory.Building
 
         // 건설 비용은 코어(중앙 창고)에서 차감한다 — 미니 코어를 통해서 넣어둔 자원도 같은
         // 배열을 보므로 그쪽으로 지어도 문제없다. Core가 아직 없으면(이론상 불가) 그냥 무료로
-        // 취급한다 — 확인할 창고 자체가 없으니 막을 이유가 없다.
+        // 취급한다 — 확인할 창고 자체가 없으니 막을 이유가 없다. 실제 확인/차감은
+        // BuildCostUtility 공용 로직(PowerBuildController/SimulationWorld와 공유) 참고.
+        private bool TryGetCore(out ProcessorInstance core)
+        {
+            core = null;
+            if (driver == null || driver.World == null) return false;
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return false;
+            core = driver.World.Processors[coreIndex];
+            return core != null;
+        }
+
         private bool HasBuildResources(MachineRuntime runtime)
         {
-            if (runtime.BuildCost == null || runtime.BuildCost.Length == 0) return true;
-            if (driver == null || driver.World == null) return true;
-
-            int coreIndex = driver.World.CoreProcessorIndex;
-            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return true;
-            var core = driver.World.Processors[coreIndex];
-            if (core == null) return true;
-
-            for (int i = 0; i < runtime.BuildCost.Length; i++)
-            {
-                var cost = runtime.BuildCost[i];
-                if (core.InputBuffer[cost.ResourceId] < cost.Amount) return false;
-            }
-            return true;
+            if (!TryGetCore(out var core)) return true;
+            return BuildCostUtility.CanAfford(core, runtime.BuildCost);
         }
 
         private void DeductBuildResources(MachineRuntime runtime)
         {
-            if (runtime.BuildCost == null || runtime.BuildCost.Length == 0) return;
-            if (driver == null || driver.World == null) return;
-
-            int coreIndex = driver.World.CoreProcessorIndex;
-            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return;
-            var core = driver.World.Processors[coreIndex];
-            if (core == null) return;
-
-            for (int i = 0; i < runtime.BuildCost.Length; i++)
-            {
-                var cost = runtime.BuildCost[i];
-                core.InputBuffer[cost.ResourceId] -= cost.Amount;
-            }
+            if (!TryGetCore(out var core)) return;
+            BuildCostUtility.TryPay(core, runtime.BuildCost);
         }
 
         private GameObject GetVisualPrefab(string machineId)

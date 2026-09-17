@@ -182,15 +182,14 @@ namespace Factory.Simulation
             core.InputBuffer[resourceId] = System.Math.Min(core.InputBuffer[resourceId] + amount, core.Capacity);
         }
 
-        // 기계를 지을 때 뗀 건설 비용(MachineGhostTool.DeductBuildResources)을 철거 시 그대로
-        // 돌려준다 — 버퍼 환불(위)은 "짓고 나서 만들거나 실어나르던 재료"고, 이건 "짓는 데
-        // 자체에 든 재료"라 별개다.
+        // 기계를 지을 때 뗀 건설 비용(BuildCostUtility — MachineGhostTool/PowerBuildController와
+        // 공유)을 철거 시 그대로 돌려준다 — 버퍼 환불(위)은 "짓고 나서 만들거나 실어나르던
+        // 재료"고, 이건 "짓는 데 자체에 든 재료"라 별개다.
         private void RefundBuildCost(int machineId)
         {
             if (machineId < 0 || machineId >= Database.Machines.Count) return;
-            var cost = Database.Machines[machineId].BuildCost;
-            if (cost == null) return;
-            for (int i = 0; i < cost.Length; i++) RefundToCore(cost[i].ResourceId, cost[i].Amount);
+            if (CoreProcessorIndex < 0 || CoreProcessorIndex >= Processors.Count) return;
+            BuildCostUtility.Refund(Processors[CoreProcessorIndex], Database.Machines[machineId].BuildCost);
         }
 
         // 벨트는 Bae님 스키마 밖의 별도 비용 체계라(BeltDragTool.concreteCostPerTile) 각

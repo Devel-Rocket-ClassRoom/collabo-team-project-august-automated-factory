@@ -32,6 +32,11 @@ namespace Choi.SaveLoad
         public int FromNodeId;
         public int ToNodeId;
         public List<Vector2Int> Path = new List<Vector2Int>();
+
+        // 이 연결을 놓을 때 실제로 낸 구리선 양(PowerBuildController가 놓기 직전에 채워준다).
+        // 철거 시 이만큼만 그대로 돌려준다 — 나중에 단가가 바뀌어도 이미 지어진 연결은
+        // 자기가 실제로 낸 값을 기억한다(BeltSegment.ConcreteCost와 같은 원칙).
+        public int CopperWireCost;
     }
 
     /// <summary>
@@ -102,7 +107,7 @@ namespace Choi.SaveLoad
             return nodeByCell.TryGetValue(cell, out node);
         }
 
-        public bool TryAddConnection(PowerNodeRuntime from, PowerNodeRuntime to, List<Vector2Int> path)
+        public bool TryAddConnection(PowerNodeRuntime from, PowerNodeRuntime to, List<Vector2Int> path, int copperWireCost = 0)
         {
             if (from == null || to == null
                 || !nodes.Contains(from) || !nodes.Contains(to)
@@ -124,6 +129,7 @@ namespace Choi.SaveLoad
                 FromNodeId = from.Id,
                 ToNodeId = to.Id,
                 Path = NormalizePath(path, from.Cell, to.Cell),
+                CopperWireCost = copperWireCost,
             });
             evaluationTimer = 0f;
             return true;
@@ -193,35 +199,54 @@ namespace Choi.SaveLoad
             List<Vector2Int> firstPath = fullPath.GetRange(0, splitIndex + 1);
             List<Vector2Int> secondPath = fullPath.GetRange(splitIndex, fullPath.Count - splitIndex);
 
+            // 원래 연결이 낸 구리선 비용을 두 조각에 나눠서 물려준다(길이 비례) — 둘 중 하나만
+            // 나중에 철거해도 합쳐서 원래 낸 만큼만 돌아오고, 증발하거나 두 배로 돌아가지 않는다.
+            int firstCost = fullPath.Count > 1
+                ? original.CopperWireCost * splitIndex / (fullPath.Count - 1)
+                : original.CopperWireCost;
+            int secondCost = original.CopperWireCost - firstCost;
+
             connections.RemoveAt(connectionIndex);
             connections.Add(new PowerConnectionRuntime
             {
                 Id = nextConnectionId++, FromNodeId = from.Id, ToNodeId = junction.Id, Path = firstPath,
+                CopperWireCost = firstCost,
             });
             connections.Add(new PowerConnectionRuntime
             {
                 Id = nextConnectionId++, FromNodeId = junction.Id, ToNodeId = to.Id, Path = secondPath,
+                CopperWireCost = secondCost,
             });
             evaluationTimer = 0f;
             return junction;
         }
 
-        public bool RemoveNode(Vector2Int cell)
+        public bool RemoveNode(Vector2Int cell, out int refundedCopperWire)
         {
+            refundedCopperWire = 0;
             if (!nodeByCell.TryGetValue(cell, out PowerNodeRuntime node)) return false;
             nodeByCell.Remove(cell);
             RemoveGeneratorFuelPort(node);
             nodes.Remove(node);
-            connections.RemoveAll(connection => connection.FromNodeId == node.Id || connection.ToNodeId == node.Id);
+            // 이 노드에 물려 있던 전선도 같이 끊어지므로, 그만큼 낸 구리선도 잊지 말고 같이
+            // 환불한다 — 안 그러면 송전탑/발전기를 철거할 때마다 조용히 증발한다.
+            for (int i = connections.Count - 1; i >= 0; i--)
+            {
+                if (connections[i].FromNodeId != node.Id && connections[i].ToNodeId != node.Id) continue;
+                refundedCopperWire += connections[i].CopperWireCost;
+                connections.RemoveAt(i);
+            }
             evaluationTimer = 0f;
             return true;
         }
 
-        public bool RemoveConnectionAt(Vector2Int cell)
+        public bool RemoveConnectionAt(Vector2Int cell, out int refundedCopperWire)
         {
+            refundedCopperWire = 0;
             for (int i = connections.Count - 1; i >= 0; i--)
             {
                 if (!TryFindPathSegment(connections[i].Path, cell, out _)) continue;
+                refundedCopperWire = connections[i].CopperWireCost;
                 connections.RemoveAt(i);
                 RemoveUnusedJunctions();
                 evaluationTimer = 0f;
