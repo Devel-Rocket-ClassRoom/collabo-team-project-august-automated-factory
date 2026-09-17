@@ -1,5 +1,6 @@
 using System.Reflection;
 using Factory.Building;
+using Factory.Data;
 using UnityEngine;
 
 namespace Seo.UI
@@ -11,17 +12,24 @@ namespace Seo.UI
         private static readonly FieldInfo MachineIdField = typeof(MachineGhostTool).GetField("selectedMachineId", PrivateInstance);
         private static readonly FieldInfo GhostField = typeof(MachineGhostTool).GetField("ghost", PrivateInstance);
         private static readonly FieldInfo FacingField = typeof(MachineGhostTool).GetField("currentFacing", PrivateInstance);
+        private static readonly FieldInfo RuntimeField = typeof(MachineGhostTool).GetField("selectedMachineRuntime", PrivateInstance);
 
         public static bool TryRead(MachineGhostTool tool, out GhostSelection selection)
         {
             selection = default;
-            if (tool == null || MachineIdField == null || GhostField == null || FacingField == null) return false;
+            if (tool == null || MachineIdField == null || GhostField == null || FacingField == null
+                || RuntimeField == null) return false;
 
             string machineId = MachineIdField.GetValue(tool) as string;
             var ghost = GhostField.GetValue(tool) as GameObject;
             if (string.IsNullOrEmpty(machineId) || ghost == null || !ghost.activeInHierarchy) return false;
 
-            selection = new GhostSelection(machineId, ghost, (Vector2Int)FacingField.GetValue(tool));
+            Vector2Int facing = (Vector2Int)FacingField.GetValue(tool);
+            var runtime = (MachineRuntime)RuntimeField.GetValue(tool);
+            Vector2Int footprint = facing.y != 0
+                ? new Vector2Int(runtime.Footprint.y, runtime.Footprint.x)
+                : runtime.Footprint;
+            selection = new GhostSelection(machineId, ghost, facing, footprint);
             return true;
         }
     }
@@ -31,12 +39,14 @@ namespace Seo.UI
         public readonly string MachineId;
         public readonly GameObject Ghost;
         public readonly Vector2Int Facing;
+        public readonly Vector2Int Footprint;
 
-        public GhostSelection(string machineId, GameObject ghost, Vector2Int facing)
+        public GhostSelection(string machineId, GameObject ghost, Vector2Int facing, Vector2Int footprint)
         {
             MachineId = machineId;
             Ghost = ghost;
             Facing = facing;
+            Footprint = footprint;
         }
     }
 }

@@ -459,11 +459,15 @@ namespace Seo.UI
             powerPage = CreatePage(dock.transform, "PowerPage");
             systemPage = CreatePage(dock.transform, "SystemPage");
 
+            EnsureRuntimeMachineButton("PaletteButton_ProcessingMachine", "가공기", "ProcessingMachine");
+
             MovePaletteButton("PaletteButton_Miner", productionPage.transform, 0, "⛏");
             MovePaletteButton("PaletteButton_Smelter", productionPage.transform, 1, string.Empty, null, "smelter");
             MovePaletteButton("PaletteButton_Former", productionPage.transform, 2, string.Empty, null, "former");
             MovePaletteButton("PaletteButton_Synthesizer", productionPage.transform, 3, string.Empty, null,
                 "synthesizer");
+            MovePaletteButton("PaletteButton_ProcessingMachine", productionPage.transform, 4, string.Empty, null,
+                "processing");
 
             // 물류 설비는 방향 하나만 그려서는 역할을 구분하기 어렵다. 실제 흐름 형태를
             // 축약한 도식으로 표시한다: 직선 / 1→3 분기 / 3→1 합류 / 저장 코어.
@@ -558,6 +562,21 @@ namespace Seo.UI
             LayoutToolCard(go, index, icon, diagramKind);
         }
 
+        private void EnsureRuntimeMachineButton(string objectName, string label, string machineId)
+        {
+            if (GameObject.Find(objectName) != null) return;
+            var button = SeoUIFactory.CreateButton(safeRoot, objectName, label, () =>
+            {
+                if (machineTool == null) machineTool = FindFirstObjectByType<MachineGhostTool>();
+                if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+                if (machineTool == null || buildRouter == null) return;
+                machineTool.SelectMachine(machineId);
+                buildRouter.SetMode(BuildInputRouter.Mode.PlaceMachine);
+                pendingPlacementMachineId = machineId;
+            });
+            button.gameObject.name = objectName;
+        }
+
         private static void LayoutToolCard(GameObject go, int index, string icon, string diagramKind = null)
         {
             int column = index % 2;
@@ -632,6 +651,15 @@ namespace Seo.UI
                     CreateDiagramLine(root.transform, new Vector2(-14f, -16f), new Vector2(-14f, 16f), 5f, color);
                     CreateDiagramBlock(root.transform, Vector2.zero, new Vector2(12f, 12f), color);
                     CreateDiagramArrow(root.transform, new Vector2(16f, 0f), new Vector2(48f, 0f), color);
+                    break;
+                case "processing":
+                    CreateDiagramArrow(root.transform, new Vector2(-48f, 0f), new Vector2(-22f, 0f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-22f, 23f), new Vector2(22f, 23f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(22f, 23f), new Vector2(22f, -23f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(22f, -23f), new Vector2(-22f, -23f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-22f, -23f), new Vector2(-22f, 23f), 5f, color);
+                    CreateDiagramBlock(root.transform, Vector2.zero, new Vector2(17f, 17f), color);
+                    CreateDiagramArrow(root.transform, new Vector2(22f, 0f), new Vector2(49f, 0f), color);
                     break;
                 case "belt":
                     CreateDiagramLine(root.transform, new Vector2(-45f, 15f), new Vector2(25f, 15f), 4f, color);
