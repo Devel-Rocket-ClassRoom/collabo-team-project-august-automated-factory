@@ -125,6 +125,8 @@ namespace Choi.SaveLoad
                     footprint = ToData(processor.Footprint),
                     universalPorts = processor.UniversalPorts,
                     routingCursor = processor.RoutingCursor,
+                    generatorFuelPort = processor.IsGeneratorFuelPort,
+                    ownerPowerNodeId = processor.OwnerPowerNodeId,
                     isProcessing = processor.IsProcessing,
                     progress = processor.Progress,
                     capacity = processor.Capacity,
@@ -260,7 +262,14 @@ namespace Choi.SaveLoad
                     IsProcessing = saved.isProcessing,
                     Progress = saved.progress,
                     Capacity = saved.capacity,
+                    IsGeneratorFuelPort = saved.generatorFuelPort,
+                    OwnerPowerNodeId = saved.ownerPowerNodeId,
                 };
+                if (processor.IsGeneratorFuelPort)
+                {
+                    world.Database.TryGetResourceId("Coal", out processor.CoalResourceId);
+                    world.Database.TryGetResourceId("HighCapacityBattery", out processor.BatteryResourceId);
+                }
                 RestoreStacks(processor.InputBuffer, saved.input, world);
                 RestoreStacks(processor.OutputBuffer, saved.output, world);
 
@@ -272,7 +281,7 @@ namespace Choi.SaveLoad
                 {
                     RebindCoreVisual(coreVisual, processor.Anchor, processor.Footprint, processor.Facing, index);
                 }
-                else
+                else if (!processor.IsGeneratorFuelPort)
                 {
                     SpawnMachineVisual(world, saved.machineKey, processor.Anchor, processor.Footprint, processor.Facing,
                         MachineInstanceKind.Processor, index, isCore);

@@ -20,6 +20,10 @@ namespace Choi.SaveLoad
         public int Id;
         public PowerNodeKind Kind;
         public Vector2Int Cell;
+        public int FuelProcessorIndex = -1;
+        public float FuelSecondsRemaining;
+        public int ActiveFuelResourceId = -1;
+        public bool IsGenerating;
     }
 
     public sealed class PowerConnectionRuntime
@@ -37,7 +41,10 @@ namespace Choi.SaveLoad
     [DefaultExecutionOrder(-100)]
     public sealed class PowerGridSystem : MonoBehaviour
     {
-        public const int GeneratorOutput = 120;
+        public const int GeneratorOutput = 30;
+        public const int GeneratorFuelCapacity = 60;
+        public const float CoalBurnSeconds = 10f;
+        public const float BatteryBurnSeconds = 60f;
         public const int CoreOutput = 100;
         public const int CoreRangeSize = 12;
 
@@ -71,6 +78,7 @@ namespace Choi.SaveLoad
 
         private void Update()
         {
+            TickGeneratorFuel(Time.deltaTime);
             evaluationTimer -= Time.unscaledDeltaTime;
             if (evaluationTimer > 0f) return;
             evaluationTimer = 0.2f;
@@ -84,6 +92,7 @@ namespace Choi.SaveLoad
             var node = new PowerNodeRuntime { Id = nextNodeId++, Kind = kind, Cell = cell };
             nodes.Add(node);
             nodeByCell[cell] = node;
+            if (kind == PowerNodeKind.Generator) CreateGeneratorFuelPort(node);
             evaluationTimer = 0f;
             return true;
         }
@@ -201,6 +210,7 @@ namespace Choi.SaveLoad
         {
             if (!nodeByCell.TryGetValue(cell, out PowerNodeRuntime node)) return false;
             nodeByCell.Remove(cell);
+            RemoveGeneratorFuelPort(node);
             nodes.Remove(node);
             connections.RemoveAll(connection => connection.FromNodeId == node.Id || connection.ToNodeId == node.Id);
             evaluationTimer = 0f;
@@ -265,6 +275,90 @@ namespace Choi.SaveLoad
             return result;
         }
 
+        public bool IsGeneratorActive(int nodeId)
+        {
+            PowerNodeRuntime node = FindNodeById(nodeId);
+            return node != null && node.Kind == PowerNodeKind.Generator && node.IsGenerating;
+        }
+
+        private void CreateGeneratorFuelPort(PowerNodeRuntime node)
+        {
+            if (node == null || node.Kind != PowerNodeKind.Generator) return;
+            if (driver == null) driver = FindAnyObjectByType<SimulationDriver>();
+            if (driver == null || driver.World == null) return;
+            SimulationWorld world = driver.World;
+            if (!world.Database.TryGetMachineId("Generator", out int machineId)
+                || !world.Database.TryGetResourceId("Coal", out int coalId)
+                || !world.Database.TryGetResourceId("HighCapacityBattery", out int batteryId)) return;
+            var port = new ProcessorInstance(world.Database.ResourceCount)
+            {
+                MachineId = machineId, RecipeId = -1, Anchor = node.Cell, Footprint = Vector2Int.one,
+                Facing = Vector2Int.right, Capacity = GeneratorFuelCapacity, IsGeneratorFuelPort = true,
+                OwnerPowerNodeId = node.Id, CoalResourceId = coalId, BatteryResourceId = batteryId,
+            };
+            node.FuelProcessorIndex = world.AddProcessor(port);
+            world.Grid.RegisterBuilding(node.Cell, CellOccupantType.Processor, node.FuelProcessorIndex);
+        }
+
+        private void BindGeneratorFuelPort(PowerNodeRuntime node)
+        {
+            if (node == null || node.Kind != PowerNodeKind.Generator) return;
+            if (driver == null) driver = FindAnyObjectByType<SimulationDriver>();
+            if (driver == null || driver.World == null) return;
+            for (int i = 0; i < driver.World.Processors.Count; i++)
+            {
+                ProcessorInstance p = driver.World.Processors[i];
+                if (p == null || !p.IsGeneratorFuelPort || p.OwnerPowerNodeId != node.Id) continue;
+                node.FuelProcessorIndex = i;
+                return;
+            }
+            CreateGeneratorFuelPort(node);
+        }
+
+        private void RemoveGeneratorFuelPort(PowerNodeRuntime node)
+        {
+            if (node == null || node.FuelProcessorIndex < 0) return;
+            if (driver == null) driver = FindAnyObjectByType<SimulationDriver>();
+            if (driver == null || driver.World == null) return;
+            driver.World.Grid.UnregisterOccupant(CellOccupantType.Processor, node.FuelProcessorIndex);
+            driver.World.RemoveProcessor(node.FuelProcessorIndex);
+            node.FuelProcessorIndex = -1;
+        }
+
+        private void TickGeneratorFuel(float deltaSeconds)
+        {
+            if (driver == null) driver = FindAnyObjectByType<SimulationDriver>();
+            if (driver == null || driver.World == null) return;
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                PowerNodeRuntime node = nodes[i];
+                if (node.Kind != PowerNodeKind.Generator) continue;
+                if (node.FuelProcessorIndex < 0) BindGeneratorFuelPort(node);
+                ProcessorInstance port = node.FuelProcessorIndex >= 0 && node.FuelProcessorIndex < driver.World.Processors.Count
+                    ? driver.World.Processors[node.FuelProcessorIndex] : null;
+                if (port == null) { node.IsGenerating = false; continue; }
+                if (node.FuelSecondsRemaining > 0f)
+                    node.FuelSecondsRemaining = Mathf.Max(0f, node.FuelSecondsRemaining - Mathf.Max(0f, deltaSeconds));
+                if (node.FuelSecondsRemaining <= 0f)
+                {
+                    node.ActiveFuelResourceId = -1;
+                    if (port.CoalResourceId >= 0 && port.InputBuffer[port.CoalResourceId] > 0)
+                    {
+                        port.InputBuffer[port.CoalResourceId]--;
+                        node.ActiveFuelResourceId = port.CoalResourceId;
+                        node.FuelSecondsRemaining = CoalBurnSeconds;
+                    }
+                    else if (port.BatteryResourceId >= 0 && port.InputBuffer[port.BatteryResourceId] > 0)
+                    {
+                        port.InputBuffer[port.BatteryResourceId]--;
+                        node.ActiveFuelResourceId = port.BatteryResourceId;
+                        node.FuelSecondsRemaining = BatteryBurnSeconds;
+                    }
+                }
+                node.IsGenerating = node.FuelSecondsRemaining > 0f;
+            }
+        }
+
         public void ReplaceNodes(List<PowerNodeData> savedNodes)
         {
             nodes.Clear();
@@ -287,7 +381,10 @@ namespace Choi.SaveLoad
                         Id = saved.id,
                         Kind = (PowerNodeKind)saved.kind,
                         Cell = cell,
+                        FuelSecondsRemaining = Mathf.Max(0f, saved.fuelSecondsRemaining),
+                        ActiveFuelResourceId = saved.activeFuelResourceId,
                     };
+                    BindGeneratorFuelPort(node);
                     nodes.Add(node);
                     nodeByCell[cell] = node;
                     nextNodeId = Mathf.Max(nextNodeId, node.Id + 1);
@@ -333,6 +430,8 @@ namespace Choi.SaveLoad
                     id = nodes[i].Id,
                     kind = (int)nodes[i].Kind,
                     cell = new Int2Data(nodes[i].Cell.x, nodes[i].Cell.y),
+                    fuelSecondsRemaining = nodes[i].FuelSecondsRemaining,
+                    activeFuelResourceId = nodes[i].ActiveFuelResourceId,
                 });
             }
             return result;
@@ -492,7 +591,7 @@ namespace Choi.SaveLoad
                 ProcessorInstance processor = driver.World.Processors[i];
                 // 코어와 분류기/합류기는 전력을 소비하지 않는 물류 설비다. 전력망 평가에
                 // 포함하면 실제 라우팅은 계속되는데 상태 UI만 '전력 부족'으로 표시된다.
-                if (processor == null || processor.UniversalPorts
+                if (processor == null || processor.UniversalPorts || processor.IsGeneratorFuelPort
                     || processor.RoutingRole != RoutingRole.None) continue;
                 if (!processorBaseSpeed.ContainsKey(processor)) processorBaseSpeed[processor] = Mathf.Max(0.0001f, processor.SpeedMultiplier);
                 if (!processorDesiredRecipe.TryGetValue(processor, out int desiredRecipe))
@@ -542,7 +641,7 @@ namespace Choi.SaveLoad
             for (int i = 0; i < driver.World.Processors.Count; i++)
             {
                 ProcessorInstance processor = driver.World.Processors[i];
-                if (processor == null || processor.UniversalPorts
+                if (processor == null || processor.UniversalPorts || processor.IsGeneratorFuelPort
                     || processor.RoutingRole != RoutingRole.None) continue;
                 processor.SpeedMultiplier = 0f;
                 processor.RecipeId = -1;
@@ -588,7 +687,7 @@ namespace Choi.SaveLoad
                     int nodeId = queue.Dequeue();
                     PowerNodeRuntime node = FindNodeById(nodeId);
                     if (node == null) continue;
-                    if (node.Kind == PowerNodeKind.Generator) capacity += GeneratorOutput;
+                    if (node.Kind == PowerNodeKind.Generator && node.IsGenerating) capacity += GeneratorOutput;
 
                     List<int> adjacent = neighbors[nodeId];
                     for (int d = 0; d < adjacent.Count; d++)

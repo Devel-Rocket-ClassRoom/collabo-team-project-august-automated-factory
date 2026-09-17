@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Factory.Buildings;
 using Factory.Data;
 using Factory.Simulation;
+using Choi.SaveLoad;
 using UnityEngine;
 
 namespace Seo.UI
@@ -43,6 +44,7 @@ namespace Seo.UI
                 case "Splitter": return "분류기";
                 case "Merger": return "합류기";
                 case "Core": return "코어";
+                case "Generator": return "발전기";
                 default: return string.IsNullOrEmpty(machineKey) ? "기계" : machineKey;
             }
         }
@@ -58,6 +60,7 @@ namespace Seo.UI
                 case "Splitter": return new Color(0.96f, 0.72f, 0.16f);
                 case "Merger": return new Color(0.45f, 0.78f, 0.32f);
                 case "Core": return new Color(0.32f, 0.58f, 0.78f);
+                case "Generator": return new Color(0.18f, 0.88f, 1f);
                 default: return new Color(0.35f, 0.75f, 0.45f);
             }
         }
@@ -100,6 +103,29 @@ namespace Seo.UI
             var machine = db.Machines[processor.MachineId];
             string title = GetMachineDisplayName(world, processor.MachineId);
             Color accent = GetMachineColor(machine.Key);
+
+            if (processor.IsGeneratorFuelPort)
+            {
+                int coal = processor.CoalResourceId >= 0 ? processor.InputBuffer[processor.CoalResourceId] : 0;
+                int battery = processor.BatteryResourceId >= 0 ? processor.InputBuffer[processor.BatteryResourceId] : 0;
+                int stored = coal + battery;
+                PowerNodeRuntime node = FindPowerNode(processor.OwnerPowerNodeId);
+                bool active = node != null && node.IsGenerating;
+                float remaining = node != null ? node.FuelSecondsRemaining : 0f;
+                float duration = node != null && node.ActiveFuelResourceId == processor.BatteryResourceId
+                    ? PowerGridSystem.BatteryBurnSeconds : PowerGridSystem.CoalBurnSeconds;
+                string fuel = !active ? "없음" : node.ActiveFuelResourceId == processor.BatteryResourceId ? "고용량 배터리" : "석탄";
+                data = new MachineInfoViewData(
+                    title, active ? "발전 중" : "연료 대기", "연료 발전 · 30 MW",
+                    active ? "발전 출력 · 30 MW" : "발전 출력 · 0 MW",
+                    $"연료 저장소\n석탄 {coal}개\n고용량 배터리 {battery}개",
+                    "전력 공급\n송전망 연결 시 30 MW",
+                    active ? $"{fuel} 연소 · {remaining:0.0}초 남음" : "연료를 벨트로 투입하세요",
+                    $"저장 용량 {stored} / {processor.Capacity} · 사방 입력 가능",
+                    active ? remaining / Mathf.Max(0.01f, duration) : (float)stored / Mathf.Max(1, processor.Capacity),
+                    false, accent);
+                return true;
+            }
 
             if (processor.UniversalPorts)
             {
@@ -204,6 +230,14 @@ namespace Seo.UI
             }
 
             return "가동 준비";
+        }
+
+        private static PowerNodeRuntime FindPowerNode(int nodeId)
+        {
+            PowerGridSystem grid = Object.FindFirstObjectByType<PowerGridSystem>();
+            if (grid == null) return null;
+            for (int i = 0; i < grid.Nodes.Count; i++) if (grid.Nodes[i].Id == nodeId) return grid.Nodes[i];
+            return null;
         }
 
         private static string FormatRequirements(

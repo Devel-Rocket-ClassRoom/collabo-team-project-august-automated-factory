@@ -178,6 +178,12 @@ namespace Factory.Building
                 {
                     var processor = driver.World.Processors[occupant.InstanceIndex];
 
+                    if (processor.IsGeneratorFuelPort)
+                    {
+                        isFixed = true;
+                        return EndpointRole.Target;
+                    }
+
                     if (processor.RoutingRole != RoutingRole.None)
                     {
                         isFixed = true;

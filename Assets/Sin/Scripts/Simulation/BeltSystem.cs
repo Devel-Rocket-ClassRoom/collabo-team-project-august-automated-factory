@@ -162,6 +162,16 @@ namespace Factory.Simulation
                 return;
             }
 
+            if (target.IsGeneratorFuelPort)
+            {
+                int fuelId = target.CoalResourceId >= 0 && core.InputBuffer[target.CoalResourceId] > 0
+                    ? target.CoalResourceId : target.BatteryResourceId;
+                if (fuelId < 0 || fuelId >= core.InputBuffer.Length || core.InputBuffer[fuelId] <= 0) return;
+                core.InputBuffer[fuelId]--;
+                segment.Items.Insert(0, new BeltItem(fuelId, 0f));
+                return;
+            }
+
             if (target.RecipeId < 0) return; // 아직 레시피 미지정 -> 뭐가 필요한지 모르니 안 줌
 
             // 전력 없으면 코어도 미리 내주지 않는다 — 여기서 안 막으면, 기계 자체는 (TryHandOff가
@@ -301,7 +311,8 @@ namespace Factory.Simulation
             if (segment.TargetProcessorId.HasValue)
             {
                 var processor = processors[segment.TargetProcessorId.Value];
-                bool isRegularMachine = !processor.UniversalPorts && processor.RoutingRole == RoutingRole.None;
+                bool isRegularMachine = !processor.UniversalPorts && !processor.IsGeneratorFuelPort
+                    && processor.RoutingRole == RoutingRole.None;
                 if (isRegularMachine)
                 {
                     // 레시피가 없는 기계 = 아무것도 요청하지 않았다. 벨트가 여기로 밀어넣으면
