@@ -103,6 +103,45 @@ namespace Factory.Simulation
             }
         }
 
+        // 처리 도중 레시피를 바꿀 때 호출(RecipeSelectionPanel). 기계는 안 지우고, 안에 남아있던
+        // 입출력 재료만 코어로 돌려보내고 진행 중이던 사이클을 리셋한다 — 안 그러면 옛 레시피
+        // 재료가 남아있는 채로 새 레시피가 섞이거나, 사이클이 반쯤 진행된 채 얼어붙는다
+        // (사용자 보고: 석탄다발 만들다 구리로 바꾸면 새 재료는 들어오는데 안에서 뒤엉킴).
+        //
+        // 나가는 벨트의 "담당 자원 잠금"도 같이 풀어준다 — 안 그러면 예전 산출물(석탄다발)로
+        // 굳어있던 라인이 그 자원이 더는 안 나오는데도 계속 그것만 기다리느라, 새 레시피
+        // 산출물(구리괴)이 버퍼에 쌓여도 절대 안 실어나른다(제조는 되는데 출력이 안 나가는
+        // 버그의 원인). 들어오는 벨트(코어→기계) 쪽은 BeltSystem.LoadFromCore가 대상의
+        // RecipeId 변화를 이미 스스로 감지해서 다시 잠그므로 여기서 안 건드려도 된다.
+        public void FlushProcessorBuffers(int index)
+        {
+            if (index < 0 || index >= Processors.Count || Processors[index] == null) return;
+            var processor = Processors[index];
+
+            for (int r = 0; r < processor.InputBuffer.Length; r++)
+            {
+                RefundToCore(r, processor.InputBuffer[r]);
+                processor.InputBuffer[r] = 0;
+            }
+            for (int r = 0; r < processor.OutputBuffer.Length; r++)
+            {
+                RefundToCore(r, processor.OutputBuffer[r]);
+                processor.OutputBuffer[r] = 0;
+            }
+            processor.IsProcessing = false;
+            processor.Progress = 0f;
+            processor.ActiveRecipeId = -1;
+
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                var segment = Segments[i];
+                if (segment != null && segment.SourceProcessorId == index)
+                {
+                    segment.LockedSourceResourceId = null;
+                }
+            }
+        }
+
         public void RemoveSegment(int id)
         {
             if (id < 0 || id >= Segments.Count || Segments[id] == null) return;
