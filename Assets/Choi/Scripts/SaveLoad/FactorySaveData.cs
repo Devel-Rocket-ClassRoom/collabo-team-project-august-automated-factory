@@ -49,6 +49,7 @@ namespace Choi.SaveLoad
         public int routingCursor;
         public bool generatorFuelPort;
         public int ownerPowerNodeId = -1;
+        public string selectedFuelKey;
         public List<ResourceStackData> input = new List<ResourceStackData>();
         public List<ResourceStackData> output = new List<ResourceStackData>();
     }

@@ -115,15 +115,17 @@ namespace Seo.UI
                 float duration = node != null && node.ActiveFuelResourceId == processor.BatteryResourceId
                     ? PowerGridSystem.BatteryBurnSeconds : PowerGridSystem.CoalBurnSeconds;
                 string fuel = !active ? "없음" : node.ActiveFuelResourceId == processor.BatteryResourceId ? "고용량 배터리" : "석탄";
+                string selectedFuel = processor.SelectedFuelResourceId == processor.BatteryResourceId
+                    ? "고용량 배터리" : processor.SelectedFuelResourceId == processor.CoalResourceId ? "석탄" : "미지정";
                 data = new MachineInfoViewData(
-                    title, active ? "발전 중" : "연료 대기", "연료 발전 · 30 MW",
+                    title, active ? "발전 중" : "연료 대기", $"선택 연료 · {selectedFuel}",
                     active ? "발전 출력 · 30 MW" : "발전 출력 · 0 MW",
                     $"연료 저장소\n석탄 {coal}개\n고용량 배터리 {battery}개",
                     "전력 공급\n송전망 연결 시 30 MW",
                     active ? $"{fuel} 연소 · {remaining:0.0}초 남음" : "연료를 벨트로 투입하세요",
                     $"저장 용량 {stored} / {processor.Capacity} · 사방 입력 가능",
                     active ? remaining / Mathf.Max(0.01f, duration) : (float)stored / Mathf.Max(1, processor.Capacity),
-                    false, accent);
+                    true, accent);
                 return true;
             }
 

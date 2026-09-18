@@ -146,6 +146,26 @@ namespace Factory.Simulation
             }
         }
 
+        public void FlushGeneratorFuel(int index)
+        {
+            if (index < 0 || index >= Processors.Count || Processors[index] == null) return;
+            ProcessorInstance processor = Processors[index];
+            FlushProcessorBuffers(index);
+
+            // 선택을 바꿀 때 발전기로 이동 중이던 이전 연료도 코어로 되돌린다.
+            for (int i = 0; i < Segments.Count; i++)
+            {
+                BeltSegment segment = Segments[i];
+                if (segment == null
+                    || !ReferenceEquals(BeltRouting.ResolveTerminal(segment, Processors, Segments), processor)) continue;
+                for (int n = 0; n < segment.Items.Count; n++)
+                    RefundToCore(segment.Items[n].ResourceId, 1);
+                segment.Items.Clear();
+                segment.LockedSourceResourceId = null;
+                segment.LockedForRecipeId = -1;
+            }
+        }
+
         public void RemoveSegment(int id)
         {
             if (id < 0 || id >= Segments.Count || Segments[id] == null) return;

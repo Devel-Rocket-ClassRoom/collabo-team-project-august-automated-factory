@@ -44,6 +44,20 @@ namespace Factory.UI
             if (panelRoot != null) panelRoot.SetActive(true);
         }
 
+        public void OpenGenerator(int processorIndex)
+        {
+            if (driver == null || driver.World == null || processorIndex < 0
+                || processorIndex >= driver.World.Processors.Count) return;
+            ProcessorInstance processor = driver.World.Processors[processorIndex];
+            if (processor == null || !processor.IsGeneratorFuelPort) return;
+
+            targetProcessorIndex = processorIndex;
+            ClearButtons();
+            CreateFuelButton(processor.CoalResourceId, "석탄");
+            CreateFuelButton(processor.BatteryResourceId, "고용량 배터리");
+            if (panelRoot != null) panelRoot.SetActive(true);
+        }
+
         public void Close()
         {
             if (panelRoot != null) panelRoot.SetActive(false);
@@ -74,6 +88,47 @@ namespace Factory.UI
 
             go.GetComponent<Button>().onClick.AddListener(() => SelectRecipe(recipeId));
             spawnedButtons.Add(go);
+        }
+
+        private void CreateFuelButton(int resourceId, string label)
+        {
+            if (resourceId < 0) return;
+            var go = new GameObject($"Fuel_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(buttonContainer, false);
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 90f);
+            go.GetComponent<Image>().color = new Color(0.25f, 0.25f, 0.25f, 0.95f);
+
+            var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            textGO.transform.SetParent(go.transform, false);
+            var rt = textGO.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            var text = textGO.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            text.fontSize = 28;
+            text.text = label;
+
+            go.GetComponent<Button>().onClick.AddListener(() => SelectFuel(resourceId));
+            spawnedButtons.Add(go);
+        }
+
+        private void SelectFuel(int resourceId)
+        {
+            if (targetProcessorIndex >= 0 && targetProcessorIndex < driver.World.Processors.Count)
+            {
+                ProcessorInstance processor = driver.World.Processors[targetProcessorIndex];
+                if (processor != null && processor.IsGeneratorFuelPort
+                    && processor.SelectedFuelResourceId != resourceId)
+                {
+                    driver.World.FlushGeneratorFuel(targetProcessorIndex);
+                    processor.SelectedFuelResourceId = resourceId;
+                }
+            }
+            Close();
         }
 
         private void SelectRecipe(int recipeId)
