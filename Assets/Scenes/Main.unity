@@ -4128,27 +4128,27 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 216829867835139577, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: mapWidth
-      value: 1000
+      value: 400
       objectReference: {fileID: 0}
     - target: {fileID: 216829867835139577, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: mapLength
-      value: 1000
+      value: 400
       objectReference: {fileID: 0}
     - target: {fileID: 216829867835139577, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: unlockedSize
-      value: 250
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 565824309404624601, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: mapWidth
-      value: 1000
+      value: 400
       objectReference: {fileID: 0}
     - target: {fileID: 565824309404624601, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: mapLength
-      value: 1000
+      value: 400
       objectReference: {fileID: 0}
     - target: {fileID: 565824309404624601, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: unlockedSize
-      value: 250
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 1765348994154033862, guid: 5db404bfd89767a4ea06ea80f4a47eeb, type: 3}
       propertyPath: m_LocalPosition.x
