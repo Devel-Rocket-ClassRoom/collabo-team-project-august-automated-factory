@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Factory.Data;
 using Factory.Rendering;
 using Factory.Simulation;
 using UnityEngine;
@@ -16,7 +17,10 @@ namespace Factory.Building
         public static Func<IReadOnlyList<Vector2Int>, bool> PathPermission { get; set; }
         // 전력 시설처럼 WorldGrid 밖에서 관리되는 오브젝트의 점유 판정 확장점.
         public static Func<Vector2Int, bool> ExternalCellBlocked { get; set; }
-        private enum EndpointRole
+        // Seo님의 BeltConnectionFeedback이 자기만의 판정을 새로 만드는 대신 이 타입/메서드들을
+        // 그대로 가져다 쓴다 — 판정 로직이 두 곳에 따로 있으면 한쪽만 고쳤을 때 어긋나는
+        // 버그가 난다(이미 두 번 겪음: 미리보기 색 깜빡임, 자원 부족 미반영).
+        public enum EndpointRole
         {
             None,
             Source,
@@ -133,7 +137,9 @@ namespace Factory.Building
             }
         }
 
-        private bool HasValidEndpointPreview()
+        // Seo님의 BeltConnectionFeedback이 자기 UI 판정 뒤에 "자원은 충분한지" 마지막 게이트로
+        // 그대로 불러쓴다 — 별도로 다시 구현하면 판정이 어긋나는 버그가 또 나기 때문에 공개함.
+        public bool HasValidEndpointPreview()
         {
             if (driver == null || driver.World == null || path.Count < 2) return false;
             if (TouchesGeneratorFromInvalidSide()) return false;
@@ -166,12 +172,16 @@ namespace Factory.Building
             {
                 if (grid.IsOccupied(path[i]) || (ExternalCellBlocked?.Invoke(path[i]) ?? false)) return false;
             }
+
+            // 실제로 새로 놓일 칸 수만큼 콘크리트가 있는지도 미리보기에 반영 — 기계 고스트가
+            // 자원 부족 시 빨갛게 뜨는 것과 같은 원칙(BuildCostUtility 공용 로직).
+            if (!CanAffordBeltCost(final - first + 1)) return false;
             return true;
         }
 
         // 발전기 연료 포트는 본체의 한 면만 유효하다. 드래그 경로가 발전기 본체를
         // 밟을 때, 실제 포트 셀이 아닌 면에서 들어오거나 나가면 미리보기부터 거부한다.
-        private bool TouchesGeneratorFromInvalidSide()
+        public bool TouchesGeneratorFromInvalidSide()
         {
             for (int p = 0; p < driver.World.Processors.Count; p++)
             {
@@ -244,7 +254,7 @@ namespace Factory.Building
         // isFixed: true면 포트 방향(Facing)만으로 확정된 값이라 절대 안 바뀐다(채굴기/제련로).
         // false면 코어/벨트처럼 "어느 쪽에 이어붙이느냐"로만 정해지는 값이라, 반대쪽이 고정
         // 역할을 가지고 있으면 그걸 보고 나중에 뒤집힐 수 있다(둘 다 같은 역할로 겹치는 것 방지).
-        private EndpointRole ResolveEndpointRole(CellOccupant occupant, Vector2Int touchingCell, bool isStart, out bool isFixed)
+        public EndpointRole ResolveEndpointRole(CellOccupant occupant, Vector2Int touchingCell, bool isStart, out bool isFixed)
         {
             switch (occupant.Type)
             {
@@ -313,7 +323,7 @@ namespace Factory.Building
             }
         }
 
-        private static EndpointRole Opposite(EndpointRole role) => role == EndpointRole.Source ? EndpointRole.Target : EndpointRole.Source;
+        public static EndpointRole Opposite(EndpointRole role) => role == EndpointRole.Source ? EndpointRole.Target : EndpointRole.Source;
 
         private void Commit()
         {
@@ -457,25 +467,37 @@ namespace Factory.Building
                 RerenderSegmentStrip(endOccupant.InstanceIndex);
         }
 
-        // 기계 건설 비용(MachineGhostTool)과 같은 원칙 — 코어(중앙 창고)에서 콘크리트를 뗀다.
-        // 코어가 없거나 콘크리트 자원 자체가 정의 안 돼 있으면(이론상 불가) 그냥 무료로 둔다.
-        private bool TryDeductBeltCost(int cellCount)
+        // 기계 건설 비용(MachineGhostTool/PowerBuildController)과 같은 원칙 — 확인/차감은
+        // BuildCostUtility 공용 로직에 맡기고, 여기는 "칸 수 → 콘크리트 비용"으로 바꿔주는
+        // 것만 한다(둘이 따로 구현하면 판정이 어긋나는 버그가 났었다 — 전력 쪽 참고).
+        private bool TryGetBeltCost(int cellCount, out ResourceAmount[] cost, out ProcessorInstance core)
         {
-            if (concreteCostPerTile <= 0 || cellCount <= 0) return true;
-            if (driver == null || driver.World == null) return true;
+            cost = null;
+            core = null;
+            if (concreteCostPerTile <= 0 || cellCount <= 0) return false;
+            if (driver == null || driver.World == null) return false;
 
             int coreIndex = driver.World.CoreProcessorIndex;
-            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return true;
-            var core = driver.World.Processors[coreIndex];
-            if (core == null) return true;
+            if (coreIndex < 0 || coreIndex >= driver.World.Processors.Count) return false;
+            core = driver.World.Processors[coreIndex];
+            if (core == null) return false;
 
-            if (!driver.World.Database.TryGetResourceId("Concrete", out int concreteId)) return true;
-
-            int totalCost = cellCount * concreteCostPerTile;
-            if (core.InputBuffer[concreteId] < totalCost) return false;
-
-            core.InputBuffer[concreteId] -= totalCost;
+            if (!driver.World.Database.TryGetResourceId("Concrete", out int concreteId)) return false;
+            cost = new[] { new ResourceAmount(concreteId, cellCount * concreteCostPerTile) };
             return true;
+        }
+
+        // 미리보기에서 매번 불러도 부작용 없이 "지금 이 칸 수만큼 지을 여유가 있는지"만 본다.
+        private bool CanAffordBeltCost(int cellCount)
+        {
+            if (!TryGetBeltCost(cellCount, out var cost, out var core)) return true;
+            return BuildCostUtility.CanAfford(core, cost);
+        }
+
+        private bool TryDeductBeltCost(int cellCount)
+        {
+            if (!TryGetBeltCost(cellCount, out var cost, out var core)) return true;
+            return BuildCostUtility.TryPay(core, cost);
         }
 
         // 새 벨트 칸 없이 기존 벨트를 기존 제련로/기존 벨트에 직접 연결한다 (둘이 바로 붙어있는 경우).
