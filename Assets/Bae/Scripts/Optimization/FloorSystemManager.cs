@@ -32,6 +32,12 @@ namespace Optimization
         private FloorChunkManager chunkManager;
         private FloorViewportCuller viewportCuller;
 
+        private void Awake()
+        {
+            // 모바일 배터리/발열 관리를 위해 30프레임 고정
+            Application.targetFrameRate = 30;
+        }
+
         private void Start()
         {
             if (floorPrefab == null)
