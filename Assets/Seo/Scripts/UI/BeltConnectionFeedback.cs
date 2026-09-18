@@ -132,13 +132,26 @@ namespace Seo.UI
 
             var grid = driver.World.Grid;
             Vector2Int startCell = path[0];
-            bool startOccupied = grid.IsOccupied(startCell);
-            ShowBadge(ref startBadge, startCell, "시작", startOccupied ? SeoUITheme.Current.Primary : SeoUITheme.Current.Danger);
+            bool startOnBuilding = grid.TryGetOccupant(startCell, out var startOccupant);
 
-            if (!startOccupied)
+            // 아직 방향을 모를 수 있는(1칸) 상태에서는 "이 칸 자체나 그 근처에 뭐라도
+            // 있는지"만 빠르게 훑어 배지/문구를 정한다 — 진짜 역할 판정은 path.Count>=2가
+            // 보장된 뒤 실제 드래그 방향으로 다시 한다(아래). BeltDragTool의 판정을 그대로
+            // 물어본다 — 자기 나름으로 grid.IsOccupied만 보면 옆칸 자동연결이 가능한데도
+            // UI만 "빈 공간이라 불가"로 잘못 뜨는 불일치가 난다(실제로 한 번 이렇게 어긋났었다).
+            bool startHasAnchor = startOnBuilding;
+            if (!startHasAnchor && beltTool != null)
+            {
+                Vector2Int fromCell = path.Count >= 2 ? path[1] : startCell;
+                startHasAnchor = beltTool.TryFindAdjacentOccupant(startCell, fromCell, true, out _, out _, out _, out _);
+            }
+
+            ShowBadge(ref startBadge, startCell, "시작", startHasAnchor ? SeoUITheme.Current.Primary : SeoUITheme.Current.Danger);
+
+            if (!startHasAnchor)
             {
                 HideBadge(ref endBadge);
-                SetMessage("연결 불가 · 빈 공간에서는 벨트를 시작할 수 없습니다", SeoUITheme.Current.Danger);
+                SetMessage("연결 불가 · 빈 공간(근처에 연결 가능한 기계도 없음)에서는 벨트를 시작할 수 없습니다", SeoUITheme.Current.Danger);
                 return;
             }
 
@@ -158,14 +171,27 @@ namespace Seo.UI
                 return;
             }
 
-            grid.TryGetOccupant(startCell, out var startOccupant);
-            PortRole startRole = beltTool.ResolveEndpointRole(startOccupant, path[1], true, out bool startFixed);
+            // 여기부턴 path.Count>=2가 보장되니, 실제 드래그 방향(path[1])으로 최종 역할을
+            // 확정한다 — 위 startHasAnchor 판정은 1칸일 때 sentinel로 대충 봤을 수 있다.
+            PortRole startRole;
+            bool startFixed;
+            if (startOnBuilding)
+            {
+                startRole = beltTool.ResolveEndpointRole(startOccupant, path[1], true, out startFixed);
+            }
+            else
+            {
+                beltTool.TryFindAdjacentOccupant(startCell, path[1], true, out startOccupant, out startRole, out startFixed, out _);
+            }
+
             UpdateBadge(startBadge, startRole == PortRole.None ? "연결 불가" : "시작",
                 startRole == PortRole.None ? SeoUITheme.Current.Danger : RoleColor(startRole));
 
             if (startRole == PortRole.None)
             {
-                SetMessage(InvalidEndpointReason(startOccupant, true), SeoUITheme.Current.Danger);
+                SetMessage(startOnBuilding
+                    ? InvalidEndpointReason(startOccupant, true)
+                    : "연결 불가 · 옆 기계의 유효한 입출력 면이 아닙니다", SeoUITheme.Current.Danger);
                 HideBadge(ref endBadge);
                 return;
             }
@@ -178,44 +204,56 @@ namespace Seo.UI
                 return;
             }
 
+            // 시작과 대칭 — 끝도 그 칸에 직접 닿았는지(endOnBuilding)와 연결 대상을
+            // 찾았는지(endResolved, 직접 닿았거나 바로 옆칸 자동연결 둘 다 포함)를 구분한다.
+            // 예전엔 "그 칸 자체가 비어있으면" 무조건 "아직 드래그 중" 취급하고 끝냈는데,
+            // 그러면 옆칸 자동연결로 실제로는 연결되는 경우도 계속 "출력에서 경로 생성 중"
+            // 경고색만 뜨고 "연결 가능" 성공 상태로 절대 못 넘어갔다(사용자 보고: 실제로는
+            // 이어지는데 미리보기가 안 보여줌).
             Vector2Int endCell = path[path.Count - 1];
-            bool endOccupied = grid.IsOccupied(endCell);
+            bool endOnBuilding = grid.TryGetOccupant(endCell, out var endOccupant);
             PortRole endRole = PortRole.None;
             bool endFixed = false;
-            CellOccupant endOccupant = default;
+            bool endResolved = false;
 
-            if (endOccupied)
+            if (endOnBuilding)
             {
-                grid.TryGetOccupant(endCell, out endOccupant);
                 endRole = beltTool.ResolveEndpointRole(endOccupant, path[path.Count - 2], false, out endFixed);
-                ShowBadge(ref endBadge, endCell,
-                    endRole == PortRole.None ? "연결 불가" : "도착",
-                    endRole == PortRole.None ? SeoUITheme.Current.Danger : RoleColor(endRole));
+                endResolved = endRole != PortRole.None;
+            }
+            else if (beltTool.TryFindAdjacentOccupant(endCell, path[path.Count - 2], false, out endOccupant, out endRole, out endFixed, out _))
+            {
+                endResolved = true;
+            }
 
-                if (endRole == PortRole.None)
-                {
-                    SetMessage(InvalidEndpointReason(endOccupant, false), SeoUITheme.Current.Danger);
-                    return;
-                }
-
-                if (startRole == endRole)
-                {
-                    if (!startFixed && endFixed) startRole = BeltDragTool.Opposite(endRole);
-                    else if (startFixed && !endFixed) endRole = BeltDragTool.Opposite(startRole);
-                    else
-                    {
-                        SetMessage(startRole == PortRole.Source
-                            ? "연결 불가 · 출력 포트끼리는 연결할 수 없습니다"
-                            : "연결 불가 · 입력 포트끼리는 연결할 수 없습니다", SeoUITheme.Current.Danger);
-                        UpdateBadge(startBadge, "연결 불가", SeoUITheme.Current.Danger);
-                        UpdateBadge(endBadge, "연결 불가", SeoUITheme.Current.Danger);
-                        return;
-                    }
-                }
+            if (endResolved)
+            {
+                ShowBadge(ref endBadge, endCell, "도착", RoleColor(endRole));
+            }
+            else if (endOnBuilding)
+            {
+                ShowBadge(ref endBadge, endCell, "연결 불가", SeoUITheme.Current.Danger);
+                SetMessage(InvalidEndpointReason(endOccupant, false), SeoUITheme.Current.Danger);
+                return;
             }
             else
             {
                 ShowBadge(ref endBadge, endCell, "도착", SeoUITheme.Current.Warning);
+            }
+
+            if (endResolved && startRole == endRole)
+            {
+                if (!startFixed && endFixed) startRole = BeltDragTool.Opposite(endRole);
+                else if (startFixed && !endFixed) endRole = BeltDragTool.Opposite(startRole);
+                else
+                {
+                    SetMessage(startRole == PortRole.Source
+                        ? "연결 불가 · 출력 포트끼리는 연결할 수 없습니다"
+                        : "연결 불가 · 입력 포트끼리는 연결할 수 없습니다", SeoUITheme.Current.Danger);
+                    UpdateBadge(startBadge, "연결 불가", SeoUITheme.Current.Danger);
+                    UpdateBadge(endBadge, "연결 불가", SeoUITheme.Current.Danger);
+                    return;
+                }
             }
 
             if (startOccupant.Type == CellOccupantType.Belt && startRole == PortRole.Source)
@@ -229,10 +267,11 @@ namespace Seo.UI
                 }
             }
 
-            if (!endOccupied)
+            if (!endResolved)
             {
-                // 아직 목적지에 안 닿았어도(빈 땅 위) 지금 그린 칸만큼 자원이 있는지는 미리
-                // 보여준다 — BeltDragTool의 판정을 그대로 물어봐서 중복 구현 없이 확인.
+                // 아직 목적지를 못 찾았어도(빈 땅 위, 근처에도 유효 포트 없음) 지금 그린
+                // 칸만큼 자원이 있는지는 미리 보여준다 — BeltDragTool의 판정을 그대로
+                // 물어봐서 중복 구현 없이 확인.
                 if (startRole == PortRole.Source && beltTool != null && !beltTool.HasValidEndpointPreview())
                 {
                     SetMessage("자원 부족 · 콘크리트가 모자랍니다", SeoUITheme.Current.Danger);
