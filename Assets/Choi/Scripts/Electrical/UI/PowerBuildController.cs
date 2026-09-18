@@ -51,6 +51,7 @@ namespace Choi.SaveLoad
         private bool isDraggingNodePlacement;
         private Vector2Int pendingNodeCell;
         private bool lastGhostValid = true;
+        private Vector2Int generatorFacing = Vector2Int.right;
 
         public PowerBuildMode Mode { get; private set; }
         public string LastMessage { get; private set; } = "전력 도구 대기";
@@ -213,7 +214,7 @@ namespace Choi.SaveLoad
                 GameObject visual;
                 if (node.Kind == PowerNodeKind.Generator)
                 {
-                    visual = CreateNodeVisual(node.Kind, node.Cell);
+                    visual = CreateNodeVisual(node.Kind, node.Cell, node.Facing);
                 }
                 else if (node.Kind == PowerNodeKind.Cable || node.Kind == PowerNodeKind.Junction)
                 {
@@ -269,7 +270,7 @@ namespace Choi.SaveLoad
                         LastMessage = "자원이 부족합니다";
                         return;
                     }
-                    changed = powerGrid.TryAddNode(PowerNodeKind.Generator, cell);
+                    changed = powerGrid.TryAddNode(PowerNodeKind.Generator, cell, generatorFacing);
                     if (!changed) RefundBuildCost("Generator"); // 놓을 자리 자체가 없었으면 뗀 자원 그대로 돌려준다.
                     LastMessage = changed ? $"발전기 설치: {cell}" : "이미 전력 시설이 있는 칸입니다";
                     break;
@@ -339,6 +340,16 @@ namespace Choi.SaveLoad
             return true;
         }
 
+        // 기존 회전 버튼이 발전기 배치 중에도 같은 동작을 호출할 수 있도록 공개한다.
+        public bool RotateGeneratorFacing()
+        {
+            if (Mode != PowerBuildMode.Generator) return false;
+            generatorFacing = new Vector2Int(-generatorFacing.y, generatorFacing.x);
+            RebuildNodePlacementGhost(Mode);
+            LastMessage = "발전기 연료 입력 방향 변경";
+            return true;
+        }
+
         private void BeginNodePlacement(PowerBuildMode mode)
         {
             if (targetCamera == null) targetCamera = Camera.main;
@@ -392,7 +403,8 @@ namespace Choi.SaveLoad
             Color color = valid ? new Color(0.3f, 0.9f, 0.4f, 0.85f) : new Color(0.9f, 0.2f, 0.2f, 0.85f);
             if (mode == PowerBuildMode.Generator)
             {
-                nodePlacementGhost = CreateNodeVisual(PowerNodeKind.Generator, pendingNodeCell);
+                nodePlacementGhost = CreateNodeVisual(PowerNodeKind.Generator, pendingNodeCell, generatorFacing);
+                AddGeneratorGhostInputIndicator(nodePlacementGhost);
             }
             else
             {
@@ -418,13 +430,19 @@ namespace Choi.SaveLoad
             TintRenderers(nodePlacementGhost, color);
         }
 
-        private GameObject CreateNodeVisual(PowerNodeKind kind, Vector2Int cell)
+        private GameObject CreateNodeVisual(PowerNodeKind kind, Vector2Int cell, Vector2Int facing = default)
         {
             GameObject prefab = visualCatalog != null ? visualCatalog.GetPrefab(kind) : null;
             if (prefab != null)
             {
                 GameObject instance = Instantiate(prefab);
                 instance.transform.position = GridUtility.CellToWorldCenter(cell, 0f);
+                if (kind == PowerNodeKind.Generator)
+                {
+                    if (facing == Vector2Int.zero) facing = Vector2Int.right;
+                    instance.transform.rotation = Quaternion.LookRotation(new Vector3(facing.x, 0f, facing.y), Vector3.up);
+                    RemoveOutputIndicators(instance);
+                }
                 RemoveColliders(instance);
                 return instance;
             }
@@ -435,6 +453,41 @@ namespace Choi.SaveLoad
             BuildVisuals.Colorize(fallback, generator ? new Color(1f, 0.62f, 0.08f) : new Color(0.72f, 0.25f, 1f));
             RemoveColliders(fallback);
             return fallback;
+        }
+
+        private static void RemoveOutputIndicators(GameObject root)
+        {
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child != root.transform && child.name.ToLowerInvariant().Contains("output")) Destroy(child.gameObject);
+            }
+        }
+
+        private static void AddGeneratorGhostInputIndicator(GameObject root)
+        {
+            var badge = new GameObject("GeneratorGhostInput", typeof(RectTransform), typeof(Canvas), typeof(UnityEngine.UI.Image));
+            badge.transform.SetParent(root.transform, false);
+            badge.transform.localPosition = Vector3.back * 0.72f + Vector3.up * 0.16f;
+            badge.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            // 월드 캔버스의 픽셀 크기를 그대로 월드 단위로 쓰면 화면을 덮는다.
+            badge.transform.localScale = Vector3.one * 0.0065f;
+            var canvas = badge.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 40;
+            badge.GetComponent<RectTransform>().sizeDelta = new Vector2(42f, 42f);
+            badge.GetComponent<UnityEngine.UI.Image>().color = new Color(0.03f, 0.55f, 0.75f, 0.92f);
+
+            var label = new GameObject("Arrow", typeof(RectTransform), typeof(UnityEngine.UI.Text));
+            label.transform.SetParent(badge.transform, false);
+            var text = label.GetComponent<UnityEngine.UI.Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // 고스트의 기본 회전에서 입력 포트가 위쪽에 있으므로, 흐름은 기기 쪽(아래)을 향한다.
+            // 캔버스가 고스트 회전을 상속하므로 이 기준 화살표도 회전할 때 함께 올바르게 돈다.
+            text.text = "▲"; text.fontSize = 34; text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter; text.color = Color.white;
+            label.GetComponent<RectTransform>().anchorMin = Vector2.zero;
+            label.GetComponent<RectTransform>().anchorMax = Vector2.one;
+            label.GetComponent<RectTransform>().offsetMin = label.GetComponent<RectTransform>().offsetMax = Vector2.zero;
         }
 
         private static void RemoveColliders(GameObject root)

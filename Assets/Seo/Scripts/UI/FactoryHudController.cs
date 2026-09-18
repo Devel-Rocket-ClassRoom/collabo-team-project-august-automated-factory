@@ -836,6 +836,8 @@ namespace Seo.UI
             bar.rectTransform.pivot = new Vector2(0.5f, 0f);
 
             rotateButton = MoveActionButton("RotateButton", bar.transform, -232f);
+            var rotateLabel = rotateButton != null ? rotateButton.GetComponentInChildren<Text>(true) : null;
+            if (rotateLabel != null) rotateLabel.text = "회전";
             confirmButton = MoveActionButton("ConfirmButton", bar.transform, 0f);
             demolishConfirmButton = MoveActionButton("DemolishConfirmButton", bar.transform, 116f, SeoUITheme.Current.Danger);
             var confirmAction = confirmButton != null ? confirmButton.GetComponent<Button>() : null;
@@ -1079,12 +1081,19 @@ namespace Seo.UI
             bool placingMiner = placingMachine && machineTool != null && machineTool.SelectedMachineId == "Miner";
             var powerController = FindFirstObjectByType<PowerBuildController>();
             bool placingPower = powerController != null && powerController.HasPendingNodePlacement;
+            bool placingGenerator = placingPower && powerController.Mode == PowerBuildMode.Generator;
 
-            if (rotateButton != null) rotateButton.SetActive(placingMachine && !placingMiner);
+            // 발전기도 단일 연료 입력 방향을 정해야 하므로, 고스트를 놓는 동안 같은 회전
+            // 버튼을 노출한다. RotatePlacementButton이 발전기 모드에서는 전력 도구로 전달한다.
+            if (rotateButton != null)
+            {
+                rotateButton.SetActive((placingMachine && !placingMiner) || placingGenerator);
+                SetActionButtonX(rotateButton, -232f);
+            }
             if (confirmButton != null)
             {
                 confirmButton.SetActive(placingMachine || placingPower);
-                SetActionButtonX(confirmButton, placingMiner || placingPower ? -116f : 0f);
+                SetActionButtonX(confirmButton, placingMiner || (placingPower && !placingGenerator) ? -116f : 0f);
             }
             if (demolishConfirmButton != null)
             {
@@ -1095,7 +1104,7 @@ namespace Seo.UI
             {
                 cancelButton.SetActive(mode != BuildInputRouter.Mode.None || placingPower);
                 float x = placingMachine ? (placingMiner ? 116f : 232f)
-                    : placingPower ? 116f : mode == BuildInputRouter.Mode.Demolish ? -116f : 0f;
+                    : placingGenerator ? 232f : placingPower ? 116f : mode == BuildInputRouter.Mode.Demolish ? -116f : 0f;
                 SetActionButtonX(cancelButton, x);
             }
 

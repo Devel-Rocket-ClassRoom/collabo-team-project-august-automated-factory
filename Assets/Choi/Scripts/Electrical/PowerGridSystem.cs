@@ -21,6 +21,8 @@ namespace Choi.SaveLoad
         public PowerNodeKind Kind;
         public Vector2Int Cell;
         public int FuelProcessorIndex = -1;
+        // 발전기는 연료를 받는 면 하나만 가진다. Facing의 반대편이 입력 포트다.
+        public Vector2Int Facing = Vector2Int.right;
         public float FuelSecondsRemaining;
         public int ActiveFuelResourceId = -1;
         public bool IsGenerating;
@@ -90,11 +92,12 @@ namespace Choi.SaveLoad
             EvaluatePower();
         }
 
-        public bool TryAddNode(PowerNodeKind kind, Vector2Int cell)
+        public bool TryAddNode(PowerNodeKind kind, Vector2Int cell, Vector2Int facing = default)
         {
             if (kind == PowerNodeKind.Cable || nodeByCell.ContainsKey(cell)) return false;
 
-            var node = new PowerNodeRuntime { Id = nextNodeId++, Kind = kind, Cell = cell };
+            if (facing == Vector2Int.zero) facing = Vector2Int.right;
+            var node = new PowerNodeRuntime { Id = nextNodeId++, Kind = kind, Cell = cell, Facing = facing };
             nodes.Add(node);
             nodeByCell[cell] = node;
             if (kind == PowerNodeKind.Generator) CreateGeneratorFuelPort(node);
@@ -318,7 +321,7 @@ namespace Choi.SaveLoad
             var port = new ProcessorInstance(world.Database.ResourceCount)
             {
                 MachineId = machineId, RecipeId = -1, Anchor = node.Cell, Footprint = Vector2Int.one,
-                Facing = Vector2Int.right, Capacity = GeneratorFuelCapacity, IsGeneratorFuelPort = true,
+                Facing = node.Facing, Capacity = GeneratorFuelCapacity, IsGeneratorFuelPort = true,
                 OwnerPowerNodeId = node.Id, CoalResourceId = coalId, BatteryResourceId = batteryId,
             };
             node.FuelProcessorIndex = world.AddProcessor(port);
@@ -335,6 +338,7 @@ namespace Choi.SaveLoad
                 ProcessorInstance p = driver.World.Processors[i];
                 if (p == null || !p.IsGeneratorFuelPort || p.OwnerPowerNodeId != node.Id) continue;
                 node.FuelProcessorIndex = i;
+                p.Facing = node.Facing;
                 return;
             }
             CreateGeneratorFuelPort(node);
@@ -406,6 +410,8 @@ namespace Choi.SaveLoad
                         Id = saved.id,
                         Kind = (PowerNodeKind)saved.kind,
                         Cell = cell,
+                        Facing = saved.facing.x == 0 && saved.facing.y == 0
+                            ? Vector2Int.right : new Vector2Int(saved.facing.x, saved.facing.y),
                         FuelSecondsRemaining = Mathf.Max(0f, saved.fuelSecondsRemaining),
                         ActiveFuelResourceId = saved.activeFuelResourceId,
                     };
@@ -455,6 +461,7 @@ namespace Choi.SaveLoad
                     id = nodes[i].Id,
                     kind = (int)nodes[i].Kind,
                     cell = new Int2Data(nodes[i].Cell.x, nodes[i].Cell.y),
+                    facing = new Int2Data(nodes[i].Facing.x, nodes[i].Facing.y),
                     fuelSecondsRemaining = nodes[i].FuelSecondsRemaining,
                     activeFuelResourceId = nodes[i].ActiveFuelResourceId,
                 });

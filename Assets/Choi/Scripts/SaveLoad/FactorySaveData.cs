@@ -71,6 +71,7 @@ namespace Choi.SaveLoad
         public string lockedResourceKey;
         public string lockedRecipeKey;
         public Int2Data cell;
+        public Int2Data facing;
         public Vector3Data start;
         public Vector3Data end;
         public List<BeltItemProgressData> items = new List<BeltItemProgressData>();
@@ -96,6 +97,7 @@ namespace Choi.SaveLoad
         public int id;
         public int kind;
         public Int2Data cell;
+        public Int2Data facing;
         public float fuelSecondsRemaining;
         public int activeFuelResourceId = -1;
     }

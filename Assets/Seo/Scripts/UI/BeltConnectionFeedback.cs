@@ -267,6 +267,16 @@ namespace Seo.UI
             var processor = driver.World.Processors[occupant.InstanceIndex];
             if (processor == null) return PortRole.None;
 
+            // 발전기는 연료 입력만 받는다. 이 UI가 일반 기계의 출력 포트 규칙을 적용하면
+            // 실제 설치는 거부되는데도 "연결 가능"과 초록색으로 덮어쓰게 된다.
+            if (processor.IsGeneratorFuelPort)
+            {
+                fixedRole = true;
+                return GridUtility.GetPortCells(processor.Anchor, processor.Footprint,
+                    processor.Facing, false).Contains(touchingCell)
+                    ? PortRole.Target : PortRole.None;
+            }
+
             if (processor.RoutingRole != RoutingRole.None)
             {
                 fixedRole = true;
