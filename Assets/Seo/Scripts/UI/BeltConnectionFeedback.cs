@@ -4,15 +4,14 @@ using Factory.Building;
 using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.UI;
+using PortRole = Factory.Building.BeltDragTool.EndpointRole;
 
 namespace Seo.UI
 {
-    // BeltDragTool의 내부 상태를 읽기만 하는 UI 어댑터. 벨트 연결 규칙은 변경하지 않고
-    // 현재 시작점/도착점이 왜 유효하거나 무효한지만 플레이어에게 설명한다.
+    // BeltDragTool의 내부 상태를 읽기만 하는 UI 어댑터. 벨트 연결 규칙 자체(포트 판정, 자원
+    // 체크)는 BeltDragTool의 공개 메서드를 그대로 가져다 쓰고, 여기서는 그 결과를 플레이어가
     public sealed class BeltConnectionFeedback : MonoBehaviour
     {
-        private enum PortRole { None, Source, Target }
-
         private static readonly FieldInfo PathField = typeof(BeltDragTool).GetField("path", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo PreviewStripsField = typeof(BeltDragTool).GetField("previewStrips", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo DraggingField = typeof(BeltDragTool).GetField("dragging", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -150,8 +149,17 @@ namespace Seo.UI
                 return;
             }
 
+            // 발전기 연료 포트는 한쪽 면만 유효 — BeltDragTool의 판정을 그대로 물어본다
+            // (여기서 따로 다시 구현하면 이 특수 케이스를 놓치기 쉽다: 실제로 한 번 놓쳤었다).
+            if (beltTool != null && beltTool.TouchesGeneratorFromInvalidSide())
+            {
+                HideBadge(ref endBadge);
+                SetMessage("연결 불가 · 발전기는 지정된 입력 면에서만 연결할 수 있습니다", SeoUITheme.Current.Danger);
+                return;
+            }
+
             grid.TryGetOccupant(startCell, out var startOccupant);
-            PortRole startRole = ResolveRole(startOccupant, path[1], true, out bool startFixed);
+            PortRole startRole = beltTool.ResolveEndpointRole(startOccupant, path[1], true, out bool startFixed);
             UpdateBadge(startBadge, startRole == PortRole.None ? "연결 불가" : "시작",
                 startRole == PortRole.None ? SeoUITheme.Current.Danger : RoleColor(startRole));
 
@@ -179,7 +187,7 @@ namespace Seo.UI
             if (endOccupied)
             {
                 grid.TryGetOccupant(endCell, out endOccupant);
-                endRole = ResolveRole(endOccupant, path[path.Count - 2], false, out endFixed);
+                endRole = beltTool.ResolveEndpointRole(endOccupant, path[path.Count - 2], false, out endFixed);
                 ShowBadge(ref endBadge, endCell,
                     endRole == PortRole.None ? "연결 불가" : "도착",
                     endRole == PortRole.None ? SeoUITheme.Current.Danger : RoleColor(endRole));
@@ -192,8 +200,8 @@ namespace Seo.UI
 
                 if (startRole == endRole)
                 {
-                    if (!startFixed && endFixed) startRole = Opposite(endRole);
-                    else if (startFixed && !endFixed) endRole = Opposite(startRole);
+                    if (!startFixed && endFixed) startRole = BeltDragTool.Opposite(endRole);
+                    else if (startFixed && !endFixed) endRole = BeltDragTool.Opposite(startRole);
                     else
                     {
                         SetMessage(startRole == PortRole.Source
@@ -223,6 +231,14 @@ namespace Seo.UI
 
             if (!endOccupied)
             {
+                // 아직 목적지에 안 닿았어도(빈 땅 위) 지금 그린 칸만큼 자원이 있는지는 미리
+                // 보여준다 — BeltDragTool의 판정을 그대로 물어봐서 중복 구현 없이 확인.
+                if (startRole == PortRole.Source && beltTool != null && !beltTool.HasValidEndpointPreview())
+                {
+                    SetMessage("자원 부족 · 콘크리트가 모자랍니다", SeoUITheme.Current.Danger);
+                    UpdateBadge(startBadge, "자원 부족", SeoUITheme.Current.Danger);
+                    return;
+                }
                 SetMessage(startRole == PortRole.Source
                     ? $"출력에서 경로 생성 중 · 입력 포트까지 드래그 ({path.Count - 1}칸)"
                     : "현재 시작점은 입력 포트입니다 · 반대쪽 출력 포트까지 연결하세요",
@@ -238,6 +254,16 @@ namespace Seo.UI
                 return;
             }
 
+            // 여기까지는 역할(입출력)만 봤을 뿐, 자원(콘크리트)이 부족해도 여기선 알 수 없다 —
+            // BeltDragTool의 판정을 그대로 물어봐서(중복 구현 X) 최종 게이트로 삼는다.
+            if (beltTool != null && !beltTool.HasValidEndpointPreview())
+            {
+                SetMessage("연결 불가 · 자원이 부족합니다", SeoUITheme.Current.Danger);
+                UpdateBadge(startBadge, "자원 부족", SeoUITheme.Current.Danger);
+                UpdateBadge(endBadge, "자원 부족", SeoUITheme.Current.Danger);
+                return;
+            }
+
             CellOccupant target = startRole == PortRole.Target ? startOccupant : endOccupant;
             PortRole targetRole = PortRole.Target;
             lastPathValid = true;
@@ -245,56 +271,6 @@ namespace Seo.UI
                 + ConnectionCountSuffix(target, targetRole), SeoUITheme.Current.Success);
             UpdateBadge(startBadge, startRole == PortRole.Source ? "시작" : "도착", RoleColor(startRole));
             UpdateBadge(endBadge, endRole == PortRole.Target ? "도착" : "시작", RoleColor(endRole));
-        }
-
-        private PortRole ResolveRole(CellOccupant occupant, Vector2Int touchingCell, bool isStart, out bool fixedRole)
-        {
-            fixedRole = false;
-            if (occupant.Type == CellOccupantType.Miner)
-            {
-                fixedRole = true;
-                return PortRole.None;
-            }
-
-            if (occupant.Type == CellOccupantType.Belt)
-            {
-                if (isStart) return PortRole.Source;
-                var segment = driver.World.Segments[occupant.InstanceIndex];
-                return MachineGhostTool.IsChainStart(driver.World.Segments, segment) ? PortRole.Target : PortRole.None;
-            }
-
-            if (occupant.InstanceIndex < 0 || occupant.InstanceIndex >= driver.World.Processors.Count) return PortRole.None;
-            var processor = driver.World.Processors[occupant.InstanceIndex];
-            if (processor == null) return PortRole.None;
-
-            // 발전기는 연료 입력만 받는다. 이 UI가 일반 기계의 출력 포트 규칙을 적용하면
-            // 실제 설치는 거부되는데도 "연결 가능"과 초록색으로 덮어쓰게 된다.
-            if (processor.IsGeneratorFuelPort)
-            {
-                fixedRole = true;
-                return GridUtility.GetPortCells(processor.Anchor, processor.Footprint,
-                    processor.Facing, false).Contains(touchingCell)
-                    ? PortRole.Target : PortRole.None;
-            }
-
-            if (processor.RoutingRole != RoutingRole.None)
-            {
-                fixedRole = true;
-                Vector2Int direction = touchingCell - processor.Anchor;
-                bool input = processor.RoutingRole == RoutingRole.Splitter
-                    ? direction == -processor.Facing
-                    : direction != processor.Facing;
-                return input ? PortRole.Target : PortRole.Source;
-            }
-
-            if (processor.UniversalPorts) return isStart ? PortRole.Source : PortRole.Target;
-
-            fixedRole = true;
-            if (GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true).Contains(touchingCell))
-                return PortRole.Source;
-            if (GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false).Contains(touchingCell))
-                return PortRole.Target;
-            return PortRole.None;
         }
 
         private string InvalidEndpointReason(CellOccupant occupant, bool start)
@@ -386,11 +362,6 @@ namespace Seo.UI
 
             lastTintColor = previewColor;
             lastTintStripCount = strips.Count;
-        }
-
-        private static PortRole Opposite(PortRole role)
-        {
-            return role == PortRole.Source ? PortRole.Target : role == PortRole.Target ? PortRole.Source : PortRole.None;
         }
 
         private static Color RoleColor(PortRole role)
