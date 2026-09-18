@@ -19,8 +19,14 @@ namespace Factory.Building
         [SerializeField] private BuildInputRouter router;
         [SerializeField] private Color previewColor = new Color(0.9f, 0.15f, 0.15f, 0.4f);
 
+        private static readonly Vector2Int[] FourDirs =
+        {
+            new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1),
+        };
+
         private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly HashSet<(CellOccupantType type, int index)> selected = new HashSet<(CellOccupantType, int)>();
+        private BeltDragTool beltTool;
 
         private GameObject selectionBox;
         private Vector2Int startCell;
@@ -169,15 +175,33 @@ namespace Factory.Building
                         world.RemoveProcessor(index);
                         break;
                     case CellOccupantType.Belt:
+                        grid.TryGetCellOf(CellOccupantType.Belt, index, out var removedCell);
                         DestroyVisual($"Belt_{index}");
                         grid.UnregisterOccupant(type, index);
                         world.RemoveSegment(index);
+                        RefreshNeighborBeltVisuals(grid, removedCell);
                         break;
                 }
             }
 
             ClearSelection();
             return true;
+        }
+
+        // 벨트를 지우고 나면 그 옆에 남은 세그먼트는 스트립이 예전(지워지기 전) 이웃 방향
+        // 그대로 남아있다 — RerenderSegmentStrip은 지어지거나 재배선될 때만 불렸지, 옆이
+        // 잘려나갈 때는 아무도 다시 그려주지 않았다(코너가 이상하게 보이던 원인 중 하나).
+        private void RefreshNeighborBeltVisuals(WorldGrid grid, Vector2Int removedCell)
+        {
+            if (beltTool == null) beltTool = FindAnyObjectByType<BeltDragTool>();
+            if (beltTool == null) return;
+
+            for (int d = 0; d < FourDirs.Length; d++)
+            {
+                if (!grid.TryGetOccupant(removedCell + FourDirs[d], out var occupant)) continue;
+                if (occupant.Type != CellOccupantType.Belt) continue;
+                beltTool.RerenderSegmentStrip(occupant.InstanceIndex);
+            }
         }
 
         // 벨트/기계 스폰 시 지어진 이름 규칙(BeltDragTool.SpawnCommittedVisual, MachineGhostTool.
