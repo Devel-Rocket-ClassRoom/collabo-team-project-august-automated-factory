@@ -10,14 +10,6 @@ namespace Seo.UI
     // 기존 HUD/씬 프리팹을 바꾸지 않고 SafeArea 아래에 붙는 생산 보고서 확장 UI.
     public sealed class FactoryStatisticsPanel : MonoBehaviour
     {
-        private enum SortMode
-        {
-            ProductionHigh,
-            ProductionLow,
-            MachineHigh,
-            MachineLow,
-        }
-
         private sealed class ProductEntry
         {
             public int ResourceId;
@@ -68,11 +60,9 @@ namespace Seo.UI
         private Image actualPowerFill;
         private Image optimalPowerFill;
         private Image supplyPowerFill;
-        private Button sortButton;
         private float nextDiscovery;
         private float nextRefresh;
         private bool rowsBuilt;
-        private SortMode sortMode = SortMode.ProductionHigh;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateRuntimeInstance()
@@ -246,14 +236,9 @@ namespace Seo.UI
             title.color = SeoUITheme.Current.Primary;
             var columns = CreateText(parent, "Columns",
                 "분당 실제 생산 / 최적 생산          분당 실제 소비 / 최적 소비", 16, FontStyle.Bold,
-                new Vector2(430f, -306f), new Vector2(510f, 30f));
+                new Vector2(760f, -316f), new Vector2(390f, 30f));
             columns.color = SeoUITheme.Current.Muted;
             columns.alignment = TextAnchor.UpperRight;
-            sortButton = SeoUIFactory.CreateButton(parent, "StatisticsSort", SortLabel(), CycleSort,
-                new Color(0.08f, 0.32f, 0.43f, 1f));
-            SeoUIFactory.SetRect(sortButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
-                Vector2.one, new Vector2(-30f, -300f), new Vector2(238f, 40f));
-            sortButton.GetComponentInChildren<Text>(true).fontSize = 16;
             var hint = CreateText(parent, "ScrollHint", "휠 또는 드래그로 전체 생산물 보기", 14,
                 FontStyle.Normal, new Vector2(32f, -330f), new Vector2(360f, 22f));
             hint.color = SeoUITheme.Current.Muted;
@@ -264,37 +249,21 @@ namespace Seo.UI
             if (rowsBuilt || driver == null || driver.World == null || rowContainer == null) return;
             rowsBuilt = true;
             List<ProductEntry> entries = BuildProductEntries();
-            bool descending = sortMode == SortMode.ProductionHigh || sortMode == SortMode.MachineHigh;
-            entries.Sort((a, b) => CompareProduction(a, b, descending));
 
             float y = 0f;
-            bool grouped = sortMode == SortMode.MachineHigh || sortMode == SortMode.MachineLow;
-            if (!grouped)
+            string[] labels = { "채굴기", "제련로", "성형기", "가공기", "합성기" };
+            for (int machineOrder = 0; machineOrder < labels.Length; machineOrder++)
             {
+                var resources = new List<int>();
+                string machineKey = null;
                 for (int i = 0; i < entries.Count; i++)
                 {
-                    ProductEntry entry = entries[i];
-                    CreateResourceRow(entry.ResourceId, y, entry.MachineKey, entry.MachineLabel,
-                        entry.MachineOrder, rows.Count);
-                    y += 70f;
+                    if (entries[i].MachineOrder != machineOrder) continue;
+                    resources.Add(entries[i].ResourceId);
+                    machineKey = entries[i].MachineKey;
                 }
-            }
-            else
-            {
-                string[] labels = { "채굴기", "제련로", "성형기", "가공기", "합성기" };
-                for (int machineOrder = 0; machineOrder < labels.Length; machineOrder++)
-                {
-                    var resources = new List<int>();
-                    string machineKey = null;
-                    for (int i = 0; i < entries.Count; i++)
-                    {
-                        if (entries[i].MachineOrder != machineOrder) continue;
-                        resources.Add(entries[i].ResourceId);
-                        machineKey = entries[i].MachineKey;
-                    }
-                    if (resources.Count > 0)
-                        AddMachineSection(labels[machineOrder], machineKey, machineOrder, resources, ref y);
-                }
+                if (resources.Count > 0)
+                    AddMachineSection(labels[machineOrder], machineKey, machineOrder, resources, ref y);
             }
 
             var contentRect = (RectTransform)rowContainer;
@@ -336,101 +305,6 @@ namespace Seo.UI
                     });
                 }
             }
-        }
-
-        private int CompareProduction(ProductEntry a, ProductEntry b, bool descending)
-        {
-            float aRate = GetDisplayedProductionPerMinute(a.ResourceId, a.MachineOrder);
-            float bRate = GetDisplayedProductionPerMinute(b.ResourceId, b.MachineOrder);
-            int result = aRate.CompareTo(bRate);
-            if (descending) result = -result;
-            if (result != 0) return result;
-            return string.Compare(driver.World.Database.Resources[a.ResourceId].DisplayName,
-                driver.World.Database.Resources[b.ResourceId].DisplayName,
-                System.StringComparison.CurrentCulture);
-        }
-
-        private void CycleSort()
-        {
-            sortMode = (SortMode)(((int)sortMode + 1) % 4);
-            if (sortButton != null) sortButton.GetComponentInChildren<Text>(true).text = SortLabel();
-            RebuildRows();
-            Refresh();
-        }
-
-        private string SortLabel()
-        {
-            switch (sortMode)
-            {
-                case SortMode.ProductionHigh: return "생산량 높은순";
-                case SortMode.ProductionLow: return "생산량 낮은순";
-                case SortMode.MachineLow: return "기계별 · 낮은순";
-                default: return "기계별 · 높은순";
-            }
-        }
-
-        private void RebuildRows()
-        {
-            rows.Clear();
-            sectionHeaders.Clear();
-            for (int i = rowContainer.childCount - 1; i >= 0; i--)
-            {
-                rowContainer.GetChild(i).gameObject.SetActive(false);
-                Destroy(rowContainer.GetChild(i).gameObject);
-            }
-            rowsBuilt = false;
-            BuildRows();
-            var scroll = rowContainer.parent.GetComponent<ScrollRect>();
-            if (scroll != null) scroll.verticalNormalizedPosition = 1f;
-        }
-
-        private void UpdateSortTargets()
-        {
-            if (rows.Count == 0 || driver == null || driver.World == null) return;
-            bool descending = sortMode == SortMode.ProductionHigh || sortMode == SortMode.MachineHigh;
-            var ordered = new List<ResourceRow>(rows);
-            ordered.Sort((a, b) => CompareRows(a, b, descending));
-
-            float y = 0f;
-            bool grouped = sortMode == SortMode.MachineHigh || sortMode == SortMode.MachineLow;
-            if (!grouped)
-            {
-                for (int i = 0; i < ordered.Count; i++)
-                {
-                    ordered[i].TargetY = y;
-                    y += 70f;
-                }
-            }
-            else
-            {
-                for (int machineOrder = 0; machineOrder < 5; machineOrder++)
-                {
-                    SectionHeader header = sectionHeaders.Find(item => item.MachineOrder == machineOrder);
-                    if (header == null) continue;
-                    header.TargetY = y;
-                    y += 46f;
-                    for (int i = 0; i < ordered.Count; i++)
-                    {
-                        if (ordered[i].MachineOrder != machineOrder) continue;
-                        ordered[i].TargetY = y;
-                        y += 70f;
-                    }
-                    y += 8f;
-                }
-            }
-            ((RectTransform)rowContainer).sizeDelta = new Vector2(0f, Mathf.Max(438f, y));
-        }
-
-        private int CompareRows(ResourceRow a, ResourceRow b, bool descending)
-        {
-            float aRate = GetDisplayedProductionPerMinute(a.ResourceId, a.MachineOrder);
-            float bRate = GetDisplayedProductionPerMinute(b.ResourceId, b.MachineOrder);
-            int result = aRate.CompareTo(bRate);
-            if (descending) result = -result;
-            if (result != 0) return result;
-            return string.Compare(driver.World.Database.Resources[a.ResourceId].DisplayName,
-                driver.World.Database.Resources[b.ResourceId].DisplayName,
-                System.StringComparison.CurrentCulture);
         }
 
         private void AnimateRows()
@@ -559,7 +433,6 @@ namespace Seo.UI
                 return;
             }
             BuildRows();
-            UpdateSortTargets();
             FactoryStatistics statistics = driver.World.Statistics;
             float seconds = statistics.ObservedSeconds;
             periodText.text = seconds < 1f ? "측정 준비 중"
