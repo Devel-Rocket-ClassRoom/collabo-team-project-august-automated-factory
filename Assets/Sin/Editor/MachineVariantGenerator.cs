@@ -80,8 +80,6 @@ public static class MachineVariantGenerator
 
     // 아이템(벨트 위에 놓일 자원): GameId = Bae님 ItemData.itemID. OZEA에 딱 맞는 완제품
     // 모양이 없는 항목은 비슷한 원석류로 대충 대체한다(Concrete = 보크사이트 원석/노드).
-    // ConveyorBelt는 마땅한 형태가 없어 아예 뺐다 — 벨트에서 계속 기존 폴백(구+색)으로 보인다.
-    // 나중에 커스텀 아이콘을 만들면 여기에 추가하면 된다(분류기/합류기 아이콘과 같은 방식).
     public static readonly ItemEntry[] Items =
     {
         I("IronOre",              "Prefab_Item_IronOre",              "Iron_Ore"),
