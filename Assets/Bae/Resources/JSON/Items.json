@@ -36,13 +36,6 @@
             "prefabName": "Prefab_Item_Concrete"
         },
         {
-            "itemID": "ConveyorBelt",
-            "itemName": "벨트",
-            "description": "벨트에요 아이템을 옮겨줘요",
-            "iconName": "Icon_ConveyorBelt",
-            "prefabName": "Prefab_Item_ConveyorBelt"
-        },
-        {
             "itemID": "CopperIngot",
             "itemName": "구리 괴",
             "description": "구리 원석으로 구리 괴 입니다.",
