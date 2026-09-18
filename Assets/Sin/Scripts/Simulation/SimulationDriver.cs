@@ -30,7 +30,7 @@ namespace Factory.Simulation
             // GameDatabase.Instance 같은 static 캐시로 "이미 있으면 재사용"하지 않고 매번 새로
             // 읽는다 — 그런 캐시를 쓰면 JSON을 다시 구워도(특히 Reload Domain을 꺼둔 경우)
             // 예전 값이 계속 남아있을 위험이 있는데, "빌드 없이 데이터만 바꿔서 반영"이 이
-            // 파이프라인의 핵심 요구사항이라 그 위험을 아예 안 만드는 쪽을 택한다.
+            // 파이프라인의 핵심 요구사항이라 그 위험을 파이프라인에 만들지 않음.
             var database = GameDatabase.LoadFromBaeData(DataManager.Instance);
             World = new SimulationWorld(database);
         }
@@ -45,8 +45,15 @@ namespace Factory.Simulation
         {
             if (World == null) return;
 
-            float fixedDelta = 1f / tickRate;
-            accumulator += Time.deltaTime;
+            float fixedDelta = 1f / tickRate;         
+            float speedMultiplier = 1f;
+            if (Bae.SpeedBuffManager.Instance != null)
+            {
+                speedMultiplier = Bae.SpeedBuffManager.Instance.CurrentSpeedMultiplier;
+            }
+
+            // 배속 변수를 곱해서 시간이 누적되는 속도를 조절
+            accumulator += Time.deltaTime * speedMultiplier;
 
             while (accumulator >= fixedDelta)
             {
