@@ -117,6 +117,15 @@ namespace Seo.UI
                 return;
             }
 
+            // 발전기는 연료를 받는 단일 입력 포트만 있다. 전력은 전선으로 공급하므로
+            // 물류 출력 포트를 표시하지 않는다.
+            if (processor.IsGeneratorFuelPort)
+            {
+                portBadges.Add(CreateBadge(DirectionArrow(processor.Facing),
+                    new Color(0.05f, 0.78f, 1f), new Vector2(52f, 48f), 24, true));
+                return;
+            }
+
             var inputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
             var outputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
             string flowArrow = DirectionArrow(processor.Facing);
@@ -137,7 +146,33 @@ namespace Seo.UI
 
         private void UpdatePositions()
         {
-            if (nameBadge == null) return;
+            if (nameBadge == null || driver == null || driver.World == null) return;
+
+            // 발전기 연료 표시는 전기 아크(LineRenderer)의 매 프레임 바운드 변화와 분리한다.
+            // 기계 앵커만 기준으로 계산해 항상 기기 중앙에 고정한다.
+            if (kind == MachineInstanceKind.Processor
+                && instanceIndex >= 0 && instanceIndex < driver.World.Processors.Count)
+            {
+                var generatorPort = driver.World.Processors[instanceIndex];
+                if (generatorPort != null && generatorPort.IsGeneratorFuelPort)
+                {
+                    Vector3 center = GridUtility.GetFootprintCenter(generatorPort.Anchor, generatorPort.Footprint, 0f);
+                    SetBadgeTransform(statusBadge, center + Vector3.up * 0.62f, 0.0055f);
+                    SetBadgeTransform(nameBadge, center + Vector3.up * 1.0f, 0.0065f);
+
+                    var generatorCenterInputs = GridUtility.GetPortCells(generatorPort.Anchor, generatorPort.Footprint,
+                        generatorPort.Facing, false);
+                    if (generatorCenterInputs.Count > 0 && portBadges.Count > 0)
+                    {
+                        portBadges[0].SetVisible(!IsPortConnected(generatorCenterInputs[0], true));
+                        Vector3 direction = new Vector3(generatorPort.Facing.x, 0f, generatorPort.Facing.y);
+                        float generatorSideOffset = GridUtility.CellSize * 0.72f;
+                        SetBadgeTransform(portBadges[0], center - direction * generatorSideOffset + Vector3.up * 0.18f, 0.0065f);
+                    }
+                    return;
+                }
+            }
+
             var bounds = CalculateBounds();
             SetBadgeTransform(statusBadge, new Vector3(bounds.center.x, bounds.max.y + 0.6f, bounds.center.z), 0.0055f);
             SetBadgeTransform(nameBadge, new Vector3(bounds.center.x, bounds.max.y + 0.3f, bounds.center.z), 0.0065f);
@@ -185,12 +220,24 @@ namespace Seo.UI
                 return;
             }
 
-            var inputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
-            var outputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
             Vector3 centerPosition = new Vector3(bounds.center.x, bounds.max.y + 0.12f, bounds.center.z);
             Vector3 facing = new Vector3(processor.Facing.x, 0f, processor.Facing.y);
-            Vector3 perpendicular = new Vector3(-facing.z, 0f, facing.x);
             float sideOffset = processor.Facing.x != 0 ? bounds.extents.x + 0.22f : bounds.extents.z + 0.22f;
+
+            if (processor.IsGeneratorFuelPort)
+            {
+                var generatorInputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
+                if (generatorInputs.Count > 0 && portBadges.Count > 0)
+                {
+                    portBadges[0].SetVisible(!IsPortConnected(generatorInputs[0], true));
+                    SetBadgeTransform(portBadges[0], centerPosition - facing * sideOffset, 0.0065f);
+                }
+                return;
+            }
+
+            var inputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, false);
+            var outputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, true);
+            Vector3 perpendicular = new Vector3(-facing.z, 0f, facing.x);
             int badgeIndex = 0;
             for (int i = 0; i < inputs.Count; i++)
             {
@@ -289,6 +336,14 @@ namespace Seo.UI
             if (processor.RoutingRole != RoutingRole.None)
             {
                 statusBadge.SetContent("물류 가동", SeoUITheme.Current.Success);
+                return;
+            }
+
+            if (processor.IsGeneratorFuelPort)
+            {
+                bool active = powerGrid != null && powerGrid.IsGeneratorActive(processor.OwnerPowerNodeId);
+                statusBadge.SetContent(active ? "발전 중" : "연료 필요",
+                    active ? SeoUITheme.Current.Success : SeoUITheme.Current.Warning);
                 return;
             }
 

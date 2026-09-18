@@ -31,6 +31,7 @@ namespace Factory.Building
         // "위에 얹힌" 것처럼 보이려면 벨트 두께의 절반 + 이 반지름만큼 띄워야 한다.
         [SerializeField] private float itemVisualRadius = 0.125f;
         [SerializeField] private Color previewColor = new Color(0.2f, 0.9f, 0.3f, 0.8f);
+        [SerializeField] private Color invalidPreviewColor = new Color(0.95f, 0.2f, 0.15f, 0.8f);
         [SerializeField] private Color committedColor = new Color(0.15f, 0.15f, 0.15f, 1f);
         [SerializeField] private GameObject itemVisualPrefab;
         [SerializeField] private GameObject stripPrefab;
@@ -109,6 +110,7 @@ namespace Factory.Building
         private void RebuildPreview()
         {
             ClearPreview();
+            Color color = HasValidEndpointPreview() ? previewColor : invalidPreviewColor;
             for (int k = 0; k < path.Count; k++)
             {
                 ComputeCellSpan(path, k, out Vector3 entry, out Vector3 exit, out Vector3? bend);
@@ -116,19 +118,93 @@ namespace Factory.Building
                 {
                     if (cornerPrefab != null)
                     {
-                        previewStrips.Add(SpawnBeltCorner(bend.Value, bend.Value - entry, exit - bend.Value, previewColor, transform, keepMaterial: false));
+                        previewStrips.Add(SpawnBeltCorner(bend.Value, bend.Value - entry, exit - bend.Value, color, transform, keepMaterial: false));
                     }
                     else
                     {
-                        previewStrips.Add(BuildVisuals.CreateStrip(entry, bend.Value, previewThickness, previewColor, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
-                        previewStrips.Add(BuildVisuals.CreateStrip(bend.Value, exit, previewThickness, previewColor, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
+                        previewStrips.Add(BuildVisuals.CreateStrip(entry, bend.Value, previewThickness, color, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
+                        previewStrips.Add(BuildVisuals.CreateStrip(bend.Value, exit, previewThickness, color, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
                     }
                 }
                 else
                 {
-                    previewStrips.Add(BuildVisuals.CreateStrip(entry, exit, previewThickness, previewColor, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
+                    previewStrips.Add(BuildVisuals.CreateStrip(entry, exit, previewThickness, color, transform, prefab: stripPrefab, flatSurfaceY: beltSurfaceY));
                 }
             }
+        }
+
+        private bool HasValidEndpointPreview()
+        {
+            if (driver == null || driver.World == null || path.Count < 2) return false;
+            if (TouchesGeneratorFromInvalidSide()) return false;
+            var grid = driver.World.Grid;
+            if (!grid.TryGetOccupant(path[0], out var start)) return false;
+            bool startFixed, endFixed = false;
+            EndpointRole startRole = ResolveEndpointRole(start, path[1], true, out startFixed);
+            if (startRole == EndpointRole.None) return false;
+            int last = path.Count - 1;
+            bool endOccupied = grid.TryGetOccupant(path[last], out var end);
+            EndpointRole endRole = endOccupied
+                ? ResolveEndpointRole(end, path[last - 1], false, out endFixed) : EndpointRole.None;
+            if (endOccupied && endRole == EndpointRole.None) return false;
+            if (endOccupied && startRole == endRole)
+            {
+                if (!startFixed && endFixed) startRole = Opposite(endRole);
+                else if (startFixed && !endFixed) endRole = Opposite(startRole);
+                else return false;
+            }
+            if (startRole != EndpointRole.Source && endRole == EndpointRole.Source)
+            {
+                (start, end) = (end, start);
+                (startRole, endRole) = (endRole, startRole);
+            }
+            if (startRole == EndpointRole.Source && start.Type == CellOccupantType.Belt
+                && driver.World.Segments[start.InstanceIndex].NextSegmentId.HasValue) return false;
+
+            int first = 1; int final = endOccupied ? last - 1 : last;
+            for (int i = first; i <= final; i++)
+            {
+                if (grid.IsOccupied(path[i]) || (ExternalCellBlocked?.Invoke(path[i]) ?? false)) return false;
+            }
+            return true;
+        }
+
+        // 발전기 연료 포트는 본체의 한 면만 유효하다. 드래그 경로가 발전기 본체를
+        // 밟을 때, 실제 포트 셀이 아닌 면에서 들어오거나 나가면 미리보기부터 거부한다.
+        private bool TouchesGeneratorFromInvalidSide()
+        {
+            for (int p = 0; p < driver.World.Processors.Count; p++)
+            {
+                var processor = driver.World.Processors[p];
+                if (processor == null || !processor.IsGeneratorFuelPort) continue;
+                int index = path.IndexOf(processor.Anchor);
+                var inputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint,
+                    processor.Facing, isOutputSide: false);
+
+                // 포트 셀은 본체와 별도 칸이라, 사용자가 그 칸에서 드래그를 끝내는 경우도
+                // 반드시 입력 면인지 검사해야 한다. 이전 코드는 본체 칸을 밟은 경우만 검사했다.
+                Vector2Int first = path[0];
+                Vector2Int last = path[path.Count - 1];
+                if (IsAdjacentToGenerator(processor, first) && !inputs.Contains(first)) return true;
+                if (IsAdjacentToGenerator(processor, last) && !inputs.Contains(last)) return true;
+
+                if (index < 0) continue;
+                if (index != 0 && index != path.Count - 1) return true;
+
+                Vector2Int touching = index == 0 ? path[1] : path[path.Count - 2];
+                if (!inputs.Contains(touching)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsAdjacentToGenerator(ProcessorInstance processor, Vector2Int cell)
+        {
+            foreach (Vector2Int occupied in GridUtility.GetFootprintCells(processor.Anchor, processor.Footprint))
+            {
+                int distance = Mathf.Abs(cell.x - occupied.x) + Mathf.Abs(cell.y - occupied.y);
+                if (distance == 1) return true;
+            }
+            return false;
         }
 
         // 세그먼트 하나가 정확히 자기 칸 안(경계~반대쪽 경계)에 들어차도록 진입/이탈 지점을
@@ -184,7 +260,9 @@ namespace Factory.Building
                     if (processor.IsGeneratorFuelPort)
                     {
                         isFixed = true;
-                        return EndpointRole.Target;
+                        var generatorInputs = GridUtility.GetPortCells(processor.Anchor, processor.Footprint,
+                            processor.Facing, isOutputSide: false);
+                        return generatorInputs.Contains(touchingCell) ? EndpointRole.Target : EndpointRole.None;
                     }
 
                     if (processor.RoutingRole != RoutingRole.None)

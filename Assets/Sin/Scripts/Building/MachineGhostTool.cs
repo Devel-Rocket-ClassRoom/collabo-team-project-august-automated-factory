@@ -411,6 +411,9 @@ namespace Factory.Building
                 if (isDeadEnd) segment.TargetProcessorId = index;
             }
 
+            // 발전기는 연료 입력만 받는 설비라 출력 벨트를 자동으로 물리지 않는다.
+            if (processor.IsGeneratorFuelPort) return;
+
             var outputCells = GridUtility.GetPortCells(processor.Anchor, processor.Footprint, processor.Facing, isOutputSide: true);
             for (int i = 0; i < outputCells.Count; i++)
             {
