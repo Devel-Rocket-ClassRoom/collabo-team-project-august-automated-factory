@@ -7,11 +7,11 @@ namespace Optimization
     public class FloorChunkManager : MonoBehaviour
     {
         [Header("Grid Settings")]
-        public int mapWidth = 1000;
-        public int mapLength = 1000;
+        public int mapWidth = 400;
+        public int mapLength = 400;
         public int chunkSize = 50; // Each chunk is 50x50 tiles
         public float tileSize = 1f;
-        public int unlockedSize = 250; // The area that is actually playable and visually lit
+        public int unlockedSize = 100; // The area that is actually playable and visually lit
         public Vector3 globalOffset = new Vector3(0.5f, 0f, 0.5f);
         public int tilesPerFrame = 150;
 

@@ -16,10 +16,10 @@ namespace Optimization
         [Header("Grid Settings (그리드 설정)")]
         public float tileSize = 1f;
         public int chunkSize = 16;
-        public int mapWidth = 1000;
-        public int mapLength = 1000;
+        public int mapWidth = 400;
+        public int mapLength = 400;
         [Tooltip("현재 개방된 맵의 가로세로 길이입니다. 이 범위 밖은 어두운 색으로 표시됩니다.")]
-        public int unlockedSize = 250;
+        public int unlockedSize = 100;
         public Vector3 globalOffset = new Vector3(0.5f, 0f, 0.5f);
 
         [Header("Performance Settings (모바일 최적화)")]
