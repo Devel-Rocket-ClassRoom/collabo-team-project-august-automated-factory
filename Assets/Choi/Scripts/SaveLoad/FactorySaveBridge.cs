@@ -127,6 +127,9 @@ namespace Choi.SaveLoad
                     routingCursor = processor.RoutingCursor,
                     generatorFuelPort = processor.IsGeneratorFuelPort,
                     ownerPowerNodeId = processor.OwnerPowerNodeId,
+                    selectedFuelKey = processor.SelectedFuelResourceId >= 0
+                        && processor.SelectedFuelResourceId < world.Database.Resources.Count
+                        ? world.Database.Resources[processor.SelectedFuelResourceId].Key : string.Empty,
                     isProcessing = processor.IsProcessing,
                     progress = processor.Progress,
                     capacity = processor.Capacity,
@@ -269,6 +272,9 @@ namespace Choi.SaveLoad
                 {
                     world.Database.TryGetResourceId("Coal", out processor.CoalResourceId);
                     world.Database.TryGetResourceId("HighCapacityBattery", out processor.BatteryResourceId);
+                    if (!string.IsNullOrEmpty(saved.selectedFuelKey)
+                        && world.Database.TryGetResourceId(saved.selectedFuelKey, out int selectedFuelId))
+                        processor.SelectedFuelResourceId = selectedFuelId;
                 }
                 RestoreStacks(processor.InputBuffer, saved.input, world);
                 RestoreStacks(processor.OutputBuffer, saved.output, world);

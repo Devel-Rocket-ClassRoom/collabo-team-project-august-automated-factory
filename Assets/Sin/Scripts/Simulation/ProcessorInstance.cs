@@ -56,6 +56,7 @@ namespace Factory.Simulation
         public int OwnerPowerNodeId = -1;
         public int CoalResourceId = -1;
         public int BatteryResourceId = -1;
+        public int SelectedFuelResourceId = -1;
 
         // footprint가 1칸보다 큰 기계(예: 2x2 합성기)의 포트 계산 기준. 어느 footprint 칸을
         // 밟아서 연결하든 항상 이 앵커 기준으로 포트 위치를 계산한다(GridUtility.GetPortCells).
@@ -83,7 +84,7 @@ namespace Factory.Simulation
             if (resourceId < 0 || resourceId >= InputBuffer.Length || amount <= 0) return false;
             if (IsGeneratorFuelPort)
             {
-                if (resourceId != CoalResourceId && resourceId != BatteryResourceId) return false;
+                if (resourceId != SelectedFuelResourceId) return false;
                 int stored = 0;
                 for (int i = 0; i < InputBuffer.Length; i++) stored += InputBuffer[i];
                 if (stored + amount > Capacity) return false;

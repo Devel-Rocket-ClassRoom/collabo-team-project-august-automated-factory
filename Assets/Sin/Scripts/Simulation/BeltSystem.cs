@@ -164,8 +164,7 @@ namespace Factory.Simulation
 
             if (target.IsGeneratorFuelPort)
             {
-                int fuelId = target.CoalResourceId >= 0 && core.InputBuffer[target.CoalResourceId] > 0
-                    ? target.CoalResourceId : target.BatteryResourceId;
+                int fuelId = target.SelectedFuelResourceId;
                 if (fuelId < 0 || fuelId >= core.InputBuffer.Length || core.InputBuffer[fuelId] <= 0) return;
                 core.InputBuffer[fuelId]--;
                 segment.Items.Insert(0, new BeltItem(fuelId, 0f));

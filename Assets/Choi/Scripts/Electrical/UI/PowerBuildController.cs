@@ -560,7 +560,7 @@ namespace Choi.SaveLoad
         // 드래그 한 번에 완성되는 단일 조작이라 벨트처럼 칸당으로 셀 이유가 없다) 여기 따로
         // 상수로 둔다. 재료는 이미 생산되는 구리선(CopperWire) 재사용 — 전선용 아이템을
         // 새로 만들 필요 없이 바로 적용 가능해서.
-        private const int CableCopperWireCost = 10;
+        private const int CableCopperWireCost = 1;
 
         private bool TryPayCableCost(out int paidAmount)
         {

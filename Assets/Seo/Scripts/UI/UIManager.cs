@@ -256,10 +256,15 @@ namespace Seo.UI
             if (selectedIndex < 0 || selectedIndex >= driver.World.Processors.Count) return;
 
             var processor = driver.World.Processors[selectedIndex];
-            if (processor == null || processor.UniversalPorts || processor.IsGeneratorFuelPort) return;
+            if (processor == null || processor.UniversalPorts) return;
 
-            string machineKey = driver.World.Database.Machines[processor.MachineId].Key;
             machineInfoPanel.Close();
+            if (processor.IsGeneratorFuelPort)
+            {
+                RecipeSelectionPanel.Instance?.OpenGenerator(selectedIndex);
+                return;
+            }
+            string machineKey = driver.World.Database.Machines[processor.MachineId].Key;
             RecipeSelectionPanel.Instance?.Open(selectedIndex, machineKey);
         }
     }

@@ -371,17 +371,13 @@ namespace Choi.SaveLoad
                 if (node.FuelSecondsRemaining <= 0f)
                 {
                     node.ActiveFuelResourceId = -1;
-                    if (port.CoalResourceId >= 0 && port.InputBuffer[port.CoalResourceId] > 0)
+                    int fuelId = port.SelectedFuelResourceId;
+                    if (fuelId >= 0 && fuelId < port.InputBuffer.Length && port.InputBuffer[fuelId] > 0)
                     {
-                        port.InputBuffer[port.CoalResourceId]--;
-                        node.ActiveFuelResourceId = port.CoalResourceId;
-                        node.FuelSecondsRemaining = CoalBurnSeconds;
-                    }
-                    else if (port.BatteryResourceId >= 0 && port.InputBuffer[port.BatteryResourceId] > 0)
-                    {
-                        port.InputBuffer[port.BatteryResourceId]--;
-                        node.ActiveFuelResourceId = port.BatteryResourceId;
-                        node.FuelSecondsRemaining = BatteryBurnSeconds;
+                        port.InputBuffer[fuelId]--;
+                        node.ActiveFuelResourceId = fuelId;
+                        node.FuelSecondsRemaining = fuelId == port.BatteryResourceId
+                            ? BatteryBurnSeconds : CoalBurnSeconds;
                     }
                 }
                 node.IsGenerating = node.FuelSecondsRemaining > 0f;
