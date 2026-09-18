@@ -44,6 +44,8 @@ namespace Seo.UI
         private GameObject cancelButton;
         private Button coreResourceButton;
         private Button powerStatusButton;
+        private Text rewardedAdLabel;
+        private Button rewardedAdButton;
         private GameObject coreResourcePanel;
         private GameObject powerDetailPanel;
         private GameObject exitDialogRoot;
@@ -89,6 +91,7 @@ namespace Seo.UI
             UpdatePowerButtonStates();
             DecorateRecipePanel();
             HideLegacyPowerPanel();
+            UpdateRewardedAdLabel();
 
             if (coreResourcePanel != null && coreResourcePanel.activeSelf
                 && Time.unscaledTime >= nextCoreResourceRefresh)
@@ -139,6 +142,32 @@ namespace Seo.UI
             return rt;
         }
 
+        private void ShowRewardedAd()
+        {
+            if (Bae.SpeedBuffManager.Instance != null && Bae.SpeedBuffManager.Instance.isBuffActive) return;
+            var adManager = FindFirstObjectByType<Bae.LevelPlayManager>();
+            if (adManager == null || Bae.SpeedBuffManager.Instance == null)
+            {
+                ShowToast("광고 보상 매니저를 찾을 수 없습니다");
+                return;
+            }
+
+            adManager.ShowSpeedBuffAd();
+        }
+
+        private void UpdateRewardedAdLabel()
+        {
+            if (rewardedAdLabel == null) return;
+            var buff = Bae.SpeedBuffManager.Instance;
+            bool active = buff != null && buff.isBuffActive;
+            if (rewardedAdButton != null) rewardedAdButton.interactable = !active;
+            rewardedAdLabel.color = active ? SeoUITheme.Current.Muted : Color.white;
+            string label = active
+                ? $"생산 {buff.CurrentSpeedMultiplier:0.#}배 적용 중\n남은 시간 {Mathf.CeilToInt(Mathf.Max(0f, buff.buffTimeRemaining))}초"
+                : "광고 보기\n60초 동안 생산 2배";
+            if (rewardedAdLabel.text != label) rewardedAdLabel.text = label;
+        }
+
         private void BuildTopHud()
         {
             var line1 = GameObject.Find("HudLine1")?.GetComponent<Text>();
@@ -152,6 +181,16 @@ namespace Seo.UI
                 TogglePowerDetailPanel, SeoUITheme.Current.Warning);
             CreateTopHudButton("SeoFocusCoreButton", "◎\n코어로", new Vector2(28f, -212f),
                 FocusCore, SeoUITheme.Current.Success);
+            rewardedAdButton = SeoUIFactory.CreateButton(safeRoot, "SeoRewardedAdButton",
+                "광고 보기\n60초 동안 생산 2배", ShowRewardedAd, ToolCardIdleColor);
+            SeoUIFactory.SetRect(rewardedAdButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
+                Vector2.one, new Vector2(-28f, -24f), new Vector2(290f, 94f));
+            rewardedAdButton.transition = Selectable.Transition.None;
+            rewardedAdLabel = rewardedAdButton.GetComponentInChildren<Text>(true);
+            rewardedAdLabel.fontSize = 22;
+            rewardedAdLabel.color = Color.white;
+            SeoUIFactory.SetRect(rewardedAdLabel.rectTransform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, -16f));
 
             var resourceCard = SeoUIFactory.CreatePanel(safeRoot, "SeoResourceCard", new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(166f, -24f), new Vector2(820f, 380f));
