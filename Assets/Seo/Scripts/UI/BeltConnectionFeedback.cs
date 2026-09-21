@@ -158,6 +158,24 @@ namespace Seo.UI
             if (path.Count < 2)
             {
                 HideBadge(ref endBadge);
+
+                // 두 기계 사이가 딱 한 칸이면 드래그 없이 한 칸만 놓아도 이어진다 — 판정은
+                // BeltDragTool에 그대로 물어본다(따로 구현하면 UI만 어긋나는 버그가 난다).
+                if (beltTool != null && beltTool.TryResolveSingleCell(out var singleStart, out _, out var singleEnd, out _))
+                {
+                    if (beltTool.HasValidEndpointPreview())
+                    {
+                        lastPathValid = true;
+                        SetMessage($"연결 가능 · {EndpointName(singleStart)} → {EndpointName(singleEnd)} · 1칸"
+                            + ConnectionCountSuffix(singleEnd, PortRole.Target), SeoUITheme.Current.Success);
+                    }
+                    else
+                    {
+                        SetMessage("연결 불가 · 자원이 부족합니다", SeoUITheme.Current.Danger);
+                    }
+                    return;
+                }
+
                 SetMessage("시작점 선택됨 · 연결할 방향으로 한 칸 이상 드래그하세요", SeoUITheme.Current.Primary);
                 return;
             }

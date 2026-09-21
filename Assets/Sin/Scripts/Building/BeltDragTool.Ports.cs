@@ -153,6 +153,29 @@ namespace Factory.Building
             return found;
         }
 
+        // 한 칸짜리 벨트(드래그 없이 탭) — 두 기계 사이가 딱 한 칸일 때처럼, 그 빈 칸 옆에 출력(Source)과
+        // 입력(Target)이 각각 따로 있을 때만 그 사이를 잇는 연결 벨트로 허용한다. 실수로 툭 눌러서
+        // 기계 옆에 막다른 벨트가 깔리지 않게 양쪽이 다 잡힐 때만 인정한다. 끝쪽 탐색에서는 시작에
+        // 쓴 이웃을 제외(fromCell)해서 같은 기계를 양쪽에 쓰지 않게 한다.
+        public bool TryResolveSingleCell(out CellOccupant startOccupant, out Vector2Int startNeighbor,
+            out CellOccupant endOccupant, out Vector2Int endNeighbor)
+        {
+            startOccupant = default;
+            startNeighbor = default;
+            endOccupant = default;
+            endNeighbor = default;
+            if (driver == null || driver.World == null || path.Count != 1) return false;
+
+            Vector2Int cell = path[0];
+            if (driver.World.Grid.IsOccupied(cell)) return false;
+
+            if (!TryFindAdjacentOccupant(cell, cell, true, out startOccupant, out var startRole, out _, out startNeighbor)
+                || startRole != EndpointRole.Source) return false;
+
+            return TryFindAdjacentOccupant(cell, startNeighbor, false, out endOccupant, out var endRole, out _, out endNeighbor)
+                && endRole == EndpointRole.Target;
+        }
+
         // 이 세그먼트로 흐름이 들어오는 쪽 칸: 다른 벨트가 먹이면 그 벨트 칸, 아니면 소스 기계의
         // footprint 칸 중 이 세그먼트에 딱 붙은 칸(코어처럼 Facing 없는 기계까지 포함). 방향 계산에만
         // 쓰므로 정확한 포트 칸이 아니라 "인접한 몸통 칸"이면 충분하다. Facing 기계인데 벨트가 포트에서
