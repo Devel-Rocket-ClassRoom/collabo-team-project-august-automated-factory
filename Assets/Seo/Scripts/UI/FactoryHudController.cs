@@ -1,9 +1,11 @@
 using Choi.SaveLoad;
 using Factory.Building;
 using Factory.Data;
+using Factory.Simulation;
 using Factory.UI;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.InputSystem;
@@ -20,6 +22,15 @@ namespace Seo.UI
         {
             public int ResourceId;
             public GameObject Root;
+            public Text Amount;
+        }
+
+        private sealed class PlacementCostEntry
+        {
+            public int ResourceId;
+            public int Required;
+            public GameObject Root;
+            public Image Background;
             public Text Amount;
         }
 
@@ -42,6 +53,9 @@ namespace Seo.UI
         private GameObject confirmButton;
         private GameObject demolishConfirmButton;
         private GameObject cancelButton;
+        private GameObject placementCostPanel;
+        private Transform placementCostContent;
+        private Text placementCostTitle;
         private Button coreResourceButton;
         private Button powerStatusButton;
         private Text rewardedAdLabel;
@@ -58,14 +72,22 @@ namespace Seo.UI
         private GameObject toastRoot;
         private BuildInputRouter buildRouter;
         private MachineGhostTool machineTool;
+        private SimulationDriver simulationDriver;
+        private BeltDragTool beltTool;
         private string pendingPlacementMachineId;
+        private string placementCostSignature;
         private bool editModeActive;
         private float toastUntil;
         private float nextCoreResourceRefresh;
         private float nextDiscovery;
         private bool built;
         private static readonly Color ToolCardIdleColor = new Color(0.10f, 0.18f, 0.20f, 0.92f);
+        private static readonly FieldInfo BeltCostPerTileField = typeof(BeltDragTool).GetField(
+            "concreteCostPerTile", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo CableCostField = typeof(PowerBuildController).GetField(
+            "CableCopperWireCost", BindingFlags.Static | BindingFlags.NonPublic);
         private readonly List<CoreResourceEntry> coreResourceEntries = new List<CoreResourceEntry>();
+        private readonly List<PlacementCostEntry> placementCostEntries = new List<PlacementCostEntry>();
         private readonly Button[] powerModeButtons = new Button[3];
         private readonly Color[] powerModeButtonColors = new Color[3];
 
@@ -88,6 +110,7 @@ namespace Seo.UI
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 HandleBackPressed();
             TrackActivePlacement();
+            UpdatePlacementCostPanel();
             UpdateContextActions();
             UpdatePowerStatus();
             UpdatePowerButtonStates();
@@ -599,6 +622,7 @@ namespace Seo.UI
             BuildSystemButtons();
             BuildDockCloseButton(dock.transform);
             BuildContextBar(dock.transform);
+            BuildPlacementCostPanel();
             CloseCategoryPanel(false);
         }
 
@@ -945,6 +969,37 @@ namespace Seo.UI
             bar.gameObject.SetActive(false);
         }
 
+        private void BuildPlacementCostPanel()
+        {
+            var panel = SeoUIFactory.CreatePanel(safeRoot, "SeoPlacementCostPanel", new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 108f), new Vector2(900f, 98f),
+                new Color(0.015f, 0.055f, 0.075f, 0.97f));
+            panel.rectTransform.pivot = new Vector2(0.5f, 0f);
+            panel.raycastTarget = false;
+            placementCostPanel = panel.gameObject;
+            var accent = SeoUIFactory.CreatePanel(panel.transform, "Accent", new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), Vector2.zero, new Vector2(8f, 82f), SeoUITheme.Current.Warning);
+            accent.rectTransform.pivot = new Vector2(0f, 0.5f);
+            accent.raycastTarget = false;
+
+            placementCostTitle = SeoUIFactory.CreateText(panel.transform, "Title", "설치 필요 자원", 18,
+                TextAnchor.MiddleLeft, FontStyle.Bold);
+            SeoUIFactory.SetRect(placementCostTitle.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f),
+                new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(154f, -16f));
+            placementCostTitle.color = SeoUITheme.Current.Warning;
+
+            var content = new GameObject("CostEntries", typeof(RectTransform));
+            content.transform.SetParent(panel.transform, false);
+            var contentRect = content.GetComponent<RectTransform>();
+            contentRect.anchorMin = Vector2.zero;
+            contentRect.anchorMax = Vector2.one;
+            contentRect.pivot = new Vector2(0.5f, 0.5f);
+            contentRect.offsetMin = new Vector2(172f, 7f);
+            contentRect.offsetMax = new Vector2(-16f, -7f);
+            placementCostContent = content.transform;
+            placementCostPanel.SetActive(false);
+        }
+
         private void CancelCurrentInteraction()
         {
             editModeActive = false;
@@ -1148,6 +1203,173 @@ namespace Seo.UI
             var icon = button.transform.Find("Icon")?.GetComponent<Text>();
             if (icon != null)
                 icon.color = selected ? Color.white : SeoUITheme.Current.Primary;
+        }
+
+        private void UpdatePlacementCostPanel()
+        {
+            if (placementCostPanel == null) return;
+            if (!TryGetActivePlacementCost(out string title, out ResourceAmount[] cost,
+                    out SimulationWorld world, out ProcessorInstance core))
+            {
+                placementCostPanel.SetActive(false);
+                placementCostSignature = null;
+                return;
+            }
+
+            placementCostPanel.SetActive(true);
+            string signature = title;
+            for (int i = 0; i < cost.Length; i++)
+                signature += "|" + cost[i].ResourceId + ":" + cost[i].Amount;
+
+            if (placementCostSignature != signature)
+            {
+                placementCostSignature = signature;
+                RebuildPlacementCostEntries(title, cost, world);
+            }
+
+            for (int i = 0; i < placementCostEntries.Count; i++)
+            {
+                PlacementCostEntry entry = placementCostEntries[i];
+                int owned = core != null && entry.ResourceId >= 0 && entry.ResourceId < core.InputBuffer.Length
+                    ? core.InputBuffer[entry.ResourceId]
+                    : 0;
+                bool enough = owned >= entry.Required;
+                entry.Amount.text = "필요 " + entry.Required.ToString("N0")
+                    + " · 보유 " + owned.ToString("N0");
+                entry.Amount.color = enough ? SeoUITheme.Current.Success : SeoUITheme.Current.Danger;
+                entry.Background.color = enough
+                    ? new Color(0.035f, 0.16f, 0.18f, 0.97f)
+                    : new Color(0.24f, 0.055f, 0.055f, 0.97f);
+            }
+        }
+
+        private bool TryGetActivePlacementCost(out string title, out ResourceAmount[] cost,
+            out SimulationWorld world, out ProcessorInstance core)
+        {
+            title = null;
+            cost = null;
+            world = null;
+            core = null;
+
+            if (simulationDriver == null) simulationDriver = FindFirstObjectByType<SimulationDriver>();
+            if (simulationDriver == null || simulationDriver.World == null) return false;
+            world = simulationDriver.World;
+            int coreIndex = world.CoreProcessorIndex;
+            if (coreIndex >= 0 && coreIndex < world.Processors.Count) core = world.Processors[coreIndex];
+
+            var powerController = FindFirstObjectByType<PowerBuildController>();
+            if (powerController != null)
+            {
+                if (powerController.Mode == PowerBuildMode.Generator)
+                    return TryGetMachineBuildCost(world, "Generator", "발전기 설치", out title, out cost);
+                if (powerController.Mode == PowerBuildMode.TransmissionTower)
+                    return TryGetMachineBuildCost(world, "TransmissionTower", "송전탑 설치", out title, out cost);
+                if (powerController.Mode == PowerBuildMode.Cable
+                    && world.Database.TryGetResourceId("CopperWire", out int wireId))
+                {
+                    int amount = CableCostField?.GetRawConstantValue() is int configuredCost
+                        ? configuredCost
+                        : 1;
+                    title = "전선 연결\n1회 기준";
+                    cost = new[] { new ResourceAmount(wireId, Mathf.Max(1, amount)) };
+                    return true;
+                }
+            }
+
+            if (buildRouter == null) buildRouter = FindFirstObjectByType<BuildInputRouter>();
+            if (machineTool == null) machineTool = FindFirstObjectByType<MachineGhostTool>();
+            if (buildRouter == null) return false;
+
+            if (buildRouter.CurrentMode == BuildInputRouter.Mode.PlaceMachine && machineTool != null
+                && !string.IsNullOrEmpty(machineTool.SelectedMachineId))
+            {
+                string machineId = machineTool.SelectedMachineId;
+                return TryGetMachineBuildCost(world, machineId,
+                    MachineInfoPresenter.GetMachineDisplayName(machineId) + " 설치", out title, out cost);
+            }
+
+            if (buildRouter.CurrentMode == BuildInputRouter.Mode.Belt
+                && world.Database.TryGetResourceId("Concrete", out int concreteId))
+            {
+                if (beltTool == null) beltTool = FindFirstObjectByType<BeltDragTool>();
+                int amount = 3;
+                if (beltTool != null && BeltCostPerTileField?.GetValue(beltTool) is int configuredCost)
+                    amount = configuredCost;
+                title = "벨트 설치\n1칸 기준";
+                cost = new[] { new ResourceAmount(concreteId, Mathf.Max(1, amount)) };
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetMachineBuildCost(SimulationWorld world, string machineId, string label,
+            out string title, out ResourceAmount[] cost)
+        {
+            title = null;
+            cost = null;
+            if (world == null || !world.Database.TryGetMachineId(machineId, out int id)) return false;
+            cost = world.Database.Machines[id].BuildCost;
+            if (cost == null || cost.Length == 0) return false;
+            title = label;
+            return true;
+        }
+
+        private void RebuildPlacementCostEntries(string title, ResourceAmount[] cost, SimulationWorld world)
+        {
+            for (int i = 0; i < placementCostEntries.Count; i++)
+                if (placementCostEntries[i].Root != null) Destroy(placementCostEntries[i].Root);
+            placementCostEntries.Clear();
+            placementCostTitle.text = "설치 필요 자원\n" + title;
+
+            float cardWidth = Mathf.Min(224f, 690f / Mathf.Max(1, cost.Length));
+            for (int i = 0; i < cost.Length; i++)
+            {
+                ResourceAmount requirement = cost[i];
+                if (requirement.ResourceId < 0 || requirement.ResourceId >= world.Database.Resources.Count) continue;
+                ResourceRuntime resource = world.Database.Resources[requirement.ResourceId];
+                var card = SeoUIFactory.CreatePanel(placementCostContent, "Cost_" + resource.Key,
+                    new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                    new Vector2(i * (cardWidth + 6f), 0f), new Vector2(cardWidth, 76f),
+                    new Color(0.035f, 0.16f, 0.18f, 0.97f));
+                card.rectTransform.pivot = new Vector2(0f, 0.5f);
+                card.raycastTarget = false;
+
+                var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                iconObject.transform.SetParent(card.transform, false);
+                SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0f, 0.5f),
+                    new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, 0f), new Vector2(58f, 58f));
+                var icon = iconObject.GetComponent<Image>();
+                icon.preserveAspect = true;
+                icon.raycastTarget = false;
+                RecipeResourceIconCache.Assign(icon, resource.Key, resource.PrefabName, resource.Color);
+
+                var name = SeoUIFactory.CreateText(card.transform, "Name", resource.DisplayName, 16,
+                    TextAnchor.MiddleLeft, FontStyle.Bold);
+                SeoUIFactory.SetRect(name.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                    new Vector2(0.5f, 1f), new Vector2(70f, -7f), new Vector2(-76f, 30f));
+                name.resizeTextForBestFit = true;
+                name.resizeTextMinSize = 12;
+                name.resizeTextMaxSize = 16;
+                name.verticalOverflow = VerticalWrapMode.Truncate;
+
+                var amount = SeoUIFactory.CreateText(card.transform, "Amount", string.Empty, 14,
+                    TextAnchor.MiddleLeft, FontStyle.Bold);
+                SeoUIFactory.SetRect(amount.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                    new Vector2(0.5f, 0f), new Vector2(70f, 8f), new Vector2(-76f, 30f));
+                amount.resizeTextForBestFit = true;
+                amount.resizeTextMinSize = 11;
+                amount.resizeTextMaxSize = 14;
+
+                placementCostEntries.Add(new PlacementCostEntry
+                {
+                    ResourceId = requirement.ResourceId,
+                    Required = requirement.Amount,
+                    Root = card.gameObject,
+                    Background = card,
+                    Amount = amount,
+                });
+            }
         }
 
         private void UpdateContextActions()
