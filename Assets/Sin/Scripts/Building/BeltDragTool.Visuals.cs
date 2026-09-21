@@ -77,7 +77,13 @@ namespace Factory.Building
             var itemRenderer = root.AddComponent<BeltItemRenderer>();
             itemRenderer.Initialize(driver, segmentId, startAnchor, endAnchor, itemVisualPrefab, bendAnchor);
         }
-
+        // 여기부터
+        // 세이브 로드도 최초 배치와 완전히 같은 프리팹/높이/아이템 렌더러 경로를 사용한다.
+        public void SpawnRestoredVisual(Vector3 from, Vector3 to, Vector3? bend, int segmentId)
+        {
+            SpawnCommittedVisual(from, to, bend, segmentId);
+        }
+        //여기까지
         // 코너 칸 중심에 코너 프리팹을 놓고 Y축으로만 돌린다(프리팹의 눕힌 자세는 유지).
         //
         // 우회전 프리팹 기준: 진입 = 아래(-Z) 변에서 위로(+Z) 들어와, 오른쪽(+X) 변으로 나간다.
