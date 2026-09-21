@@ -2803,7 +2803,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Simulation.CoreSpawner
   driver: {fileID: 38120341}
   corePrefab: {fileID: 3541852005448857136, guid: c64e1bdbb94738e47ae0cfacd1189c23, type: 3}
-  debugGiveAllResources: 1
+  debugGiveAllResources: 0
   debugResourceAmount: 500
 --- !u!4 &1107773575
 Transform:
