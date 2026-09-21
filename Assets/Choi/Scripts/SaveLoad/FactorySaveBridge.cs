@@ -480,6 +480,18 @@ namespace Choi.SaveLoad
                 end = center + Vector3.forward * 0.5f;
             }
 
+            BeltDragTool beltTool = FindAnyObjectByType<BeltDragTool>();
+            if (beltTool != null)
+            {
+                Vector3 groundStart = new Vector3(start.x, 0f, start.z);
+                Vector3 groundEnd = new Vector3(end.x, 0f, end.z);
+                bool restoredCorner = !Mathf.Approximately(groundStart.x, groundEnd.x)
+                    && !Mathf.Approximately(groundStart.z, groundEnd.z);
+                Vector3? bend = restoredCorner ? GridUtility.CellToWorldCenter(cell, 0f) : (Vector3?)null;
+                beltTool.SpawnRestoredVisual(groundStart, groundEnd, bend, segmentId);
+                return;
+            }
+
             Vector3 stripStart = new Vector3(start.x, 0.5f, start.z);
             Vector3 stripEnd = new Vector3(end.x, 0.5f, end.z);
             Vector3 centerPoint = GridUtility.CellToWorldCenter(cell, 0.5f);
