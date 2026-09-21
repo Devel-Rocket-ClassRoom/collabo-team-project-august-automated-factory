@@ -156,8 +156,16 @@ namespace Factory.Building
         // 그대로 불러쓴다 — 별도로 다시 구현하면 판정이 어긋나는 버그가 또 나기 때문에 공개함.
         public bool HasValidEndpointPreview()
         {
-            if (driver == null || driver.World == null || path.Count < 2) return false;
+            if (driver == null || driver.World == null || path.Count < 1) return false;
             if (TouchesGeneratorFromInvalidSide()) return false;
+
+            if (path.Count == 1)
+            {
+                if (ExternalCellBlocked?.Invoke(path[0]) ?? false) return false;
+                if (!TryResolveSingleCell(out _, out _, out _, out _)) return false;
+                return CanAffordBeltCost(1);
+            }
+
             var grid = driver.World.Grid;
             int last = path.Count - 1;
 
@@ -194,6 +202,9 @@ namespace Factory.Building
             {
                 endResolved = true;
             }
+
+            // Commit()과 같은 기준 — 입력 포트에서 시작했는데 끝이 안 닿으면 역방향 벨트가 되므로 무효.
+            if (!endResolved && startRole != EndpointRole.Source) return false;
 
             if (endResolved && startRole == endRole)
             {
@@ -278,7 +289,17 @@ namespace Factory.Building
         private List<Vector2Int> BuildRenderPathForPreview(out int renderOffset)
         {
             renderOffset = 0;
-            if (driver == null || driver.World == null || path.Count < 2) return path;
+            if (driver == null || driver.World == null) return path;
+
+            // 한 칸짜리는 양옆 기계 칸을 가상으로 붙여서 그 사이로 이어지는 모양(직선/코너)을 그린다.
+            if (path.Count == 1
+                && TryResolveSingleCell(out _, out var singleStart, out _, out var singleEnd))
+            {
+                renderOffset = 1;
+                return new List<Vector2Int> { singleStart, path[0], singleEnd };
+            }
+
+            if (path.Count < 2) return path;
             var grid = driver.World.Grid;
             int last = path.Count - 1;
 

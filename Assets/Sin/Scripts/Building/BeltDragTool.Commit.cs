@@ -9,9 +9,44 @@ namespace Factory.Building
     // 반드시 같은 기준(OnBuilding/Resolved 구분 등)으로 판정해야 어긋나지 않는다.
     public partial class BeltDragTool
     {
+        // 한 칸짜리 연결 벨트 — TryResolveSingleCell이 양쪽(출력/입력)을 다 찾았을 때만 놓는다.
+        private void CommitSingleCell()
+        {
+            if (!TryResolveSingleCell(out var startOccupant, out var startNeighbor, out var endOccupant, out var endNeighbor)) return;
+
+            var grid = driver.World.Grid;
+            Vector2Int cell = path[0];
+            if (ExternalCellBlocked?.Invoke(cell) ?? false) return;
+            if (!TryDeductBeltCost(1)) return;
+
+            var segment = new BeltSegment { Id = driver.World.Segments.Count, Length = 1f, ConcreteCost = concreteCostPerTile };
+
+            if (startOccupant.Type == CellOccupantType.Processor) segment.SourceProcessorId = startOccupant.InstanceIndex;
+            else if (startOccupant.Type == CellOccupantType.Belt) driver.World.Segments[startOccupant.InstanceIndex].NextSegmentId = segment.Id;
+
+            if (endOccupant.Type == CellOccupantType.Processor) segment.TargetProcessorId = endOccupant.InstanceIndex;
+            else if (endOccupant.Type == CellOccupantType.Belt) segment.NextSegmentId = endOccupant.InstanceIndex;
+
+            var renderPath = new List<Vector2Int> { startNeighbor, cell, endNeighbor };
+            ComputeCellSpan(renderPath, 1, out Vector3 entry, out Vector3 exit, out Vector3? bend);
+
+            driver.World.AddBeltSegment(segment);
+            grid.RegisterSegment(cell, segment.Id);
+            SpawnCommittedVisual(entry, exit, bend, segment.Id);
+
+            if (startOccupant.Type == CellOccupantType.Belt) RerenderSegmentStrip(startOccupant.InstanceIndex);
+            if (endOccupant.Type == CellOccupantType.Belt) RerenderSegmentStrip(endOccupant.InstanceIndex);
+        }
+
         private void Commit()
         {
-            if (driver == null || driver.World == null || path.Count < 2) return;
+            if (driver == null || driver.World == null) return;
+            if (path.Count == 1)
+            {
+                CommitSingleCell();
+                return;
+            }
+            if (path.Count < 2) return;
 
             var grid = driver.World.Grid;
             int last = path.Count - 1;
@@ -63,6 +98,10 @@ namespace Factory.Building
             // 한다 — 허공에서 시작해서 아무 데도 안 닿는 벨트는 지을 수 없다(끝은 막다른 채로 둘 수 있음).
             if (startRole == EndpointRole.None) return;
             if (endOnBuilding && !endResolved) return;
+
+            // 입력(Target) 포트에서 시작했는데 끝이 아무 데도 안 닿았으면 설치하지 않는다 — 안 막으면
+            // 벨트가 입력 포트에서 바깥쪽으로 흐르는 채로 지어져서 아무것도 못 나르는 역방향 벨트가 된다.
+            if (!endResolved && startRole != EndpointRole.Source) return;
 
             // 양쪽 다 같은 역할로 겹치면(둘 다 Source거나 둘 다 Target) 보통 코어처럼 순서
             // 의존적인(고정 아님) 쪽이 반대쪽 고정 포트 방향과 어긋난 경우다 — 예: 제련로
