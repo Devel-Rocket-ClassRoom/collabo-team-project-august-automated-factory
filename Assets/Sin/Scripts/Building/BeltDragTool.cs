@@ -85,6 +85,13 @@ namespace Factory.Building
 
             if (TryScreenToCell(screenPosition, out var cell))
             {
+                // 기계 칸에서는 드래그 자체를 시작하지 않는다 — 기계 옆 빈 칸에서 시작/끝내면
+                // 옆칸 자동연결(TryFindAdjacentOccupant)이 알아서 붙여준다.
+                if (IsMachineCell(cell))
+                {
+                    dragging = false;
+                    return;
+                }
                 BeltPathBuilder.Extend(path, cell);
                 RebuildPreview();
             }
@@ -97,7 +104,27 @@ namespace Factory.Building
 
             int before = path.Count;
             BeltPathBuilder.Extend(path, cell);
+            TrimAtMachine();
             if (path.Count != before) RebuildPreview();
+        }
+
+        // 벨트는 기계 칸을 밟거나 통과할 수 없다(코어/분류기 등 Belt 아닌 점유 전부). 기계에서
+        // 시작하거나 기계가 경로 중간에 끼면 미리보기/되그리기가 엉뚱한 이웃 벨트를 건드리는
+        // 문제가 계속 났다 — 아예 경로가 기계 직전 칸에서 끊기게 해서 그 경우 자체를 없앤다.
+        private bool IsMachineCell(Vector2Int cell)
+        {
+            if (driver == null || driver.World == null) return false;
+            return driver.World.Grid.TryGetOccupant(cell, out var occupant) && occupant.Type != CellOccupantType.Belt;
+        }
+
+        private void TrimAtMachine()
+        {
+            for (int i = 0; i < path.Count; i++)
+            {
+                if (!IsMachineCell(path[i])) continue;
+                path.RemoveRange(i, path.Count - i);
+                return;
+            }
         }
 
         public void OnReleased(Vector2 screenPosition)
