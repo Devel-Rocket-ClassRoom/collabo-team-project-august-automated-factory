@@ -377,11 +377,11 @@ namespace Seo.UI
                         typeof(Image));
                     iconObject.transform.SetParent(card.transform, false);
                     SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(7f, -10f), new Vector2(44f, 44f));
+                        new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(3f, -7f), new Vector2(50f, 50f));
                     var icon = iconObject.GetComponent<Image>();
                     icon.preserveAspect = true;
                     icon.raycastTarget = false;
-                    RecipeResourceIconCache.Assign(icon, resource.PrefabName, resource.Color);
+                    RecipeResourceIconCache.Assign(icon, resource.Key, resource.PrefabName, resource.Color);
 
                     var name = SeoUIFactory.CreateText(card.transform, "Name", resource.DisplayName, 14,
                         TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -1409,7 +1409,7 @@ namespace Seo.UI
             var icon = iconObject.GetComponent<Image>();
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            RecipeResourceIconCache.Assign(icon, resource.PrefabName, resource.Color);
+            RecipeResourceIconCache.Assign(icon, resource.Key, resource.PrefabName, resource.Color);
 
             var info = SeoUIFactory.CreateText(tile.transform, "Info",
                 resource.DisplayName + "\n×" + amount, 17, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -1442,16 +1442,28 @@ namespace Seo.UI
     internal sealed class RecipeResourceIconCache : MonoBehaviour
     {
         private const int PreviewLayer = 31;
-        private const int TextureSize = 160;
+        private const int TextureSize = 256;
         private static RecipeResourceIconCache instance;
         private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, Sprite> FallbackSprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, List<Image>> Waiting = new Dictionary<string, List<Image>>();
 
-        public static void Assign(Image target, string prefabKey, Color fallbackColor)
+        public static void Assign(Image target, string resourceKey, string configuredPrefabKey, Color fallbackColor)
         {
             if (target == null) return;
             target.color = Color.white;
+            string prefabKey = string.IsNullOrEmpty(resourceKey)
+                ? configuredPrefabKey
+                : "Prefab_Item_" + resourceKey;
+            if (!string.IsNullOrEmpty(prefabKey))
+            {
+                var fixedIcon = Resources.Load<Sprite>("ResourceIcons/" + prefabKey);
+                if (fixedIcon != null)
+                {
+                    target.sprite = fixedIcon;
+                    return;
+                }
+            }
             if (!string.IsNullOrEmpty(prefabKey) && Sprites.TryGetValue(prefabKey, out var cached))
             {
                 target.sprite = cached;
@@ -1512,7 +1524,6 @@ namespace Seo.UI
             previewRoot.transform.position = new Vector3(10000f, 10000f, 10000f);
             var model = Instantiate(prefab, previewRoot.transform);
             model.transform.localPosition = Vector3.zero;
-            model.transform.localRotation = Quaternion.identity;
             SetLayerRecursively(model, PreviewLayer);
             var behaviours = model.GetComponentsInChildren<MonoBehaviour>(true);
             for (int i = 0; i < behaviours.Length; i++) behaviours[i].enabled = false;
@@ -1541,7 +1552,7 @@ namespace Seo.UI
             previewCamera.allowHDR = false;
             previewCamera.allowMSAA = true;
             float extent = Mathf.Max(bounds.extents.x, bounds.extents.y, bounds.extents.z);
-            previewCamera.orthographicSize = Mathf.Max(0.2f, extent * 1.45f);
+            previewCamera.orthographicSize = Mathf.Max(0.2f, extent * 1.18f);
             Vector3 viewDirection = new Vector3(1f, 0.85f, -1f).normalized;
             float distance = Mathf.Max(2f, extent * 5f);
             previewCamera.transform.position = bounds.center + viewDirection * distance;

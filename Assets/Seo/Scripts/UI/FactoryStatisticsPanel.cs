@@ -376,7 +376,7 @@ namespace Seo.UI
             var icon = iconObject.GetComponent<Image>();
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            RecipeResourceIconCache.Assign(icon, resource.PrefabName, resource.Color);
+            RecipeResourceIconCache.Assign(icon, resource.Key, resource.PrefabName, resource.Color);
             CreateText(card.transform, "Name", resource.DisplayName, 20, FontStyle.Bold,
                 new Vector2(76f, -8f), new Vector2(184f, 30f));
             var state = CreateText(card.transform, "State", "대기", 15, FontStyle.Bold,
