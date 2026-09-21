@@ -159,12 +159,24 @@ public class BuildToolsIntegrationTests
         return core;
     }
 
+    // 벨트는 기계 칸에서 시작/통과할 수 없다(BeltDragTool.IsMachineCell) — 예전 시나리오처럼
+    // 기계 칸을 양 끝으로 넘겨도 실제 사용자 조작과 같게 기계 옆 칸부터 시작/끝나게 잘라낸다.
     private void DragBelt(Vector2Int from, Vector2Int to)
     {
+        var raw = BeltPathBuilder.BuildOrthogonalPath(new[] { from, to });
+        while (raw.Count > 0 && IsMachineCell(raw[0])) raw.RemoveAt(0);
+        while (raw.Count > 0 && IsMachineCell(raw[raw.Count - 1])) raw.RemoveAt(raw.Count - 1);
+        if (raw.Count == 0) return;
+
+        from = raw[0];
+        to = raw[raw.Count - 1];
         beltTool.OnPressBegin(ScreenPosForCell(from));
         beltTool.OnDrag(ScreenPosForCell(to));
         beltTool.OnReleased(ScreenPosForCell(to));
     }
+
+    private bool IsMachineCell(Vector2Int cell) =>
+        driver.World.Grid.TryGetOccupant(cell, out var occupant) && occupant.Type != CellOccupantType.Belt;
 
     private void RunTicks(int count, float delta = 0.05f)
     {

@@ -101,6 +101,18 @@ namespace Factory.Building
             out CellOccupant occupant, out EndpointRole role, out bool isFixed, out Vector2Int neighborCell)
         {
             var grid = driver.World.Grid;
+
+            // 한 칸이 위 기계의 입력 칸이면서 아래 기계의 출력 칸인 경우처럼 유효한 이웃이 여러
+            // 개면, 순서대로 첫 번째를 고르면 항상 같은 쪽(북쪽)으로 고정돼서 반대쪽으로는 못 붙는다.
+            // 드래그 시작 칸은 출력(Source), 끝 칸은 입력(Target)이 되는 이웃을 우선하고, 그런
+            // 이웃이 없을 때만 나머지(역방향 드래그 등)로 물러난다.
+            EndpointRole preferred = isStart ? EndpointRole.Source : EndpointRole.Target;
+            bool found = false;
+            CellOccupant bestOccupant = default;
+            EndpointRole bestRole = EndpointRole.None;
+            bool bestFixed = false;
+            Vector2Int bestNeighbor = default;
+
             for (int d = 0; d < FourDirs.Length; d++)
             {
                 Vector2Int neighbor = cell + FourDirs[d];
@@ -110,20 +122,35 @@ namespace Factory.Building
                 // Belt 분기는 touchingCell 기하와 무관하게 isStart/IsChainStart만 보므로 그대로
                 // 재사용해도 안전하다. 예전엔 여기서 막아놨었는데, 그러면 "끊어진 벨트를 코너에
                 // 직접 안 닿고 재연결"하는 흔한 시나리오가 아예 안 통했다(사용자 보고).
+                // 이미 출력이 연결된 벨트(다음 벨트나 기계로 흐르는 중)는 자동연결 대상에서 뺀다 —
+                // 시작점으로 잡히면 "이미 연결됨"으로 막히기만 하고, 옆에 있는 진짜 출력(기계 등)은
+                // 후보에 못 오른다. 끝점 쪽(이미 먹여지는 벨트)은 ResolveEndpointRole이 이미 거른다.
+                if (isStart && occ.Type == CellOccupantType.Belt)
+                {
+                    var neighborSegment = driver.World.Segments[occ.InstanceIndex];
+                    if (neighborSegment != null
+                        && (neighborSegment.NextSegmentId.HasValue || neighborSegment.TargetProcessorId.HasValue))
+                        continue;
+                }
+
                 var resolved = ResolveEndpointRole(occ, cell, isStart, out bool fixedRole);
                 if (resolved == EndpointRole.None) continue;
 
-                occupant = occ;
-                role = resolved;
-                isFixed = fixedRole;
-                neighborCell = neighbor;
-                return true;
+                if (!found || (bestRole != preferred && resolved == preferred))
+                {
+                    found = true;
+                    bestOccupant = occ;
+                    bestRole = resolved;
+                    bestFixed = fixedRole;
+                    bestNeighbor = neighbor;
+                }
             }
-            occupant = default;
-            role = EndpointRole.None;
-            isFixed = false;
-            neighborCell = default;
-            return false;
+
+            occupant = bestOccupant;
+            role = bestRole;
+            isFixed = bestFixed;
+            neighborCell = bestNeighbor;
+            return found;
         }
 
         // 이 세그먼트로 흐름이 들어오는 쪽 칸: 다른 벨트가 먹이면 그 벨트 칸, 아니면 소스 기계의
