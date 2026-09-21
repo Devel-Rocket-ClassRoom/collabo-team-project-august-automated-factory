@@ -404,13 +404,37 @@ namespace Choi.SaveLoad
             Vector2Int footprint, Vector2Int facing, MachineInstanceKind kind, int index, bool isCore)
         {
             GameObject prefab = FindMachinePrefab(machineKey);
+            string addressableKey = world.Database.TryGetMachineId(machineKey, out int machineId)
+                ? world.Database.Machines[machineId].PrefabName
+                : string.Empty;
             Vector3 position = GridUtility.GetFootprintCenter(anchor, footprint, isCore ? 0.75f : 0.5f);
             Quaternion rotation = facing == Vector2Int.zero
                 ? Quaternion.identity
                 : Quaternion.LookRotation(new Vector3(facing.x, 0f, facing.y), Vector3.up);
 
             GameObject visual;
-            if (prefab != null)
+            Transform animatedVisual = null;
+            if (!string.IsNullOrEmpty(addressableKey))
+            {
+                visual = new GameObject();
+                visual.transform.SetPositionAndRotation(position, rotation);
+
+                var collider = visual.AddComponent<BoxCollider>();
+                collider.center = new Vector3(0f, 0.5f, 0f);
+                collider.size = new Vector3(footprint.x, 1f, footprint.y);
+
+                animatedVisual = new GameObject("Visual").transform;
+                animatedVisual.SetParent(visual.transform, false);
+
+                Color color = kind == MachineInstanceKind.Miner
+                    ? new Color(0.55f, 0.4f, 0.25f)
+                    : new Color(0.6f, 0.15f, 0.1f);
+                GameObject placeholder = BuildVisuals.CreateBox(
+                    position, new Vector3(footprint.x, 1f, footprint.y), color, animatedVisual, withCollider: false);
+                placeholder.name = "Placeholder";
+                animatedVisual.gameObject.AddComponent<AddressableModelMount>().Mount(addressableKey, placeholder);
+            }
+            else if (prefab != null)
             {
                 visual = Instantiate(prefab, position, rotation);
             }
@@ -424,13 +448,16 @@ namespace Choi.SaveLoad
             }
 
             visual.name = isCore ? "Core" : $"{kind}_{index}";
-            if (!isCore)
+            if (!isCore && animatedVisual == null)
             {
                 Vector3 baseScale = visual.transform.localScale;
                 visual.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
             }
             MachineView view = visual.GetComponent<MachineView>() ?? visual.AddComponent<MachineView>();
-            view.Initialize(kind, index, FindAnyObjectByType<SimulationDriver>());
+            SimulationDriver simulationDriver = FindAnyObjectByType<SimulationDriver>();
+            view.Initialize(kind, index, simulationDriver);
+            if (animatedVisual != null)
+                visual.AddComponent<MachineActivityIndicator>().Initialize(animatedVisual, kind, index, simulationDriver);
         }
 
         private static GameObject FindMachinePrefab(string machineKey)
