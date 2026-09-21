@@ -50,6 +50,8 @@ namespace Seo.UI
         private GameObject powerDetailPanel;
         private GameObject exitDialogRoot;
         private Transform coreResourceContent;
+        private RectTransform coreResourceViewport;
+        private ScrollRect coreResourceScroll;
         private Text coreResourceEmptyText;
         private Text powerText;
         private Text toastText;
@@ -208,7 +210,74 @@ namespace Seo.UI
                 Vector2.one, new Vector2(-18f, -16f), new Vector2(68f, 58f));
             var resourceCloseLabel = resourceClose.GetComponentInChildren<Text>(true);
             if (resourceCloseLabel != null) resourceCloseLabel.fontSize = 38;
-            coreResourceContent = resourceCard.transform;
+            var resourceViewport = new GameObject("ResourceViewport", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
+            resourceViewport.transform.SetParent(resourceCard.transform, false);
+            coreResourceViewport = resourceViewport.GetComponent<RectTransform>();
+            coreResourceViewport.anchorMin = Vector2.zero;
+            coreResourceViewport.anchorMax = Vector2.one;
+            coreResourceViewport.pivot = new Vector2(0.5f, 0.5f);
+            coreResourceViewport.offsetMin = new Vector2(18f, 18f);
+            coreResourceViewport.offsetMax = new Vector2(-42f, -66f);
+            var viewportImage = resourceViewport.GetComponent<Image>();
+            viewportImage.color = new Color(0f, 0f, 0f, 0.01f);
+
+            var resourceContentObject = new GameObject("ResourceContent", typeof(RectTransform));
+            resourceContentObject.transform.SetParent(resourceViewport.transform, false);
+            var resourceContentRect = resourceContentObject.GetComponent<RectTransform>();
+            resourceContentRect.anchorMin = new Vector2(0f, 1f);
+            resourceContentRect.anchorMax = new Vector2(1f, 1f);
+            resourceContentRect.pivot = new Vector2(0.5f, 1f);
+            resourceContentRect.anchoredPosition = Vector2.zero;
+            resourceContentRect.sizeDelta = Vector2.zero;
+            coreResourceContent = resourceContentObject.transform;
+
+            var scrollbarObject = new GameObject("ResourceScrollbar", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar));
+            scrollbarObject.transform.SetParent(resourceCard.transform, false);
+            var scrollbarRect = scrollbarObject.GetComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1f, 0f);
+            scrollbarRect.anchorMax = new Vector2(1f, 1f);
+            scrollbarRect.pivot = new Vector2(1f, 0.5f);
+            scrollbarRect.offsetMin = new Vector2(-30f, 18f);
+            scrollbarRect.offsetMax = new Vector2(-18f, -66f);
+            scrollbarObject.GetComponent<Image>().color = new Color(0.02f, 0.08f, 0.10f, 0.88f);
+
+            var slidingArea = new GameObject("SlidingArea", typeof(RectTransform));
+            slidingArea.transform.SetParent(scrollbarObject.transform, false);
+            var slidingRect = slidingArea.GetComponent<RectTransform>();
+            slidingRect.anchorMin = Vector2.zero;
+            slidingRect.anchorMax = Vector2.one;
+            slidingRect.offsetMin = Vector2.zero;
+            slidingRect.offsetMax = Vector2.zero;
+
+            var handleObject = new GameObject("Handle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            handleObject.transform.SetParent(slidingArea.transform, false);
+            var handleRect = handleObject.GetComponent<RectTransform>();
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = Vector2.one;
+            handleRect.offsetMin = Vector2.zero;
+            handleRect.offsetMax = Vector2.zero;
+            handleObject.GetComponent<Image>().color = SeoUITheme.Current.Primary;
+
+            var scrollbar = scrollbarObject.GetComponent<Scrollbar>();
+            scrollbar.handleRect = handleRect;
+            scrollbar.targetGraphic = handleObject.GetComponent<Image>();
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+
+            coreResourceScroll = resourceViewport.GetComponent<ScrollRect>();
+            coreResourceScroll.viewport = coreResourceViewport;
+            coreResourceScroll.content = resourceContentRect;
+            coreResourceScroll.horizontal = false;
+            coreResourceScroll.vertical = true;
+            coreResourceScroll.movementType = ScrollRect.MovementType.Clamped;
+            coreResourceScroll.inertia = true;
+            coreResourceScroll.decelerationRate = 0.12f;
+            coreResourceScroll.scrollSensitivity = 38f;
+            coreResourceScroll.verticalScrollbar = scrollbar;
+            coreResourceScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            coreResourceScroll.verticalNormalizedPosition = 1f;
+
             coreResourceEmptyText = SeoUIFactory.CreateText(resourceCard.transform, "Empty", "보유 자원이 없습니다", 20,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             SeoUIFactory.SetRect(coreResourceEmptyText.rectTransform, new Vector2(0f, 0f), Vector2.one,
@@ -360,9 +429,18 @@ namespace Seo.UI
                 int column = visible % 6;
                 int row = visible / 6;
                 entry.Root.GetComponent<RectTransform>().anchoredPosition =
-                    new Vector2(24f + column * 128f, -62f - row * 74f);
+                    new Vector2(column * 128f, -row * 74f);
                 entry.Amount.text = "×" + count.ToString("N0");
                 visible++;
+            }
+
+            var contentRect = coreResourceContent as RectTransform;
+            if (contentRect != null)
+            {
+                int rowCount = Mathf.CeilToInt(visible / 6f);
+                float viewportHeight = coreResourceViewport != null ? coreResourceViewport.rect.height : 0f;
+                float contentHeight = rowCount > 0 ? rowCount * 74f - 8f : 0f;
+                contentRect.sizeDelta = new Vector2(0f, Mathf.Max(viewportHeight, contentHeight));
             }
 
             coreResourceEmptyText.text = "보유 자원이 없습니다";
