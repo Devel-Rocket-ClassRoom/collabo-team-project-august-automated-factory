@@ -20,6 +20,8 @@ public static class ResearchSetupEditor
     [MenuItem("Factory/Research/Rebuild And Install Choi Research UI")]
     public static void Install()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
         EnsureFolders();
         var tiers = CreateTiers();
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
