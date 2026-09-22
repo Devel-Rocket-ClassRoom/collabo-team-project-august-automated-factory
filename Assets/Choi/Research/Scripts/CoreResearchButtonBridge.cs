@@ -58,15 +58,7 @@ namespace Choi.Research
                 if (button != null && !string.IsNullOrEmpty(id))
                 {
                     bool unlocked = research.IsMachineUnlocked(id);
-                    button.interactable = unlocked;
-
-                    // 잠금 전에도 위치와 아이콘은 보여주되 어둡게 표시한다. 해금 시에는
-                    // CanvasGroup 값을 완전히 원래 상태로 돌려 기존 UI 색과 입력을 복원한다.
-                    CanvasGroup group = palette.GetComponent<CanvasGroup>();
-                    if (group == null) group = palette.gameObject.AddComponent<CanvasGroup>();
-                    group.alpha = unlocked ? 1f : 0.28f;
-                    group.interactable = unlocked;
-                    group.blocksRaycasts = unlocked;
+                    SeoUIFactory.SetResearchLocked(button, !unlocked);
                 }
             }
             var recipePanel = RecipeSelectionPanel.Instance;
@@ -75,12 +67,7 @@ namespace Choi.Research
             {
                 if (!button.name.StartsWith("Recipe_")) continue;
                 bool unlocked = research.IsRecipeUnlocked(button.name.Substring(7));
-                button.interactable = unlocked;
-                CanvasGroup group = button.GetComponent<CanvasGroup>();
-                if (group == null) group = button.gameObject.AddComponent<CanvasGroup>();
-                group.alpha = unlocked ? 1f : 0.28f;
-                group.interactable = unlocked;
-                group.blocksRaycasts = unlocked;
+                SeoUIFactory.SetResearchLocked(button, !unlocked);
             }
         }
     }

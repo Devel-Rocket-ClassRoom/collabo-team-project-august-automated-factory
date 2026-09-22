@@ -44,6 +44,9 @@ namespace Seo.UI
         private GameObject systemPage;
         private GameObject dockRoot;
         private GameObject sideMenuRoot;
+        private Vector2 lastSafeSize;
+        private float lastCanvasScale;
+        private int lastNavigationCount;
         private Button productionTab;
         private Button logisticsTab;
         private Button powerTab;
@@ -83,17 +86,17 @@ namespace Seo.UI
         private float nextCoreResourceRefresh;
         private float nextDiscovery;
         private bool built;
-        private static readonly Color ToolCardIdleColor = new Color(0.10f, 0.18f, 0.20f, 0.92f);
+        private static readonly Color ToolCardIdleColor = new Color(0.10f, 0.18f, 0.20f, 1f);
         private static readonly FieldInfo BeltCostPerTileField = typeof(BeltDragTool).GetField(
             "concreteCostPerTile", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo CableCostField = typeof(PowerBuildController).GetField(
             "CableCopperWireCost", BindingFlags.Static | BindingFlags.NonPublic);
         private static readonly Dictionary<Texture2D, Sprite> ToolTextureSprites =
             new Dictionary<Texture2D, Sprite>();
+        private static readonly Dictionary<string, Sprite> NavigationIconSprites =
+            new Dictionary<string, Sprite>();
         private readonly List<CoreResourceEntry> coreResourceEntries = new List<CoreResourceEntry>();
         private readonly List<PlacementCostEntry> placementCostEntries = new List<PlacementCostEntry>();
-        private readonly Button[] powerModeButtons = new Button[3];
-        private readonly Color[] powerModeButtonColors = new Color[3];
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RegisterSceneLoad()
@@ -124,7 +127,6 @@ namespace Seo.UI
             UpdatePlacementCostPanel();
             UpdateContextActions();
             UpdatePowerStatus();
-            UpdatePowerButtonStates();
             DecorateRecipePanel();
             HideLegacyPowerPanel();
             UpdateRewardedAdLabel();
@@ -206,17 +208,18 @@ namespace Seo.UI
 
         private void BuildTopHud()
         {
+            BuildNavigationRail();
             var line1 = GameObject.Find("HudLine1");
             var line2 = GameObject.Find("HudLine2");
             if (line1 != null) line1.SetActive(false);
             if (line2 != null) line2.SetActive(false);
 
-            coreResourceButton = CreateTopHudButton("SeoCoreResourceButton", "자원", "resource",
-                new Vector2(30f, -20f), ToggleCoreResourcePanel);
-            powerStatusButton = CreateTopHudButton("SeoPowerStatusButton", "전력 현황", "power_status",
-                new Vector2(30f, -132f), TogglePowerDetailPanel);
-            CreateTopHudButton("SeoFocusCoreButton", "코어 이동", "focus",
-                new Vector2(30f, -244f), FocusCore);
+            coreResourceButton = CreateRailButton(sideMenuRoot.transform, "SeoCoreResourceButton", "자원", "resource",
+                0, ToggleCoreResourcePanel);
+            powerStatusButton = CreateRailButton(sideMenuRoot.transform, "SeoPowerStatusButton", "전력 현황", "power_status",
+                1, TogglePowerDetailPanel);
+            CreateRailButton(sideMenuRoot.transform, "SeoFocusCoreButton", "코어 이동", "focus",
+                2, FocusCore);
             rewardedAdButton = SeoUIFactory.CreateTMPButton(safeRoot, "SeoRewardedAdButton",
                 "광고 보기\n60초 동안 생산 2배", ShowRewardedAd, ToolCardIdleColor);
             SeoUIFactory.SetRect(rewardedAdButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
@@ -354,54 +357,115 @@ namespace Seo.UI
             BuildExitDialog();
         }
 
-        private Button CreateTopHudButton(string name, string label, string diagramKind, Vector2 position,
-            UnityEngine.Events.UnityAction action)
+        private void BuildNavigationRail()
         {
-            var button = SeoUIFactory.CreateTMPButton(safeRoot, name, label, action, ToolCardIdleColor);
-            button.gameObject.AddComponent<RectMask2D>();
-            SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), position, new Vector2(136f, 104f));
-            var text = button.GetComponentInChildren<Text>(true);
-            if (text != null)
+            var viewport = new GameObject("SeoNavigationViewport", typeof(RectTransform), typeof(Image),
+                typeof(RectMask2D), typeof(ScrollRect));
+            viewport.transform.SetParent(safeRoot, false);
+            var viewportRect = viewport.GetComponent<RectTransform>();
+            SeoUIFactory.SetRect(viewportRect, Vector2.zero, new Vector2(0f, 1f),
+                new Vector2(0f, 0.5f), new Vector2(16f, 0f), new Vector2(160f, -24f));
+            viewport.GetComponent<Image>().color = Color.clear;
+            var content = new GameObject("SeoToolRail", typeof(RectTransform), typeof(VerticalLayoutGroup),
+                typeof(ContentSizeFitter));
+            content.transform.SetParent(viewport.transform, false);
+            var contentRect = content.GetComponent<RectTransform>();
+            SeoUIFactory.SetRect(contentRect, new Vector2(0f, 1f), Vector2.one,
+                new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+            var layout = content.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(4, 4, 8, 8);
+            layout.spacing = 8f;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var scroll = viewport.GetComponent<ScrollRect>();
+            scroll.viewport = viewportRect;
+            scroll.content = contentRect;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 32f;
+            sideMenuRoot = content;
+        }
+
+        private void LateUpdate()
+        {
+            if (!built || safeRoot == null || dockRoot == null) return;
+            var size = safeRoot.rect.size;
+            float scale = Mathf.Max(0.01f, canvas.scaleFactor);
+            int count = sideMenuRoot.transform.childCount;
+            if (size.x <= 0f || size.y <= 0f) return;
+            if (size == lastSafeSize && Mathf.Approximately(scale, lastCanvasScale) && count == lastNavigationCount)
+                return;
+            lastSafeSize = size;
+            lastCanvasScale = scale;
+            lastNavigationCount = count;
+            float railWidth = Mathf.Max(160f, 80f / scale + 8f);
+            var viewport = (RectTransform)sideMenuRoot.transform.parent;
+            viewport.sizeDelta = new Vector2(railWidth, -24f);
+            foreach (Transform child in sideMenuRoot.transform)
             {
-                text.fontSize = 17;
-                text.fontStyle = TMPro.FontStyles.Bold;
-                text.color = Color.white;
-                text.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
-                text.overflowMode = TMPro.TextOverflowModes.Truncate;
-                text.enableAutoSizing = true;
-                text.fontSizeMin = 12;
-                text.fontSizeMax = 17;
-                SeoUIFactory.SetRect(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                    new Vector2(0.5f, 0f), new Vector2(0f, 5f), new Vector2(126f, 26f));
+                LayoutNavigationContent(child, scale);
             }
-            CreateNavigationIcon(button.transform, diagramKind);
-            if (text != null) text.transform.SetAsLastSibling();
-            return button;
+            var dockRect = dockRoot.GetComponent<RectTransform>();
+            float dockX = 28f + railWidth;
+            dockRect.anchoredPosition = new Vector2(dockX, 0f);
+            dockRect.sizeDelta = new Vector2(Mathf.Min(760f, size.x - dockX - 16f),
+                Mathf.Min(760f, size.y - 32f));
+        }
+
+        private static void ApplyCardBackground(Button button)
+        {
+            var background = button.GetComponent<Image>();
+            background.sprite = null;
+            background.overrideSprite = null;
+            background.type = Image.Type.Simple;
+            background.color = ToolCardIdleColor;
+            button.transition = Selectable.Transition.None;
+            var palette = button.GetComponent<BuildPaletteButton>();
+            if (palette != null) palette.SetBackgroundColors(ToolCardIdleColor, ToolCardIdleColor);
+            if (button.GetComponent<RectMask2D>() == null) button.gameObject.AddComponent<RectMask2D>();
+        }
+
+        private static void LayoutNavigationContent(Transform button, float scale)
+        {
+            var label = button.GetComponentInChildren<Text>(true);
+            if (label == null) return;
+            scale = Mathf.Max(0.01f, scale);
+            label.fontSizeMax = Mathf.Max(22f, 12f / scale);
+            label.fontSizeMin = Mathf.Max(18f, 10f / scale);
+            label.alignment = TMPro.TextAlignmentOptions.Center;
+            label.overflowMode = TMPro.TextOverflowModes.Overflow;
+            label.margin = Vector4.zero;
+            float lineHeight = label.fontSizeMax * 1.5f;
+            if (label.font != null)
+            {
+                var face = label.font.faceInfo;
+                lineHeight = label.fontSizeMax * Mathf.Max(face.lineHeight, face.ascentLine - face.descentLine)
+                    * face.scale / Mathf.Max(1f, face.pointSize);
+            }
+            float captionHeight = Mathf.Ceil(lineHeight) + 6f;
+            SeoUIFactory.SetRect(label.rectTransform, Vector2.zero, new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 6f), new Vector2(-16f, captionHeight));
+            var layout = button.GetComponent<LayoutElement>();
+            if (layout != null)
+                layout.minHeight = layout.preferredHeight = Mathf.Max(104f, 56f / scale, captionHeight + 70f);
+            var icon = button.Find("NavigationIcon") as RectTransform;
+            if (icon != null)
+            {
+                icon.anchorMin = new Vector2(0.16f, 0f);
+                icon.anchorMax = new Vector2(0.84f, 1f);
+                icon.offsetMin = new Vector2(0f, captionHeight + 12f);
+                icon.offsetMax = new Vector2(0f, -8f);
+            }
+            label.transform.SetAsLastSibling();
         }
 
         internal static void CreateNavigationIcon(Transform parent, string kind)
         {
-            Sprite sprite = null;
-            string prefabKey = null;
-            bool preserveSpriteColor = false;
-            switch (kind)
-            {
-                case "resource": sprite = SeoUITheme.Current.ResourceIcon; break;
-                case "power_status": sprite = SeoUITheme.Current.PowerStatusIcon; break;
-                case "power_build": sprite = SeoUITheme.Current.PowerIcon; break;
-                case "focus": prefabKey = "Prefab_Core"; break;
-                case "production": sprite = SeoUITheme.Current.ProductionIcon; break;
-                case "logistics":
-                    sprite = GetToolTextureSprite(SeoUITheme.Current.BeltTexture);
-                    preserveSpriteColor = true;
-                    break;
-                case "edit": sprite = SeoUITheme.Current.EditIcon; break;
-                case "save": sprite = SeoUITheme.Current.SaveIcon; break;
-                case "report": sprite = SeoUITheme.Current.ReportIcon; break;
-            }
-
-            if (sprite == null && string.IsNullOrEmpty(prefabKey))
+            var sprite = GetNavigationIconSprite(kind);
+            if (sprite == null)
             {
                 CreateToolDiagram(parent, kind, true, SeoUITheme.Current.Primary);
                 return;
@@ -411,15 +475,42 @@ namespace Seo.UI
                 typeof(Image));
             iconObject.transform.SetParent(parent, false);
             var icon = iconObject.GetComponent<Image>();
-            if (sprite != null) icon.sprite = sprite;
-            else TopViewIconCache.Assign(icon, prefabKey);
-            icon.color = preserveSpriteColor || !string.IsNullOrEmpty(prefabKey)
-                ? Color.white
-                : SeoUITheme.Current.Primary;
+            icon.sprite = sprite;
+            icon.color = Color.white;
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(62f, 62f));
+            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.16f, 0.34f),
+                new Vector2(0.84f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        }
+
+        private static Sprite GetNavigationIconSprite(string kind)
+        {
+            if (NavigationIconSprites.TryGetValue(kind, out var cachedSprite)) return cachedSprite;
+
+            int column;
+            int row;
+            switch (kind)
+            {
+                case "resource": column = 0; row = 0; break;
+                case "power_status": column = 1; row = 0; break;
+                case "focus": column = 2; row = 0; break;
+                case "production": column = 0; row = 1; break;
+                case "logistics": column = 1; row = 1; break;
+                case "power_build": column = 2; row = 1; break;
+                case "edit": column = 0; row = 2; break;
+                case "save": column = 1; row = 2; break;
+                case "report": column = 2; row = 2; break;
+                default: return null;
+            }
+
+            var atlas = Resources.Load<Texture2D>("NavigationIcons/FactoryNavigationIcons");
+            if (atlas == null) return null;
+            int cellWidth = atlas.width / 3;
+            int cellHeight = atlas.height / 3;
+            var rect = new Rect(column * cellWidth, (2 - row) * cellHeight, cellWidth, cellHeight);
+            var sprite = Sprite.Create(atlas, rect, new Vector2(0.5f, 0.5f), 100f);
+            NavigationIconSprites[kind] = sprite;
+            return sprite;
         }
 
         private void ToggleCoreResourcePanel()
@@ -655,7 +746,9 @@ namespace Seo.UI
         private void BuildBottomDock()
         {
             var dock = SeoUIFactory.CreatePanel(safeRoot, "SeoToolFlyout", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(184f, 0f), new Vector2(760f, 720f));
+                new Vector2(0f, 0.5f), new Vector2(188f, 0f), new Vector2(760f, 760f));
+            dock.sprite = null;
+            dock.type = Image.Type.Simple;
             dock.rectTransform.pivot = new Vector2(0f, 0.5f);
             dockRoot = dock.gameObject;
             BuildSideMenu();
@@ -709,44 +802,43 @@ namespace Seo.UI
 
         private void BuildSideMenu()
         {
-            var menu = SeoUIFactory.CreatePanel(safeRoot, "SeoToolRail", new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(20f, -362f), new Vector2(156f, 660f));
-            menu.rectTransform.pivot = new Vector2(0f, 1f);
-            menu.color = Color.clear;
-            menu.raycastTarget = false;
-            sideMenuRoot = menu.gameObject;
+            var menu = sideMenuRoot;
 
             productionTab = CreateTab(menu.transform, "생산", "production", 0, Category.Production);
             logisticsTab = CreateTab(menu.transform, "물류", "logistics", 1, Category.Logistics);
             powerTab = CreateTab(menu.transform, "전력 설비", "power_build", 2, Category.Power);
-            editModeButton = CreateRailButton(menu.transform, "EditMode", "편집", "edit", 3, EnterEditMode);
+            editModeButton = CreateRailButton(menu.transform, "EditMode", "편집", "edit", 6, EnterEditMode);
             systemTab = CreateTab(menu.transform, "저장", "save", 4, Category.System);
             sideMenuRoot.SetActive(true);
         }
 
         private Button CreateTab(Transform parent, string label, string diagramKind, int index, Category category)
         {
-            return CreateRailButton(parent, "Tab_" + category, label, diagramKind, index, () => ToggleCategory(category));
+            return CreateRailButton(parent, "Tab_" + category, label, diagramKind, index + 3, () => ToggleCategory(category));
         }
 
-        private static Button CreateRailButton(Transform parent, string name, string label, string diagramKind, int index,
+        internal static Button CreateRailButton(Transform parent, string name, string label, string diagramKind, int index,
             UnityEngine.Events.UnityAction action)
         {
             var button = SeoUIFactory.CreateTMPButton(parent, name, label, action);
-            button.gameObject.AddComponent<RectMask2D>();
-            SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(10f, -8f - index * 108f), new Vector2(136f, 104f));
+            ApplyCardBackground(button);
+            button.transform.SetSiblingIndex(index);
+            var layout = button.gameObject.AddComponent<LayoutElement>();
+            layout.minHeight = 104f;
+            layout.preferredHeight = 104f;
             var labelText = button.GetComponentInChildren<Text>(true);
             if (labelText != null)
             {
-                labelText.fontSize = 16;
+                labelText.fontSize = 22;
+                labelText.enableAutoSizing = true;
+                labelText.fontSizeMin = 18;
+                labelText.fontSizeMax = 22;
                 labelText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
-                labelText.overflowMode = TMPro.TextOverflowModes.Truncate;
-                SeoUIFactory.SetRect(labelText.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.34f),
-                    new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                labelText.overflowMode = TMPro.TextOverflowModes.Overflow;
             }
             CreateNavigationIcon(button.transform, diagramKind);
-            if (labelText != null) labelText.transform.SetAsLastSibling();
+            var parentCanvas = button.GetComponentInParent<Canvas>();
+            LayoutNavigationContent(button.transform, parentCanvas != null ? parentCanvas.scaleFactor : 1f);
             SetTabState(button, false);
             return button;
         }
@@ -756,7 +848,10 @@ namespace Seo.UI
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             SeoUIFactory.SetRect(go.GetComponent<RectTransform>(), Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-36f, -24f));
+                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            var rect = go.GetComponent<RectTransform>();
+            rect.offsetMin = new Vector2(24f, 20f);
+            rect.offsetMax = new Vector2(-24f, -88f);
             return go;
         }
 
@@ -792,20 +887,22 @@ namespace Seo.UI
 
         private static void LayoutToolCard(GameObject go, int index, string icon, string diagramKind = null)
         {
+            ApplyCardBackground(go.GetComponent<Button>());
             int column = index % 2;
             int row = index / 2;
-            SeoUIFactory.SetRect(go.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(34f + column * 332f, -92f - row * 190f), new Vector2(310f, 174f));
+            SeoUIFactory.SetRect(go.GetComponent<RectTransform>(), new Vector2(column * 0.5f, 1f - (row + 1f) / 3f),
+                new Vector2((column + 1f) * 0.5f, 1f - row / 3f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(-16f, -16f));
             var label = go.GetComponentInChildren<Text>(true);
             if (label != null)
             {
-                label.fontSize = 17;
+                label.fontSize = 24;
                 label.enableAutoSizing = true;
-                label.fontSizeMin = 12;
-                label.fontSizeMax = 17;
+                label.fontSizeMin = 18;
+                label.fontSizeMax = 24;
                 label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                 label.overflowMode = TMPro.TextOverflowModes.Truncate;
-                SeoUIFactory.SetRect(label.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.27f),
+                SeoUIFactory.SetRect(label.rectTransform, new Vector2(0.06f, 0.05f), new Vector2(0.94f, 0.24f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
 
@@ -851,6 +948,9 @@ namespace Seo.UI
                 case "generator": prefab = SeoUITheme.Current.GeneratorPreviewPrefab; break;
                 case "cable": directSprite = Resources.Load<Sprite>("ResourceIcons/Prefab_Item_PowerCable"); break;
                 case "tower": prefab = SeoUITheme.Current.TowerPreviewPrefab; break;
+                case "save": directSprite = GetNavigationIconSprite("save"); break;
+                case "load": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/LoadGame")); break;
+                case "exit": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/ExitGame")); break;
             }
 
             if (prefab == null && string.IsNullOrEmpty(prefabKey) && directSprite == null) return false;
@@ -861,10 +961,8 @@ namespace Seo.UI
             var icon = iconObject.GetComponent<Image>();
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            Vector2 size = compact ? new Vector2(62f, 62f) : new Vector2(126f, 118f);
-            Vector2 position = compact ? new Vector2(0f, -7f) : new Vector2(0f, -8f);
-            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), position, size);
+            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.12f, 0.30f),
+                new Vector2(0.88f, 0.92f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
             if (directSprite != null)
             {
@@ -1149,12 +1247,6 @@ namespace Seo.UI
                     }
                 }, color);
                 button.transition = Selectable.Transition.None;
-                if (i < 3)
-                {
-                    powerModeButtons[i] = button;
-                    powerModeButtonColors[i] = inactiveColor;
-                }
-
                 LayoutToolCard(button.gameObject, i, string.Empty, diagrams[i]);
             }
         }
@@ -1452,7 +1544,7 @@ namespace Seo.UI
             if (button == null) return;
             var image = button.GetComponent<Image>();
             if (image != null)
-                image.color = selected ? new Color(0.04f, 0.42f, 0.54f, 0.98f) : ToolCardIdleColor;
+                image.color = ToolCardIdleColor;
 
             var label = button.GetComponentInChildren<Text>(true);
             if (label != null)
@@ -1704,35 +1796,9 @@ namespace Seo.UI
             {
                 var image = powerStatusButton.GetComponent<Image>();
                 if (image != null)
-                    image.color = shortage
-                        ? new Color(0.42f, 0.08f, 0.07f, 0.96f)
-                        : new Color(0.05f, 0.25f, 0.20f, 0.96f);
+                    image.color = ToolCardIdleColor;
                 var label = powerStatusButton.GetComponentInChildren<Text>(true);
-                if (label != null) label.color = shortage
-                    ? SeoUITheme.Current.Danger : SeoUITheme.Current.Success;
-            }
-        }
-
-        private void UpdatePowerButtonStates()
-        {
-            var controller = FindFirstObjectByType<PowerBuildController>();
-            PowerBuildMode activeMode = controller != null ? controller.Mode : PowerBuildMode.None;
-            PowerBuildMode[] modes = { PowerBuildMode.Generator, PowerBuildMode.Cable,
-                PowerBuildMode.TransmissionTower };
-
-            for (int i = 0; i < powerModeButtons.Length; i++)
-            {
-                Button button = powerModeButtons[i];
-                if (button == null) continue;
-                bool selected = activeMode == modes[i];
-                Image image = button.GetComponent<Image>();
-                if (image != null)
-                {
-                    image.color = selected
-                        ? Color.Lerp(SeoUITheme.Current.Primary, Color.white, 0.78f)
-                        : powerModeButtonColors[i];
-                }
-                button.transform.localScale = selected ? Vector3.one * 1.07f : Vector3.one;
+                if (label != null) label.color = Color.white;
             }
         }
 
@@ -1771,8 +1837,7 @@ namespace Seo.UI
                 {
                     var button = container.GetChild(i).GetComponent<Button>();
                     if (button == null) continue;
-                    SeoUIFactory.ApplyButton(button);
-                    button.interactable = true;
+                    ApplyCardBackground(button);
                     var buttonImage = button.GetComponent<Image>();
                     if (buttonImage != null) buttonImage.raycastTarget = true;
                     button.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 104f);
@@ -2085,6 +2150,7 @@ namespace Seo.UI
             }
             if (!hasBounds)
             {
+                previewRoot.SetActive(false);
                 Destroy(previewRoot);
                 return null;
             }
@@ -2121,6 +2187,15 @@ namespace Seo.UI
                 previewCamera.transform.position = bounds.center + viewDirection * distance;
                 previewCamera.transform.LookAt(bounds.center);
             }
+            Vector3 right = previewCamera.transform.right;
+            Vector3 up = previewCamera.transform.up;
+            Vector3 extents = bounds.extents;
+            float projectedWidth = Mathf.Abs(right.x) * extents.x + Mathf.Abs(right.y) * extents.y
+                + Mathf.Abs(right.z) * extents.z;
+            float projectedHeight = Mathf.Abs(up.x) * extents.x + Mathf.Abs(up.y) * extents.y
+                + Mathf.Abs(up.z) * extents.z;
+            previewCamera.aspect = 1f;
+            previewCamera.orthographicSize = Mathf.Max(0.2f, Mathf.Max(projectedWidth, projectedHeight) * 1.18f);
             previewCamera.nearClipPlane = 0.01f;
             previewCamera.farClipPlane = distance * 3f;
 
@@ -2146,6 +2221,9 @@ namespace Seo.UI
             previewCamera.targetTexture = null;
             renderTexture.Release();
 
+            previewRoot.SetActive(false);
+            previewCamera.enabled = false;
+            light.enabled = false;
             Destroy(renderTexture);
             Destroy(lightObject);
             Destroy(cameraObject);

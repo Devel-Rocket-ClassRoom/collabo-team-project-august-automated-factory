@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -122,6 +123,23 @@ namespace Seo.UI
             }
         }
 
+        public static void SetResearchLocked(Button button, bool locked)
+        {
+            if (button == null) return;
+            button.interactable = !locked;
+            var group = button.GetComponent<CanvasGroup>();
+            if (group == null) group = button.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 1f;
+            group.interactable = !locked;
+            group.blocksRaycasts = true;
+
+            var badge = button.transform.Find("ResearchLockBadge");
+            if (badge != null) badge.gameObject.SetActive(false);
+            var visual = button.GetComponent<ResearchLockedVisual>();
+            if (visual == null && locked) visual = button.gameObject.AddComponent<ResearchLockedVisual>();
+            if (visual != null) visual.SetLocked(locked);
+        }
+
         public static Text CreateText(Transform parent, string name, string value, int fontSize,
             TextAnchor alignment = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal)
         {
@@ -184,6 +202,51 @@ namespace Seo.UI
             rt.anchoredPosition = position;
             rt.sizeDelta = size;
             rt.localScale = Vector3.one;
+        }
+    }
+
+    internal sealed class ResearchLockedVisual : MonoBehaviour
+    {
+        private static Material grayscaleMaterial;
+        private readonly Dictionary<Image, Material> originalMaterials = new Dictionary<Image, Material>();
+        private readonly Dictionary<TMP_Text, Color> originalTextColors = new Dictionary<TMP_Text, Color>();
+        private readonly List<Image> images = new List<Image>();
+        private readonly List<TMP_Text> labels = new List<TMP_Text>();
+
+        public void SetLocked(bool locked)
+        {
+            if (!locked)
+            {
+                foreach (var entry in originalMaterials)
+                    if (entry.Key != null) entry.Key.material = entry.Value;
+                foreach (var entry in originalTextColors)
+                    if (entry.Key != null) entry.Key.color = entry.Value;
+                originalMaterials.Clear();
+                originalTextColors.Clear();
+                return;
+            }
+
+            if (grayscaleMaterial == null)
+            {
+                var shader = Resources.Load<Shader>("ResearchGrayscale");
+                if (shader != null)
+                    grayscaleMaterial = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            }
+
+            GetComponentsInChildren(true, images);
+            foreach (var image in images)
+            {
+                if (image.transform == transform || grayscaleMaterial == null) continue;
+                if (!originalMaterials.ContainsKey(image)) originalMaterials.Add(image, image.material);
+                image.material = grayscaleMaterial;
+            }
+
+            GetComponentsInChildren(true, labels);
+            foreach (var label in labels)
+            {
+                if (!originalTextColors.ContainsKey(label)) originalTextColors.Add(label, label.color);
+                label.color = new Color(0.55f, 0.55f, 0.55f, originalTextColors[label].a);
+            }
         }
     }
 }
