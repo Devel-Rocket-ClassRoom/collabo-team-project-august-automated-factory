@@ -5161,6 +5161,7 @@ MonoBehaviour:
   panelRoot: {fileID: 2130735165}
   buttonContainer: {fileID: 953064964}
   driver: {fileID: 38120341}
+  fontAsset: {fileID: 11400000, guid: aa31c6feac89a164fa5da8c52593b6c7, type: 2}
 --- !u!114 &2130735168
 MonoBehaviour:
   m_ObjectHideFlags: 0

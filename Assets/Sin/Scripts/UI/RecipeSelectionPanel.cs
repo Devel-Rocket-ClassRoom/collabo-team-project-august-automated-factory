@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Factory.Data;
 using Factory.Simulation;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,6 +18,7 @@ namespace Factory.UI
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Transform buttonContainer;
         [SerializeField] private SimulationDriver driver;
+        [SerializeField] private TMP_FontAsset fontAsset;
 
         private readonly List<GameObject> spawnedButtons = new List<GameObject>();
         private int targetProcessorIndex = -1;
@@ -71,7 +73,8 @@ namespace Factory.UI
             go.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 90f);
             go.GetComponent<Image>().color = new Color(0.25f, 0.25f, 0.25f, 0.95f);
 
-            var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            var textGO = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer),
+                typeof(TextMeshProUGUI));
             textGO.transform.SetParent(go.transform, false);
             var rt = textGO.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
@@ -79,11 +82,15 @@ namespace Factory.UI
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
 
-            var text = textGO.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.alignment = TextAnchor.MiddleCenter;
+            var text = textGO.GetComponent<TextMeshProUGUI>();
+            text.font = fontAsset != null ? fontAsset : TMP_Settings.defaultFontAsset;
+            text.alignment = TextAlignmentOptions.Center;
             text.color = Color.white;
             text.fontSize = 28;
+            text.fontStyle = FontStyles.Bold;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Ellipsis;
+            text.raycastTarget = false;
             text.text = label;
 
             go.GetComponent<Button>().onClick.AddListener(() => SelectRecipe(recipeId));
@@ -98,18 +105,23 @@ namespace Factory.UI
             go.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 90f);
             go.GetComponent<Image>().color = new Color(0.25f, 0.25f, 0.25f, 0.95f);
 
-            var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            var textGO = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer),
+                typeof(TextMeshProUGUI));
             textGO.transform.SetParent(go.transform, false);
             var rt = textGO.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-            var text = textGO.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.alignment = TextAnchor.MiddleCenter;
+            var text = textGO.GetComponent<TextMeshProUGUI>();
+            text.font = fontAsset != null ? fontAsset : TMP_Settings.defaultFontAsset;
+            text.alignment = TextAlignmentOptions.Center;
             text.color = Color.white;
             text.fontSize = 28;
+            text.fontStyle = FontStyles.Bold;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Ellipsis;
+            text.raycastTarget = false;
             text.text = label;
 
             go.GetComponent<Button>().onClick.AddListener(() => SelectFuel(resourceId));
