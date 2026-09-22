@@ -57,6 +57,13 @@ namespace Factory.Building
         // 벨트 한 칸 놓는 데 드는 콘크리트(건설 비용). 기계 건설 비용(MachineGhostTool)과
         // 같은 원리로 코어 창고에서 차감한다.
         [SerializeField] private int concreteCostPerTile = 3;
+        // 크로스 벨트(교차로)가 그 칸의 원래 벨트보다 얼마나 낮게 그려질지(BeltDragTool.Crossing.cs
+        // 참고) — 순수 시각용, 배선/시뮬레이션엔 영향 없다.
+        [SerializeField] private float crossingLoweredOffset = 0.03f;
+        // 교차 지점(IsCrossable 위를 실제로 지나가는 순간)에 얹는 전용 표시 모델 — 밑에 깔리는
+        // 벨트 스트립은 그대로 두고(BeltItemRenderer 앵커/아이템 이동에 계속 필요) 그 위에
+        // 장식으로 덧놓는다. 없으면 그냥 안 놓는다(폴백 없음 — 순수 장식이라 없어도 기능엔 문제 없음).
+        [SerializeField] private GameObject crosserVisualPrefab;
 
         private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly List<Vector2Int> path = new List<Vector2Int>();

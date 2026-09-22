@@ -85,6 +85,37 @@ namespace Factory.Building
 
         public static EndpointRole Opposite(EndpointRole role) => role == EndpointRole.Source ? EndpointRole.Target : EndpointRole.Source;
 
+        // 그냥 grid.TryGetOccupant(cell)만 쓰면, 크로스 타일(IsCrossable)의 경우 항상 1번
+        // 레이어(주축) 세그먼트만 나온다 — 그런데 크로스 타일은 사실 한 칸에 서로 독립된
+        // 벨트 세그먼트가 두 개(주축=1번 레이어, 수직축=2번 레이어) 있는 거라, 어느 방향에서
+        // 접근했느냐(touchingCell 반대쪽)에 따라 실제로 말하는 세그먼트가 다르다. 이 보정 없이
+        // ResolveEndpointRole에 그냥 넘기면, 수직축 쪽에서 연결하려 해도 항상 주축 세그먼트로
+        // 판정돼서 "이미 딴 데로 흐르고 있다"는 식으로 엉뚱하게 막힌다(사용자 보고: 이미
+        // 동서로 흐르는 크로스에 남쪽에서 새로 이으려니 "빈 공간이라 시작 불가"로 잘못 뜸).
+        // Commit/Preview/TryFindAdjacentOccupant/BeltConnectionFeedback이 전부 이걸 거쳐야
+        // ResolveEndpointRole이 항상 "맞는 축"으로 판정한다.
+        public bool TryGetOccupantForConnection(Vector2Int cell, Vector2Int touchingCell, out CellOccupant occupant)
+        {
+            var grid = driver.World.Grid;
+            if (!grid.TryGetOccupant(cell, out occupant)) return false;
+            if (occupant.Type != CellOccupantType.Belt) return true;
+
+            var segment = driver.World.Segments[occupant.InstanceIndex];
+            if (segment == null || !segment.IsCrossable) return true;
+
+            Vector2Int approachAxis = cell - touchingCell;
+            bool approachIsHorizontal = approachAxis.y == 0;
+            bool segIsHorizontal = segment.CrossAxis.y == 0;
+            if (approachIsHorizontal == segIsHorizontal) return true; // 같은 축 — 1번 레이어가 맞다.
+
+            // 반대 축(수직축) — 2번 레이어의 진짜 세그먼트로 바꿔치기한다.
+            if (grid.TryGetCrossingOccupant(cell, out var crossOccupant))
+            {
+                occupant = crossOccupant;
+            }
+            return true;
+        }
+
         private static readonly Vector2Int[] FourDirs =
         {
             new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1),
@@ -100,8 +131,6 @@ namespace Factory.Building
         public bool TryFindAdjacentOccupant(Vector2Int cell, Vector2Int fromCell, bool isStart,
             out CellOccupant occupant, out EndpointRole role, out bool isFixed, out Vector2Int neighborCell)
         {
-            var grid = driver.World.Grid;
-
             // 한 칸이 위 기계의 입력 칸이면서 아래 기계의 출력 칸인 경우처럼 유효한 이웃이 여러
             // 개면, 순서대로 첫 번째를 고르면 항상 같은 쪽(북쪽)으로 고정돼서 반대쪽으로는 못 붙는다.
             // 드래그 시작 칸은 출력(Source), 끝 칸은 입력(Target)이 되는 이웃을 우선하고, 그런
@@ -117,7 +146,7 @@ namespace Factory.Building
             {
                 Vector2Int neighbor = cell + FourDirs[d];
                 if (neighbor == fromCell) continue;
-                if (!grid.TryGetOccupant(neighbor, out var occ)) continue;
+                if (!TryGetOccupantForConnection(neighbor, cell, out var occ)) continue;
                 // 기존 벨트(코너 조각 등)도 옆칸 자동연결 대상에 포함한다 — ResolveEndpointRole의
                 // Belt 분기는 touchingCell 기하와 무관하게 isStart/IsChainStart만 보므로 그대로
                 // 재사용해도 안전하다. 예전엔 여기서 막아놨었는데, 그러면 "끊어진 벨트를 코너에

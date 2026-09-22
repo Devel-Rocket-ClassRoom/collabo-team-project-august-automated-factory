@@ -110,9 +110,17 @@ namespace Factory.Building
             {
                 for (int y = minY; y <= maxY; y++)
                 {
-                    if (!grid.TryGetOccupant(new Vector2Int(x, y), out var occupant)) continue;
-                    if (IsCore(occupant)) continue; // 코어는 절대 선택되지 않는다.
-                    selected.Add((occupant.Type, occupant.InstanceIndex));
+                    var cell = new Vector2Int(x, y);
+                    if (grid.TryGetOccupant(cell, out var occupant) && !IsCore(occupant))
+                    {
+                        selected.Add((occupant.Type, occupant.InstanceIndex));
+                    }
+                    // 크로스 벨트(2번째 벨트 레이어)도 같이 훑는다 — 안 그러면 교차해서
+                    // 지나가는 벨트는 영영 선택/철거가 안 된다.
+                    if (grid.TryGetCrossingOccupant(cell, out var crossing))
+                    {
+                        selected.Add((crossing.Type, crossing.InstanceIndex));
+                    }
                 }
             }
 

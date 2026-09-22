@@ -141,7 +141,16 @@ namespace Seo.UI
 
             var grid = driver.World.Grid;
             Vector2Int startCell = path[0];
-            bool startOnBuilding = grid.TryGetOccupant(startCell, out var startOccupant);
+            bool startOnBuilding = grid.IsOccupied(startCell);
+            CellOccupant startOccupant = default;
+            if (startOnBuilding)
+            {
+                // 크로스 타일(IsCrossable)은 한 칸에 독립된 두 축(BeltDragTool.Crossing.cs 참고)이
+                // 있어서, 어느 방향에서 접근했는지로 실제 어느 세그먼트를 말하는지가 갈린다 —
+                // BeltDragTool의 보정을 그대로 물어본다(따로 구현하면 UI만 어긋나는 버그가 난다).
+                Vector2Int approachFrom = path.Count >= 2 ? path[1] : startCell;
+                beltTool.TryGetOccupantForConnection(startCell, approachFrom, out startOccupant);
+            }
 
             // 아직 방향을 모를 수 있는(1칸) 상태에서는 "이 칸 자체나 그 근처에 뭐라도
             // 있는지"만 빠르게 훑어 배지/문구를 정한다 — 진짜 역할 판정은 path.Count>=2가
@@ -238,7 +247,9 @@ namespace Seo.UI
             // 경고색만 뜨고 "연결 가능" 성공 상태로 절대 못 넘어갔다(사용자 보고: 실제로는
             // 이어지는데 미리보기가 안 보여줌).
             Vector2Int endCell = path[path.Count - 1];
-            bool endOnBuilding = grid.TryGetOccupant(endCell, out var endOccupant);
+            bool endOnBuilding = grid.IsOccupied(endCell);
+            CellOccupant endOccupant = default;
+            if (endOnBuilding) beltTool.TryGetOccupantForConnection(endCell, path[path.Count - 2], out endOccupant);
             PortRole endRole = PortRole.None;
             bool endFixed = false;
             bool endResolved = false;

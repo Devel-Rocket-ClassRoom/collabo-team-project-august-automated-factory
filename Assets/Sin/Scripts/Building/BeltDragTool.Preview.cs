@@ -173,7 +173,9 @@ namespace Factory.Building
             // 찾았는지"(Resolved, 직접 닿았거나 바로 옆칸이 유효 포트라 자동 연결된 경우 둘
             // 다 포함)를 구분한다 — Commit()과 반드시 같은 기준으로 판단해야 한다. 시작도
             // 끝과 대칭으로 "기계 위에서 눌러야만 시작된다"는 제약을 없앤다(사용자 요청).
-            bool startOnBuilding = grid.TryGetOccupant(path[0], out var start);
+            bool startOnBuilding = grid.IsOccupied(path[0]);
+            CellOccupant start = default;
+            if (startOnBuilding) TryGetOccupantForConnection(path[0], path[1], out start);
             EndpointRole startRole = EndpointRole.None;
             bool startFixed = false;
 
@@ -187,7 +189,9 @@ namespace Factory.Building
             }
             if (startRole == EndpointRole.None) return false;
 
-            bool endOnBuilding = grid.TryGetOccupant(path[last], out var end);
+            bool endOnBuilding = grid.IsOccupied(path[last]);
+            CellOccupant end = default;
+            if (endOnBuilding) TryGetOccupantForConnection(path[last], path[last - 1], out end);
             EndpointRole endRole = EndpointRole.None;
             bool endFixed = false;
             bool endResolved = false;

@@ -58,11 +58,11 @@ namespace Factory.Building
             // 기억해뒀다가, 스트립을 그 칸 쪽으로 자연스럽게 휘게 그리는 데 쓴다.
             bool startOnBuilding = grid.IsOccupied(path[0]);
             CellOccupant startOccupant = default;
-            if (startOnBuilding) grid.TryGetOccupant(path[0], out startOccupant);
+            if (startOnBuilding) TryGetOccupantForConnection(path[0], path[1], out startOccupant);
 
             bool endOnBuilding = grid.IsOccupied(path[last]);
             CellOccupant endOccupant = default;
-            if (endOnBuilding) grid.TryGetOccupant(path[last], out endOccupant);
+            if (endOnBuilding) TryGetOccupantForConnection(path[last], path[last - 1], out endOccupant);
 
             bool startFixed = false, endFixed = false;
             EndpointRole startRole = EndpointRole.None;
@@ -156,7 +156,10 @@ namespace Factory.Building
             for (int i = 0; i < beltCells.Count; i++)
             {
                 if (grid.IsOccupied(beltCells[i]) || (ExternalCellBlocked?.Invoke(beltCells[i]) ?? false))
-                    return; // 기존 건물뿐 아니라 발전기/송전탑 위에도 벨트를 놓지 않는다.
+                    return; // 기존 건물뿐 아니라 발전기/송전탑 위에도 벨트를 놓지 않는다. 크로스
+                            // 타일은 처음부터 두 축(BeltDragTool.Crossing.cs)이 다 차 있어서 여기서
+                            // 그냥 지나가는 세 번째 벨트를 또 끼워 넣을 자리가 없다 — "크로스"
+                            // 팔레트 버튼으로 그 타일 자체를 놓는 것만이 교차를 만드는 방법이다.
             }
 
             // 새로 놓을 칸 수만큼 콘크리트를 코어에서 뗀다 — 모자라면 한 칸도 안 짓고
@@ -336,7 +339,15 @@ namespace Factory.Building
                 existing.name = $"Belt_{segmentId}_replaced";
                 Destroy(existing);
             }
-            SpawnCommittedVisual(entry, exit, bend, segmentId);
+            // 2번 레이어(수직축)에 등록된 세그먼트면 다시 그릴 때도 낮춰서 그려야 "밑으로
+            // 지나간다"는 느낌이 재배선/철거 이후에도 유지된다. 표시 모델(showCrosser)은
+            // 크로스 타일의 두 축 중 1번 레이어(주축) 쪽에서만 다시 얹는다 — 둘 다
+            // IsCrossable=true라서 여기서도 layer로 갈라야 한다(안 그러면 재배선 때 모델이
+            // 두 번 겹쳐 생긴다). 아이템 숨김(hideItems)은 축 상관없이 둘 다 계속 유지한다.
+            bool isCrossing = grid.TryGetCrossingOccupant(cell, out var crossingHere) && crossingHere.InstanceIndex == segmentId;
+            bool isPrimaryAxis = grid.TryGetOccupant(cell, out var primaryHere) && primaryHere.InstanceIndex == segmentId;
+            SpawnCommittedVisual(entry, exit, bend, segmentId, isCrossing,
+                showCrosser: segment.IsCrossable && isPrimaryAxis, hideItems: segment.IsCrossable);
         }
     }
 }
