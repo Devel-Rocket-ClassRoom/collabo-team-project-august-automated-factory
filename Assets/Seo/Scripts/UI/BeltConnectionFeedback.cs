@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Factory.Building;
 using Factory.Simulation;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using PortRole = Factory.Building.BeltDragTool.EndpointRole;
@@ -22,7 +23,7 @@ namespace Seo.UI
         private SimulationDriver driver;
         private Camera targetCamera;
         private GameObject panelRoot;
-        private Text messageText;
+        private TMP_Text messageText;
         private EndpointBadge startBadge;
         private EndpointBadge endBadge;
         private bool wasDragging;
@@ -112,7 +113,7 @@ namespace Seo.UI
                 new Color(0.02f, 0.08f, 0.12f, 0.97f));
             panel.rectTransform.pivot = new Vector2(0.5f, 0f);
             panelRoot = panel.gameObject;
-            messageText = SeoUIFactory.CreateText(panel.transform, "Message", string.Empty, 20,
+            messageText = SeoUIFactory.CreateTMPText(panel.transform, "Message", string.Empty, 20,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             messageText.rectTransform.offsetMin = new Vector2(24f, 8f);
             messageText.rectTransform.offsetMax = new Vector2(-24f, -8f);
@@ -463,9 +464,9 @@ namespace Seo.UI
         {
             public readonly GameObject Root;
             private readonly Image background;
-            private readonly Text label;
+            private readonly TMP_Text label;
 
-            private EndpointBadge(GameObject root, Image background, Text label)
+            private EndpointBadge(GameObject root, Image background, TMP_Text label)
             {
                 Root = root;
                 this.background = background;
@@ -489,18 +490,18 @@ namespace Seo.UI
                 backgroundRect.offsetMin = Vector2.zero;
                 backgroundRect.offsetMax = Vector2.zero;
 
-                var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+                var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
                 labelObject.transform.SetParent(root.transform, false);
                 var labelRect = labelObject.GetComponent<RectTransform>();
                 labelRect.anchorMin = Vector2.zero;
                 labelRect.anchorMax = Vector2.one;
                 labelRect.offsetMin = Vector2.zero;
                 labelRect.offsetMax = Vector2.zero;
-                var text = labelObject.GetComponent<Text>();
-                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                var text = labelObject.GetComponent<TextMeshProUGUI>();
+                text.font = SeoUITheme.Current.FontAsset;
                 text.fontSize = 14;
-                text.fontStyle = FontStyle.Bold;
-                text.alignment = TextAnchor.MiddleCenter;
+                text.fontStyle = FontStyles.Bold;
+                text.alignment = TextAlignmentOptions.Center;
                 text.color = Color.white;
                 text.raycastTarget = false;
                 return new EndpointBadge(root, backgroundObject.GetComponent<Image>(), text);

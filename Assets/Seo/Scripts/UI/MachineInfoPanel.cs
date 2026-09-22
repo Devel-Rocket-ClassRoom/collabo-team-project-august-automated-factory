@@ -1,6 +1,8 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Text = TMPro.TMP_Text;
 
 namespace Seo.UI
 {
@@ -79,7 +81,7 @@ namespace Seo.UI
             panel.statusText.rectTransform.anchorMax = Vector2.one;
             panel.statusText.rectTransform.offsetMin = new Vector2(8f, 2f);
             panel.statusText.rectTransform.offsetMax = new Vector2(-8f, -2f);
-            panel.statusText.alignment = TextAnchor.MiddleCenter;
+            panel.statusText.alignment = TextAlignmentOptions.Center;
 
             panel.powerText = CreateText(root.transform, "Power", new Vector2(26f, -66f), new Vector2(330f, 28f), 18, FontStyle.Bold);
             panel.powerText.color = SeoUITheme.Current.Warning;
@@ -174,11 +176,11 @@ namespace Seo.UI
 
             var title = CreateText(card.transform, "Title", new Vector2(30f, -30f), new Vector2(360f, 42f), 27, FontStyle.Bold);
             title.text = "철거하시겠습니까?";
-            title.alignment = TextAnchor.MiddleCenter;
+            title.alignment = TextAlignmentOptions.Center;
             var description = CreateText(card.transform, "Description", new Vector2(30f, -78f), new Vector2(360f, 40f), 17);
             description.text = "기계 안의 자원은 코어로 반환됩니다.";
             description.color = SeoUITheme.Current.Muted;
-            description.alignment = TextAnchor.MiddleCenter;
+            description.alignment = TextAlignmentOptions.Center;
 
             var cancel = CreateButton(card.transform, "Cancel", "취소", new Vector2(30f, 24f),
                 new Vector2(170f, 58f), false, new Color(0.12f, 0.32f, 0.42f, 1f));
@@ -205,7 +207,7 @@ namespace Seo.UI
 
         private static Text CreateText(Transform parent, string name, Vector2 position, Vector2 size, int fontSize, FontStyle style = FontStyle.Normal)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+            var go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
             go.transform.SetParent(parent, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 1f);
@@ -214,17 +216,17 @@ namespace Seo.UI
             rt.anchoredPosition = position;
             rt.sizeDelta = size;
 
-            var text = go.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var text = go.GetComponent<TextMeshProUGUI>();
+            text.font = SeoUITheme.Current.FontAsset;
             text.fontSize = fontSize;
-            text.fontStyle = style;
-            text.alignment = TextAnchor.UpperLeft;
+            text.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : FontStyles.Normal;
+            text.alignment = TextAlignmentOptions.TopLeft;
             text.color = Color.white;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Truncate;
-            text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = Mathf.Max(12, fontSize - 5);
-            text.resizeTextMaxSize = fontSize;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.overflowMode = TextOverflowModes.Truncate;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = Mathf.Max(12, fontSize - 5);
+            text.fontSizeMax = fontSize;
             text.raycastTarget = false;
             return text;
         }
@@ -271,7 +273,7 @@ namespace Seo.UI
             textRt.pivot = new Vector2(0.5f, 0.5f);
             textRt.anchoredPosition = Vector2.zero;
             textRt.sizeDelta = Vector2.zero;
-            text.alignment = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignmentOptions.Center;
             text.text = label;
             var button = go.GetComponent<Button>();
             SeoUIFactory.ApplyButton(button, backgroundColor);
