@@ -43,6 +43,8 @@ namespace Factory.Building
         // 크로스 벨트(CrossBeltMachineId) 전용 — 실제 배치는 BeltDragTool.PlaceCrossableTile에
         // 위임한다(ProcessorInstance가 아니라 BeltSegment를 만들어야 하므로).
         [SerializeField] private BeltDragTool beltTool;
+        // 배치 중에도 설치 완료와 같은 크로스벨트 외형을 보여준다.
+        [SerializeField] private GameObject crossBeltGhostPrefab;
         [SerializeField] private Vector2 screenOffset = new Vector2(0f, 150f);
         [SerializeField] private Color validColor = new Color(0.3f, 0.9f, 0.4f, 0.8f);
         [SerializeField] private Color invalidColor = new Color(0.9f, 0.2f, 0.2f, 0.8f);
@@ -106,7 +108,14 @@ namespace Factory.Building
             string addressableKey = selectedMachineRuntime.PrefabName;
             GameObject shapePrefab = visualLibrary != null && visualLibrary.TryGetPrefab(machineId, out var found) ? found : null;
 
-            if (!string.IsNullOrEmpty(addressableKey))
+            if (machineId == CrossBeltMachineId && crossBeltGhostPrefab != null)
+            {
+                ghost = new GameObject("Ghost");
+                ghost.transform.SetParent(transform, false);
+                var crossVisual = Instantiate(crossBeltGhostPrefab, ghost.transform);
+                crossVisual.transform.localPosition = Vector3.zero;
+            }
+            else if (!string.IsNullOrEmpty(addressableKey))
             {
                 // 박스로 시작해서, 실제 배치와 동일하게 Addressables 모델이 로드되면 그걸로 바뀐다.
                 // 여기선 root를 footprint로 스케일하지 않는다 — 배리언트가 이미 자기 footprint에

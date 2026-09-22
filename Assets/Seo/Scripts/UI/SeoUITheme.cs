@@ -12,6 +12,7 @@ namespace Seo.UI
         public Texture2D BeltTexture;
         public Texture2D SplitterTexture;
         public Texture2D MergerTexture;
+        public Texture2D CrossBeltTexture;
         public GameObject GeneratorPreviewPrefab;
         public GameObject TowerPreviewPrefab;
         public TMP_FontAsset FontAsset;

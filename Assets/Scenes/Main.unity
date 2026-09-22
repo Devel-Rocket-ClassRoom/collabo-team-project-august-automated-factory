@@ -192,6 +192,8 @@ MonoBehaviour:
   targetCamera: {fileID: 330585545}
   driver: {fileID: 38120341}
   visualLibrary: {fileID: 11400000, guid: 793385964b7f13049bd10a021234b92c, type: 2}
+  beltTool: {fileID: 20674335}
+  crossBeltGhostPrefab: {fileID: 6460665835528253765, guid: 2a6bedea62c09ee48b3697130b90c4c1, type: 3}
   screenOffset: {x: 0, y: 150}
   validColor: {r: 0.3, g: 0.9, b: 0.4, a: 0.45}
   invalidColor: {r: 0.9, g: 0.2, b: 0.2, a: 0.45}
@@ -223,6 +225,7 @@ MonoBehaviour:
   beltSurfaceY: 0.06
   cornerScale: 1.08
   concreteCostPerTile: 3
+  crosserVisualPrefab: {fileID: 6460665835528253765, guid: 2a6bedea62c09ee48b3697130b90c4c1, type: 3}
 --- !u!4 &20674336
 Transform:
   m_ObjectHideFlags: 0

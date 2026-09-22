@@ -18,6 +18,7 @@ MonoBehaviour:
   BeltTexture: {fileID: 2800000, guid: 1dc6704efde7b4d48847dd388b1b5b7b, type: 3}
   SplitterTexture: {fileID: 2800000, guid: 24af1b16b7e0f9244b7b5d08ddbce328, type: 3}
   MergerTexture: {fileID: 2800000, guid: aa784449a4e6f444b8d5a601c95bdc93, type: 3}
+  CrossBeltTexture: {fileID: 2800000, guid: 167e7acc7ebba694089fe4a3e4eba669, type: 3}
   GeneratorPreviewPrefab: {fileID: 2685274027771641398, guid: ff0a1e6aae57c994a91e6ff774fc2a48, type: 3}
   TowerPreviewPrefab: {fileID: 5126828214095455540, guid: 76b3371152226df4591d974b2335afc3, type: 3}
   FontAsset: {fileID: 11400000, guid: aa31c6feac89a164fa5da8c52593b6c7, type: 2}
