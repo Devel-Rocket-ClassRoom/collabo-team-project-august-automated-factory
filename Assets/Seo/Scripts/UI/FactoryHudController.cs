@@ -765,6 +765,7 @@ namespace Seo.UI
             systemPage = CreatePage(dock.transform, "SystemPage");
 
             EnsureRuntimeMachineButton("PaletteButton_ProcessingMachine", "가공기", "ProcessingMachine");
+            EnsureRuntimeMachineButton("PaletteButton_CrossBelt", "크로스벨트", "CrossBelt");
 
             MovePaletteButton("PaletteButton_Miner", productionPage.transform, 0, string.Empty, null, "miner");
             MovePaletteButton("PaletteButton_Smelter", productionPage.transform, 1, string.Empty, null, "smelter");
@@ -780,6 +781,7 @@ namespace Seo.UI
             MovePaletteButton("PaletteButton_Splitter", logisticsPage.transform, 1, string.Empty, null, "splitter");
             MovePaletteButton("PaletteButton_Merger", logisticsPage.transform, 2, string.Empty, null, "merger");
             MovePaletteButton("PaletteButton_MiniCore", logisticsPage.transform, 3, string.Empty, null, "core");
+            MovePaletteButton("PaletteButton_CrossBelt", logisticsPage.transform, 4, string.Empty, null, "crossbelt");
             var legacyDemolishButton = GameObject.Find("PaletteButton_Demolish");
             if (legacyDemolishButton != null) legacyDemolishButton.SetActive(false);
 
@@ -944,6 +946,7 @@ namespace Seo.UI
                 case "processing": prefabKey = "Prefab_ProcessingMachine"; break;
                 case "splitter": directSprite = GetToolTextureSprite(SeoUITheme.Current.SplitterTexture); break;
                 case "merger": directSprite = GetToolTextureSprite(SeoUITheme.Current.MergerTexture); break;
+                case "crossbelt": directSprite = GetToolTextureSprite(SeoUITheme.Current.CrossBeltTexture); break;
                 case "core": prefabKey = "Prefab_Core"; break;
                 case "generator": prefab = SeoUITheme.Current.GeneratorPreviewPrefab; break;
                 case "cable": directSprite = Resources.Load<Sprite>("ResourceIcons/Prefab_Item_PowerCable"); break;
