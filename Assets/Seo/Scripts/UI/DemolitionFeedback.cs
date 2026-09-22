@@ -6,6 +6,7 @@ using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using Text = TMPro.TMP_Text;
 
 namespace Seo.UI
 {
@@ -94,7 +95,7 @@ namespace Seo.UI
                     new Color(0.13f, 0.025f, 0.025f, 0.97f));
                 panel.rectTransform.pivot = new Vector2(0.5f, 0f);
                 panelRoot = panel.gameObject;
-                summaryText = SeoUIFactory.CreateText(panel.transform, "Summary", string.Empty, 20,
+                summaryText = SeoUIFactory.CreateTMPText(panel.transform, "Summary", string.Empty, 20,
                     TextAnchor.MiddleCenter, FontStyle.Bold);
                 summaryText.rectTransform.offsetMin = new Vector2(24f, 8f);
                 summaryText.rectTransform.offsetMax = new Vector2(-24f, -8f);
@@ -126,7 +127,7 @@ namespace Seo.UI
             if (label == null) return;
             label.text = labelText;
             label.fontSize = 24;
-            label.fontStyle = FontStyle.Bold;
+                label.fontStyle = TMPro.FontStyles.Bold;
             label.color = SeoUITheme.Current.Text;
         }
 

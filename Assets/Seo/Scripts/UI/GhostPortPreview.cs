@@ -1,6 +1,7 @@
 using Factory.Building;
 using Factory.Simulation;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -159,7 +160,7 @@ namespace Seo.UI
 
         private static void SetBadgeLabel(GameObject badge, string label, bool input)
         {
-            var text = badge.GetComponentInChildren<Text>();
+            var text = badge.GetComponentInChildren<TMP_Text>();
             if (text != null) text.text = label;
             var image = badge.transform.Find("Background")?.GetComponent<Image>();
             Color color = input ? new Color(0.05f, 0.78f, 1f) : new Color(1f, 0.48f, 0.05f);
@@ -211,7 +212,7 @@ namespace Seo.UI
             background.GetComponent<Image>().color = new Color(color.r * colorStrength, color.g * colorStrength,
                 color.b * colorStrength, highContrast ? 0.99f : 0.96f);
 
-            var textObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            var textObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
             textObject.transform.SetParent(root.transform, false);
             var textRect = textObject.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
@@ -219,11 +220,11 @@ namespace Seo.UI
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
 
-            var text = textObject.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var text = textObject.GetComponent<TextMeshProUGUI>();
+            text.font = SeoUITheme.Current.FontAsset;
             text.fontSize = fontSize;
-            text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
+            text.fontStyle = FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
             text.color = Color.white;
             text.raycastTarget = false;
             text.text = label;

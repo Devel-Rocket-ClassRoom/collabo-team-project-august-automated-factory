@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -25,10 +26,10 @@ namespace Seo.UI
             return image;
         }
 
-        public static Text CreateText(Transform parent, string name, string value, int fontSize,
+        public static TMP_Text CreateTMPText(Transform parent, string name, string value, int fontSize,
             TextAnchor alignment = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
             go.transform.SetParent(parent, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
@@ -36,17 +37,29 @@ namespace Seo.UI
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
 
-            var text = go.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var text = go.GetComponent<TextMeshProUGUI>();
+            text.font = SeoUITheme.Current.FontAsset;
             text.fontSize = fontSize;
-            text.fontStyle = style;
-            text.alignment = alignment;
+            text.fontStyle = ToTmpStyle(style);
+            text.alignment = ToTmpAlignment(alignment);
             text.color = SeoUITheme.Current.Text;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.overflowMode = TextOverflowModes.Overflow;
             text.raycastTarget = false;
             text.text = value;
             return text;
+        }
+
+        public static Button CreateTMPButton(Transform parent, string name, string label, UnityAction action,
+            Color? tint = null)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var button = go.GetComponent<Button>();
+            ApplyButton(button, tint);
+            CreateTMPText(go.transform, "Label", label, 19, TextAnchor.MiddleCenter, FontStyle.Bold);
+            if (action != null) button.onClick.AddListener(action);
+            return button;
         }
 
         public static Button CreateButton(Transform parent, string name, string label, UnityAction action,
@@ -90,13 +103,74 @@ namespace Seo.UI
             state.selectedSprite = theme.ButtonPressedSprite;
             button.spriteState = state;
 
-            var label = button.GetComponentInChildren<Text>(true);
+            var label = button.GetComponentInChildren<TMP_Text>(true);
             if (label != null)
             {
-                label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                label.font = theme.FontAsset;
                 label.color = theme.Text;
-                label.fontStyle = FontStyle.Bold;
+                label.fontStyle = FontStyles.Bold;
                 label.raycastTarget = false;
+                return;
+            }
+
+            var legacyLabel = button.GetComponentInChildren<Text>(true);
+            if (legacyLabel != null)
+            {
+                legacyLabel.color = theme.Text;
+                legacyLabel.fontStyle = FontStyle.Bold;
+                legacyLabel.raycastTarget = false;
+            }
+        }
+
+        public static Text CreateText(Transform parent, string name, string value, int fontSize,
+            TextAnchor alignment = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var text = go.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = fontSize;
+            text.fontStyle = style;
+            text.alignment = alignment;
+            text.color = SeoUITheme.Current.Text;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.text = value;
+            return text;
+        }
+
+        private static TextAlignmentOptions ToTmpAlignment(TextAnchor alignment)
+        {
+            switch (alignment)
+            {
+                case TextAnchor.UpperLeft: return TextAlignmentOptions.TopLeft;
+                case TextAnchor.UpperCenter: return TextAlignmentOptions.Top;
+                case TextAnchor.UpperRight: return TextAlignmentOptions.TopRight;
+                case TextAnchor.MiddleLeft: return TextAlignmentOptions.Left;
+                case TextAnchor.MiddleCenter: return TextAlignmentOptions.Center;
+                case TextAnchor.MiddleRight: return TextAlignmentOptions.Right;
+                case TextAnchor.LowerLeft: return TextAlignmentOptions.BottomLeft;
+                case TextAnchor.LowerCenter: return TextAlignmentOptions.Bottom;
+                case TextAnchor.LowerRight: return TextAlignmentOptions.BottomRight;
+                default: return TextAlignmentOptions.Left;
+            }
+        }
+
+        private static FontStyles ToTmpStyle(FontStyle style)
+        {
+            switch (style)
+            {
+                case FontStyle.Bold: return FontStyles.Bold;
+                case FontStyle.Italic: return FontStyles.Italic;
+                case FontStyle.BoldAndItalic: return FontStyles.Bold | FontStyles.Italic;
+                default: return FontStyles.Normal;
             }
         }
 

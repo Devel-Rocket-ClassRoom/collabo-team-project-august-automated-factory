@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 namespace Seo.UI
@@ -8,6 +9,7 @@ namespace Seo.UI
         public Sprite PanelSprite;
         public Sprite ButtonSprite;
         public Sprite ButtonPressedSprite;
+        public TMP_FontAsset FontAsset;
 
         public Color ScreenPanel = new Color(0.025f, 0.055f, 0.09f, 0.96f);
         public Color Card = new Color(0.04f, 0.1f, 0.15f, 0.96f);

@@ -4,6 +4,7 @@ using Factory.Buildings;
 using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.UI;
+using Text = TMPro.TMP_Text;
 
 namespace Seo.UI
 {
@@ -303,23 +304,23 @@ namespace Seo.UI
             panel.rectTransform.pivot = new Vector2(0.5f, 1f);
             panelRoot = panel.gameObject;
 
-            progressText = SeoUIFactory.CreateText(panel.transform, "Progress", "튜토리얼", 17,
+            progressText = SeoUIFactory.CreateTMPText(panel.transform, "Progress", "튜토리얼", 17,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             SeoUIFactory.SetRect(progressText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(24f, -12f), new Vector2(420f, 26f));
             progressText.color = SeoUITheme.Current.Primary;
 
-            titleText = SeoUIFactory.CreateText(panel.transform, "Title", string.Empty, 26,
+            titleText = SeoUIFactory.CreateTMPText(panel.transform, "Title", string.Empty, 26,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             SeoUIFactory.SetRect(titleText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(24f, -42f), new Vector2(550f, 38f));
 
-            bodyText = SeoUIFactory.CreateText(panel.transform, "Description", string.Empty, 19,
+            bodyText = SeoUIFactory.CreateTMPText(panel.transform, "Description", string.Empty, 19,
                 TextAnchor.UpperLeft);
             SeoUIFactory.SetRect(bodyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(24f, -84f), new Vector2(560f, 70f));
 
-            skipButton = SeoUIFactory.CreateButton(panel.transform, "Skip", "건너뛰기", SkipTutorial,
+            skipButton = SeoUIFactory.CreateTMPButton(panel.transform, "Skip", "건너뛰기", SkipTutorial,
                 SeoUITheme.Current.Danger);
             SeoUIFactory.SetRect(skipButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one, Vector2.one,
                 new Vector2(-18f, -18f), new Vector2(112f, 50f));

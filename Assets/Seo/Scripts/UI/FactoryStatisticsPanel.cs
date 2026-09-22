@@ -4,6 +4,7 @@ using Choi.SaveLoad;
 using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.UI;
+using Text = TMPro.TMP_Text;
 
 namespace Seo.UI
 {
@@ -105,7 +106,7 @@ namespace Seo.UI
 
         private void Build(Transform parent, Transform toolRail)
         {
-            var openButton = SeoUIFactory.CreateButton(toolRail, "SeoStatisticsButton", "생산\n보고서",
+            var openButton = SeoUIFactory.CreateTMPButton(toolRail, "SeoStatisticsButton", "생산\n보고서",
                 TogglePanel);
             SeoUIFactory.SetRect(openButton.GetComponent<RectTransform>(), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(11f, -608f), new Vector2(110f, 112f));
@@ -116,12 +117,12 @@ namespace Seo.UI
             if (openLabel != null)
             {
                 openLabel.fontSize = 13;
-                openLabel.alignment = TextAnchor.MiddleCenter;
+                openLabel.alignment = TMPro.TextAlignmentOptions.Center;
                 openLabel.color = Color.white;
                 SeoUIFactory.SetRect(openLabel.rectTransform, new Vector2(0.16f, 0.14f), new Vector2(0.84f, 0.43f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
-            var reportIcon = SeoUIFactory.CreateText(openButton.transform, "Icon", "▤", 36,
+            var reportIcon = SeoUIFactory.CreateTMPText(openButton.transform, "Icon", "▤", 36,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             SeoUIFactory.SetRect(reportIcon.rectTransform, new Vector2(0.16f, 0.43f), new Vector2(0.84f, 0.84f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -139,7 +140,7 @@ namespace Seo.UI
             periodText = CreateText(panel.transform, "Period", "측정 준비 중", 17, FontStyle.Normal,
                 new Vector2(34f, -62f), new Vector2(720f, 28f));
             periodText.color = SeoUITheme.Current.Muted;
-            var close = SeoUIFactory.CreateButton(panel.transform, "Close", "닫기", TogglePanel,
+            var close = SeoUIFactory.CreateTMPButton(panel.transform, "Close", "닫기", TogglePanel,
                 SeoUITheme.Current.Danger);
             SeoUIFactory.SetRect(close.GetComponent<RectTransform>(), Vector2.one, Vector2.one, Vector2.one,
                 new Vector2(-24f, -20f), new Vector2(116f, 50f));
@@ -199,7 +200,7 @@ namespace Seo.UI
             heading.color = SeoUITheme.Current.Warning;
             powerStateText = CreateText(card.transform, "State", "분석 중", 18, FontStyle.Bold,
                 new Vector2(830f, -14f), new Vector2(320f, 30f));
-            powerStateText.alignment = TextAnchor.UpperRight;
+            powerStateText.alignment = TMPro.TextAlignmentOptions.TopRight;
             actualPowerText = CreatePowerColumn(card.transform, "Actual", "실제 가동", 24f,
                 SeoUITheme.Current.Success, out actualPowerFill);
             optimalPowerText = CreatePowerColumn(card.transform, "Optimal", "최적 가동 요구", 406f,
@@ -238,7 +239,7 @@ namespace Seo.UI
                 "분당 실제 생산 / 최적 생산          분당 실제 소비 / 최적 소비", 16, FontStyle.Bold,
                 new Vector2(760f, -316f), new Vector2(390f, 30f));
             columns.color = SeoUITheme.Current.Muted;
-            columns.alignment = TextAnchor.UpperRight;
+            columns.alignment = TMPro.TextAlignmentOptions.TopRight;
             var hint = CreateText(parent, "ScrollHint", "휠 또는 드래그로 전체 생산물 보기", 14,
                 FontStyle.Normal, new Vector2(32f, -330f), new Vector2(360f, 22f));
             hint.color = SeoUITheme.Current.Muted;
@@ -384,7 +385,7 @@ namespace Seo.UI
             state.color = SeoUITheme.Current.Muted;
             var rates = CreateText(card.transform, "Rates", string.Empty, 18, FontStyle.Bold,
                 new Vector2(760f, -18f), new Vector2(390f, 30f));
-            rates.alignment = TextAnchor.UpperRight;
+            rates.alignment = TMPro.TextAlignmentOptions.TopRight;
             rows.Add(new ResourceRow
             {
                 ResourceId = resourceId,
@@ -599,10 +600,10 @@ namespace Seo.UI
         private static Text CreateText(Transform parent, string name, string value, int fontSize,
             FontStyle style, Vector2 position, Vector2 size)
         {
-            var text = SeoUIFactory.CreateText(parent, name, value, fontSize, TextAnchor.UpperLeft, style);
+            var text = SeoUIFactory.CreateTMPText(parent, name, value, fontSize, TextAnchor.UpperLeft, style);
             SeoUIFactory.SetRect(text.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), position, size);
-            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.overflowMode = TMPro.TextOverflowModes.Truncate;
             return text;
         }
     }

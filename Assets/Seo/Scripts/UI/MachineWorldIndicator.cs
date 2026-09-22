@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Choi.SaveLoad;
 using Factory.Buildings;
 using Factory.Simulation;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -436,18 +437,18 @@ namespace Seo.UI
             background.color = new Color(color.r * colorStrength, color.g * colorStrength,
                 color.b * colorStrength, highContrast ? 0.99f : 0.94f);
 
-            var textGO = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            var textGO = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
             textGO.transform.SetParent(root.transform, false);
             var textRt = textGO.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.one;
             textRt.offsetMin = Vector2.zero;
             textRt.offsetMax = Vector2.zero;
-            var text = textGO.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var text = textGO.GetComponent<TextMeshProUGUI>();
+            text.font = SeoUITheme.Current.FontAsset;
             text.fontSize = fontSize;
-            text.fontStyle = FontStyle.Bold;
-            text.alignment = TextAnchor.MiddleCenter;
+            text.fontStyle = FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
             text.color = Color.white;
             text.raycastTarget = false;
             text.text = label;
@@ -471,9 +472,9 @@ namespace Seo.UI
         {
             public readonly GameObject Root;
             private readonly Image background;
-            private readonly Text label;
+            private readonly TMP_Text label;
 
-            public WorldBadge(GameObject root, Image background, Text label)
+            public WorldBadge(GameObject root, Image background, TMP_Text label)
             {
                 Root = root;
                 this.background = background;
