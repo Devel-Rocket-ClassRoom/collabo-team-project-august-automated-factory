@@ -15,9 +15,13 @@ MonoBehaviour:
   PanelSprite: {fileID: 21300000, guid: c141059abc6ad7d4b887f3efec8e78c0, type: 3}
   ButtonSprite: {fileID: 21300000, guid: 4fd9a3d7e38907a4abdcbefb87aa0b65, type: 3}
   ButtonPressedSprite: {fileID: 21300000, guid: 623fa466953b086428cd14139130ac69, type: 3}
+  ResourceIcon: {fileID: 21300000, guid: 5e8bbf0b3b493614abc6c463ba85a46a, type: 3}
+  PowerStatusIcon: {fileID: 21300000, guid: 621df1f080107d240a55179eab502799, type: 3}
+  PowerIcon: {fileID: 21300000, guid: 1ff5d6fba10b2b544ac75fe449d694cb, type: 3}
+  ProductionIcon: {fileID: 21300000, guid: 0d98f5db42e6bd842ad56eabf388e69d, type: 3}
   EditIcon: {fileID: 21300000, guid: d3f16ebab9d0dc54f8fb385141bd4942, type: 3}
   SaveIcon: {fileID: 21300000, guid: c42afa1dd8c44d0499013e6704de0baf, type: 3}
-  ReportIcon: {fileID: 21300000, guid: 6e837fd79474dca4f91dc17a0caaa9d1, type: 3}
+  ReportIcon: {fileID: 21300000, guid: 6a6f158a866051346b1cfee96f3edd70, type: 3}
   BeltTexture: {fileID: 2800000, guid: 1dc6704efde7b4d48847dd388b1b5b7b, type: 3}
   SplitterTexture: {fileID: 2800000, guid: 24af1b16b7e0f9244b7b5d08ddbce328, type: 3}
   MergerTexture: {fileID: 2800000, guid: aa784449a4e6f444b8d5a601c95bdc93, type: 3}

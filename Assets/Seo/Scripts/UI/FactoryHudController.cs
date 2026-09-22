@@ -9,6 +9,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Text = TMPro.TMP_Text;
 
@@ -94,9 +95,16 @@ namespace Seo.UI
         private readonly Button[] powerModeButtons = new Button[3];
         private readonly Color[] powerModeButtonColors = new Color[3];
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateRuntimeInstance()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoad()
         {
+            SceneManager.sceneLoaded -= CreateRuntimeInstance;
+            SceneManager.sceneLoaded += CreateRuntimeInstance;
+        }
+
+        private static void CreateRuntimeInstance(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
             if (FindFirstObjectByType<FactoryHudController>() != null) return;
             new GameObject("[Seo] Factory HUD").AddComponent<FactoryHudController>();
         }
@@ -204,11 +212,11 @@ namespace Seo.UI
             if (line2 != null) line2.SetActive(false);
 
             coreResourceButton = CreateTopHudButton("SeoCoreResourceButton", "자원", "resource",
-                new Vector2(20f, -20f), ToggleCoreResourcePanel);
-            powerStatusButton = CreateTopHudButton("SeoPowerStatusButton", "전력", "power",
-                new Vector2(20f, -132f), TogglePowerDetailPanel);
-            CreateTopHudButton("SeoFocusCoreButton", "코어로", "focus",
-                new Vector2(20f, -244f), FocusCore);
+                new Vector2(30f, -20f), ToggleCoreResourcePanel);
+            powerStatusButton = CreateTopHudButton("SeoPowerStatusButton", "전력 현황", "power_status",
+                new Vector2(30f, -132f), TogglePowerDetailPanel);
+            CreateTopHudButton("SeoFocusCoreButton", "코어 이동", "focus",
+                new Vector2(30f, -244f), FocusCore);
             rewardedAdButton = SeoUIFactory.CreateTMPButton(safeRoot, "SeoRewardedAdButton",
                 "광고 보기\n60초 동안 생산 2배", ShowRewardedAd, ToolCardIdleColor);
             SeoUIFactory.SetRect(rewardedAdButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
@@ -352,7 +360,7 @@ namespace Seo.UI
             var button = SeoUIFactory.CreateTMPButton(safeRoot, name, label, action, ToolCardIdleColor);
             button.gameObject.AddComponent<RectMask2D>();
             SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), position, new Vector2(144f, 104f));
+                new Vector2(0f, 1f), position, new Vector2(136f, 104f));
             var text = button.GetComponentInChildren<Text>(true);
             if (text != null)
             {
@@ -367,31 +375,51 @@ namespace Seo.UI
                 SeoUIFactory.SetRect(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                     new Vector2(0.5f, 0f), new Vector2(0f, 5f), new Vector2(126f, 26f));
             }
-            CreateTopHudResourceIcon(button.transform, diagramKind);
+            CreateNavigationIcon(button.transform, diagramKind);
             if (text != null) text.transform.SetAsLastSibling();
             return button;
         }
 
-        private static void CreateTopHudResourceIcon(Transform parent, string kind)
+        internal static void CreateNavigationIcon(Transform parent, string kind)
         {
-            string resourceName;
+            Sprite sprite = null;
+            string prefabKey = null;
+            bool preserveSpriteColor = false;
             switch (kind)
             {
-                case "resource": resourceName = "Prefab_Item_IronOre"; break;
-                case "power": resourceName = "Prefab_Item_HighCapacityBattery"; break;
-                case "focus": resourceName = "Prefab_Item_PlasmaCore"; break;
-                default: return;
+                case "resource": sprite = SeoUITheme.Current.ResourceIcon; break;
+                case "power_status": sprite = SeoUITheme.Current.PowerStatusIcon; break;
+                case "power_build": sprite = SeoUITheme.Current.PowerIcon; break;
+                case "focus": prefabKey = "Prefab_Core"; break;
+                case "production": sprite = SeoUITheme.Current.ProductionIcon; break;
+                case "logistics":
+                    sprite = GetToolTextureSprite(SeoUITheme.Current.BeltTexture);
+                    preserveSpriteColor = true;
+                    break;
+                case "edit": sprite = SeoUITheme.Current.EditIcon; break;
+                case "save": sprite = SeoUITheme.Current.SaveIcon; break;
+                case "report": sprite = SeoUITheme.Current.ReportIcon; break;
             }
 
-            var iconObject = new GameObject("ResourceIcon", typeof(RectTransform), typeof(CanvasRenderer),
+            if (sprite == null && string.IsNullOrEmpty(prefabKey))
+            {
+                CreateToolDiagram(parent, kind, true, SeoUITheme.Current.Primary);
+                return;
+            }
+
+            var iconObject = new GameObject("NavigationIcon", typeof(RectTransform), typeof(CanvasRenderer),
                 typeof(Image));
             iconObject.transform.SetParent(parent, false);
             var icon = iconObject.GetComponent<Image>();
-            icon.sprite = Resources.Load<Sprite>("ResourceIcons/" + resourceName);
+            if (sprite != null) icon.sprite = sprite;
+            else TopViewIconCache.Assign(icon, prefabKey);
+            icon.color = preserveSpriteColor || !string.IsNullOrEmpty(prefabKey)
+                ? Color.white
+                : SeoUITheme.Current.Primary;
             icon.preserveAspect = true;
             icon.raycastTarget = false;
             SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -7f), new Vector2(62f, 62f));
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(62f, 62f));
         }
 
         private void ToggleCoreResourcePanel()
@@ -690,7 +718,7 @@ namespace Seo.UI
 
             productionTab = CreateTab(menu.transform, "생산", "production", 0, Category.Production);
             logisticsTab = CreateTab(menu.transform, "물류", "logistics", 1, Category.Logistics);
-            powerTab = CreateTab(menu.transform, "전력", "power", 2, Category.Power);
+            powerTab = CreateTab(menu.transform, "전력 설비", "power_build", 2, Category.Power);
             editModeButton = CreateRailButton(menu.transform, "EditMode", "편집", "edit", 3, EnterEditMode);
             systemTab = CreateTab(menu.transform, "저장", "save", 4, Category.System);
             sideMenuRoot.SetActive(true);
@@ -717,8 +745,7 @@ namespace Seo.UI
                 SeoUIFactory.SetRect(labelText.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.34f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
-            if (!CreateToolAssetThumbnail(button.transform, diagramKind, true))
-                CreateToolDiagram(button.transform, diagramKind, true, SeoUITheme.Current.Primary);
+            CreateNavigationIcon(button.transform, diagramKind);
             if (labelText != null) labelText.transform.SetAsLastSibling();
             SetTabState(button, false);
             return button;
@@ -821,8 +848,9 @@ namespace Seo.UI
                 case "splitter": directSprite = GetToolTextureSprite(SeoUITheme.Current.SplitterTexture); break;
                 case "merger": directSprite = GetToolTextureSprite(SeoUITheme.Current.MergerTexture); break;
                 case "core": prefabKey = "Prefab_Core"; break;
-                case "edit": directSprite = SeoUITheme.Current.EditIcon; break;
-                case "save": directSprite = SeoUITheme.Current.SaveIcon; break;
+                case "generator": prefab = SeoUITheme.Current.GeneratorPreviewPrefab; break;
+                case "cable": directSprite = Resources.Load<Sprite>("ResourceIcons/Prefab_Item_PowerCable"); break;
+                case "tower": prefab = SeoUITheme.Current.TowerPreviewPrefab; break;
             }
 
             if (prefab == null && string.IsNullOrEmpty(prefabKey) && directSprite == null) return false;
@@ -889,6 +917,15 @@ namespace Seo.UI
                     CreateDiagramLine(root.transform, new Vector2(-18f, -17f), new Vector2(18f, -17f), 5f, color);
                     CreateDiagramLine(root.transform, new Vector2(-18f, -17f), new Vector2(-18f, 1f), 5f, color);
                     CreateDiagramLine(root.transform, new Vector2(18f, -17f), new Vector2(18f, 1f), 5f, color);
+                    break;
+                case "report":
+                    CreateDiagramLine(root.transform, new Vector2(-34f, 29f), new Vector2(34f, 29f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(34f, 29f), new Vector2(34f, -29f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(34f, -29f), new Vector2(-34f, -29f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-34f, -29f), new Vector2(-34f, 29f), 5f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(-19f, -11f), new Vector2(10f, 22f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(0f, -4f), new Vector2(10f, 36f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(19f, 5f), new Vector2(10f, 54f), color);
                     break;
                 case "power":
                     CreateDiagramLine(root.transform, new Vector2(10f, 32f), new Vector2(-15f, 4f), 7f, color);
@@ -966,14 +1003,20 @@ namespace Seo.UI
                     CreateDiagramBlock(root.transform, new Vector2(30f, 9f), new Vector2(7f, 7f), color);
                     break;
                 case "load":
-                    CreateDiagramArrow(root.transform, new Vector2(0f, 30f), new Vector2(0f, -12f), color);
-                    CreateDiagramLine(root.transform, new Vector2(-32f, -28f), new Vector2(32f, -28f), 6f, color);
-                    CreateDiagramLine(root.transform, new Vector2(-32f, -28f), new Vector2(-32f, -12f), 6f, color);
-                    CreateDiagramLine(root.transform, new Vector2(32f, -28f), new Vector2(32f, -12f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-32f, 28f), new Vector2(32f, 28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(32f, 28f), new Vector2(32f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(32f, -28f), new Vector2(-32f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-32f, -28f), new Vector2(-32f, 28f), 6f, color);
+                    CreateDiagramArrow(root.transform, new Vector2(0f, 20f), new Vector2(0f, -13f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-18f, -18f), new Vector2(18f, -18f), 5f, color);
                     break;
                 case "exit":
-                    CreateDiagramLine(root.transform, new Vector2(-26f, 26f), new Vector2(26f, -26f), 7f, color);
-                    CreateDiagramLine(root.transform, new Vector2(26f, 26f), new Vector2(-26f, -26f), 7f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-32f, 29f), new Vector2(12f, 29f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-32f, 29f), new Vector2(-32f, -29f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-32f, -29f), new Vector2(12f, -29f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(12f, 29f), new Vector2(12f, 10f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(12f, -10f), new Vector2(12f, -29f), 6f, color);
+                    CreateDiagramArrow(root.transform, new Vector2(-3f, 0f), new Vector2(39f, 0f), color);
                     break;
                 case "smelter":
                     // 용광로 몸체 + 굴뚝 + 내부 열선.
