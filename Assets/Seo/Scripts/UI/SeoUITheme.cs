@@ -9,13 +9,6 @@ namespace Seo.UI
         public Sprite PanelSprite;
         public Sprite ButtonSprite;
         public Sprite ButtonPressedSprite;
-        public Sprite ResourceIcon;
-        public Sprite PowerStatusIcon;
-        public Sprite PowerIcon;
-        public Sprite ProductionIcon;
-        public Sprite EditIcon;
-        public Sprite SaveIcon;
-        public Sprite ReportIcon;
         public Texture2D BeltTexture;
         public Texture2D SplitterTexture;
         public Texture2D MergerTexture;

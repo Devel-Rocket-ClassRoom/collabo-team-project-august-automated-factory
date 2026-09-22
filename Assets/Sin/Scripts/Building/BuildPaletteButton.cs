@@ -39,6 +39,15 @@ namespace Factory.Building
             if (router != null) router.ModeChanged -= HandleModeChanged;
         }
 
+        public void SetBackgroundColors(Color idle, Color selected)
+        {
+            normalColor = idle;
+            selectedColor = selected;
+            if (background == null) background = GetComponent<Image>();
+            if (router != null) HandleModeChanged(router.CurrentMode);
+            else if (background != null) background.color = normalColor;
+        }
+
         // 지금 이 버튼이 대표하는 도구/기계가 실제로 선택돼 있는지 색으로 보여준다 — 안 그러면
         // (실제로 겪은 문제) 벨트 모드가 계속 켜져 있는데도 겉보기엔 아무 표시가 없어서 왜
         // 기계 탭이 안 먹히는지 알 길이 없다.

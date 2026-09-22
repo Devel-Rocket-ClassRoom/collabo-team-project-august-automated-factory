@@ -107,32 +107,15 @@ namespace Seo.UI
             var canvasObject = GameObject.Find("HUDCanvas");
             if (canvasObject == null) return;
             Transform parent = canvasObject.transform.Find("SafeArea") ?? canvasObject.transform;
-            Transform toolRail = parent.Find("SeoToolRail");
+            Transform toolRail = parent.Find("SeoNavigationViewport/SeoToolRail");
             if (toolRail == null) return;
             Build(parent, toolRail);
         }
 
         private void Build(Transform parent, Transform toolRail)
         {
-            var openButton = SeoUIFactory.CreateTMPButton(toolRail, "SeoStatisticsButton", "생산\n보고서",
+            FactoryHudController.CreateRailButton(toolRail, "SeoStatisticsButton", "생산 보고서", "report", 8,
                 TogglePanel);
-            openButton.gameObject.AddComponent<RectMask2D>();
-            SeoUIFactory.SetRect(openButton.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -548f), new Vector2(136f, 104f));
-            var openImage = openButton.GetComponent<Image>();
-            if (openImage != null) openImage.color = new Color(0.10f, 0.18f, 0.20f, 0.92f);
-            openButton.transition = Selectable.Transition.None;
-            var openLabel = openButton.GetComponentInChildren<Text>(true);
-            if (openLabel != null)
-            {
-                openLabel.fontSize = 13;
-                openLabel.alignment = TMPro.TextAlignmentOptions.Center;
-                openLabel.color = Color.white;
-                SeoUIFactory.SetRect(openLabel.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.36f),
-                    new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            }
-            FactoryHudController.CreateNavigationIcon(openButton.transform, "report");
-            if (openLabel != null) openLabel.transform.SetAsLastSibling();
 
             var panel = SeoUIFactory.CreatePanel(parent, "FactoryStatisticsPanel", new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 820f));
