@@ -108,8 +108,9 @@ namespace Seo.UI
         {
             var openButton = SeoUIFactory.CreateTMPButton(toolRail, "SeoStatisticsButton", "생산\n보고서",
                 TogglePanel);
+            openButton.gameObject.AddComponent<RectMask2D>();
             SeoUIFactory.SetRect(openButton.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(11f, -608f), new Vector2(110f, 112f));
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -548f), new Vector2(136f, 104f));
             var openImage = openButton.GetComponent<Image>();
             if (openImage != null) openImage.color = new Color(0.10f, 0.18f, 0.20f, 0.92f);
             openButton.transition = Selectable.Transition.None;
@@ -119,15 +120,19 @@ namespace Seo.UI
                 openLabel.fontSize = 13;
                 openLabel.alignment = TMPro.TextAlignmentOptions.Center;
                 openLabel.color = Color.white;
-                SeoUIFactory.SetRect(openLabel.rectTransform, new Vector2(0.16f, 0.14f), new Vector2(0.84f, 0.43f),
+                SeoUIFactory.SetRect(openLabel.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.36f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
-            var reportIcon = SeoUIFactory.CreateTMPText(openButton.transform, "Icon", "▤", 36,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-            SeoUIFactory.SetRect(reportIcon.rectTransform, new Vector2(0.16f, 0.43f), new Vector2(0.84f, 0.84f),
-                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            // 다른 레일 버튼도 비선택 상태에서는 프레임/라벨만 흐리고 아이콘은 선명하게 유지한다.
+            var reportIconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            reportIconObject.transform.SetParent(openButton.transform, false);
+            var reportIcon = reportIconObject.GetComponent<Image>();
+            reportIcon.sprite = SeoUITheme.Current.ReportIcon;
             reportIcon.color = SeoUITheme.Current.Primary;
+            reportIcon.preserveAspect = true;
+            reportIcon.raycastTarget = false;
+            SeoUIFactory.SetRect(reportIconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -7f), new Vector2(58f, 58f));
+            if (openLabel != null) openLabel.transform.SetAsLastSibling();
 
             var panel = SeoUIFactory.CreatePanel(parent, "FactoryStatisticsPanel", new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1240f, 820f));

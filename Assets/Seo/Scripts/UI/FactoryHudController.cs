@@ -87,6 +87,8 @@ namespace Seo.UI
             "concreteCostPerTile", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo CableCostField = typeof(PowerBuildController).GetField(
             "CableCopperWireCost", BindingFlags.Static | BindingFlags.NonPublic);
+        private static readonly Dictionary<Texture2D, Sprite> ToolTextureSprites =
+            new Dictionary<Texture2D, Sprite>();
         private readonly List<CoreResourceEntry> coreResourceEntries = new List<CoreResourceEntry>();
         private readonly List<PlacementCostEntry> placementCostEntries = new List<PlacementCostEntry>();
         private readonly Button[] powerModeButtons = new Button[3];
@@ -202,11 +204,11 @@ namespace Seo.UI
             if (line2 != null) line2.SetActive(false);
 
             coreResourceButton = CreateTopHudButton("SeoCoreResourceButton", "자원", "resource",
-                new Vector2(28f, -24f), ToggleCoreResourcePanel, SeoUITheme.Current.Primary);
+                new Vector2(20f, -20f), ToggleCoreResourcePanel);
             powerStatusButton = CreateTopHudButton("SeoPowerStatusButton", "전력", "power",
-                new Vector2(28f, -118f), TogglePowerDetailPanel, SeoUITheme.Current.Warning);
+                new Vector2(20f, -132f), TogglePowerDetailPanel);
             CreateTopHudButton("SeoFocusCoreButton", "코어로", "focus",
-                new Vector2(28f, -212f), FocusCore, SeoUITheme.Current.Success);
+                new Vector2(20f, -244f), FocusCore);
             rewardedAdButton = SeoUIFactory.CreateTMPButton(safeRoot, "SeoRewardedAdButton",
                 "광고 보기\n60초 동안 생산 2배", ShowRewardedAd, ToolCardIdleColor);
             SeoUIFactory.SetRect(rewardedAdButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
@@ -345,23 +347,51 @@ namespace Seo.UI
         }
 
         private Button CreateTopHudButton(string name, string label, string diagramKind, Vector2 position,
-            UnityEngine.Events.UnityAction action, Color accent)
+            UnityEngine.Events.UnityAction action)
         {
             var button = SeoUIFactory.CreateTMPButton(safeRoot, name, label, action, ToolCardIdleColor);
+            button.gameObject.AddComponent<RectMask2D>();
             SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), position, new Vector2(124f, 82f));
+                new Vector2(0f, 1f), position, new Vector2(144f, 104f));
             var text = button.GetComponentInChildren<Text>(true);
             if (text != null)
             {
-                text.fontSize = 19;
-                text.color = accent;
+                text.fontSize = 17;
+                text.fontStyle = TMPro.FontStyles.Bold;
+                text.color = Color.white;
                 text.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                 text.overflowMode = TMPro.TextOverflowModes.Truncate;
-                SeoUIFactory.SetRect(text.rectTransform, new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.38f),
-                    new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                text.enableAutoSizing = true;
+                text.fontSizeMin = 12;
+                text.fontSizeMax = 17;
+                SeoUIFactory.SetRect(text.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    new Vector2(0.5f, 0f), new Vector2(0f, 5f), new Vector2(126f, 26f));
             }
-            CreateToolDiagram(button.transform, diagramKind, true, accent);
+            CreateTopHudResourceIcon(button.transform, diagramKind);
+            if (text != null) text.transform.SetAsLastSibling();
             return button;
+        }
+
+        private static void CreateTopHudResourceIcon(Transform parent, string kind)
+        {
+            string resourceName;
+            switch (kind)
+            {
+                case "resource": resourceName = "Prefab_Item_IronOre"; break;
+                case "power": resourceName = "Prefab_Item_HighCapacityBattery"; break;
+                case "focus": resourceName = "Prefab_Item_PlasmaCore"; break;
+                default: return;
+            }
+
+            var iconObject = new GameObject("ResourceIcon", typeof(RectTransform), typeof(CanvasRenderer),
+                typeof(Image));
+            iconObject.transform.SetParent(parent, false);
+            var icon = iconObject.GetComponent<Image>();
+            icon.sprite = Resources.Load<Sprite>("ResourceIcons/" + resourceName);
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -7f), new Vector2(62f, 62f));
         }
 
         private void ToggleCoreResourcePanel()
@@ -398,7 +428,7 @@ namespace Seo.UI
                 {
                     var resource = resources[i];
                     var card = SeoUIFactory.CreatePanel(coreResourceContent, "CoreResource_" + resource.Key,
-                        new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(120f, 66f),
+                        new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(144f, 58f),
                         new Color(0.035f, 0.10f, 0.14f, 0.96f));
                     card.rectTransform.pivot = new Vector2(0f, 1f);
 
@@ -406,7 +436,7 @@ namespace Seo.UI
                         typeof(Image));
                     iconObject.transform.SetParent(card.transform, false);
                     SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(3f, -7f), new Vector2(50f, 50f));
+                        new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(4f, -8f), new Vector2(42f, 42f));
                     var icon = iconObject.GetComponent<Image>();
                     icon.preserveAspect = true;
                     icon.raycastTarget = false;
@@ -415,17 +445,21 @@ namespace Seo.UI
                     var name = SeoUIFactory.CreateTMPText(card.transform, "Name", resource.DisplayName, 14,
                         TextAnchor.MiddleLeft, FontStyle.Bold);
                     SeoUIFactory.SetRect(name.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(56f, -7f), new Vector2(58f, 24f));
+                        new Vector2(0f, 1f), new Vector2(50f, -8f), new Vector2(61f, 42f));
                     name.enableAutoSizing = true;
                     name.fontSizeMin = 10;
                     name.fontSizeMax = 14;
                     name.overflowMode = TMPro.TextOverflowModes.Truncate;
 
-                    var amount = SeoUIFactory.CreateTMPText(card.transform, "Amount", "×0", 20,
-                        TextAnchor.MiddleLeft, FontStyle.Bold);
+                    var amount = SeoUIFactory.CreateTMPText(card.transform, "Amount", "×0", 16,
+                        TextAnchor.MiddleRight, FontStyle.Bold);
                     SeoUIFactory.SetRect(amount.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(56f, -32f), new Vector2(58f, 28f));
+                        new Vector2(0f, 1f), new Vector2(109f, -8f), new Vector2(31f, 42f));
                     amount.color = SeoUITheme.Current.Primary;
+                    amount.enableAutoSizing = true;
+                    amount.fontSizeMin = 10;
+                    amount.fontSizeMax = 16;
+                    amount.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                     coreResourceEntries.Add(new CoreResourceEntry
                     {
                         ResourceId = i,
@@ -455,10 +489,10 @@ namespace Seo.UI
                 entry.Root.SetActive(hasResource);
                 if (!hasResource) continue;
 
-                int column = visible % 6;
-                int row = visible / 6;
+                int column = visible % 5;
+                int row = visible / 5;
                 entry.Root.GetComponent<RectTransform>().anchoredPosition =
-                    new Vector2(column * 128f, -row * 74f);
+                    new Vector2(column * 150f, -row * 64f);
                 entry.Amount.text = "×" + count.ToString("N0");
                 visible++;
             }
@@ -466,9 +500,9 @@ namespace Seo.UI
             var contentRect = coreResourceContent as RectTransform;
             if (contentRect != null)
             {
-                int rowCount = Mathf.CeilToInt(visible / 6f);
+                int rowCount = Mathf.CeilToInt(visible / 5f);
                 float viewportHeight = coreResourceViewport != null ? coreResourceViewport.rect.height : 0f;
-                float contentHeight = rowCount > 0 ? rowCount * 74f - 8f : 0f;
+                float contentHeight = rowCount > 0 ? rowCount * 64f - 6f : 0f;
                 contentRect.sizeDelta = new Vector2(0f, Mathf.Max(viewportHeight, contentHeight));
             }
 
@@ -523,7 +557,11 @@ namespace Seo.UI
 
         private static void QuitGame()
         {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
             Application.Quit();
+#endif
         }
 
         private void HandleBackPressed()
@@ -589,7 +627,7 @@ namespace Seo.UI
         private void BuildBottomDock()
         {
             var dock = SeoUIFactory.CreatePanel(safeRoot, "SeoToolFlyout", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(164f, 0f), new Vector2(650f, 660f));
+                new Vector2(0f, 0.5f), new Vector2(184f, 0f), new Vector2(760f, 720f));
             dock.rectTransform.pivot = new Vector2(0f, 0.5f);
             dockRoot = dock.gameObject;
             BuildSideMenu();
@@ -644,7 +682,7 @@ namespace Seo.UI
         private void BuildSideMenu()
         {
             var menu = SeoUIFactory.CreatePanel(safeRoot, "SeoToolRail", new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(24f, -306f), new Vector2(132f, 734f));
+                new Vector2(0f, 1f), new Vector2(20f, -362f), new Vector2(156f, 660f));
             menu.rectTransform.pivot = new Vector2(0f, 1f);
             menu.color = Color.clear;
             menu.raycastTarget = false;
@@ -667,18 +705,21 @@ namespace Seo.UI
             UnityEngine.Events.UnityAction action)
         {
             var button = SeoUIFactory.CreateTMPButton(parent, name, label, action);
+            button.gameObject.AddComponent<RectMask2D>();
             SeoUIFactory.SetRect(button.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(11f, -8f - index * 120f), new Vector2(110f, 112f));
+                new Vector2(0f, 1f), new Vector2(10f, -8f - index * 108f), new Vector2(136f, 104f));
             var labelText = button.GetComponentInChildren<Text>(true);
             if (labelText != null)
             {
                 labelText.fontSize = 16;
                 labelText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                 labelText.overflowMode = TMPro.TextOverflowModes.Truncate;
-                SeoUIFactory.SetRect(labelText.rectTransform, new Vector2(0.16f, 0.18f), new Vector2(0.84f, 0.42f),
+                SeoUIFactory.SetRect(labelText.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.34f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
-            CreateToolDiagram(button.transform, diagramKind, true, SeoUITheme.Current.Primary);
+            if (!CreateToolAssetThumbnail(button.transform, diagramKind, true))
+                CreateToolDiagram(button.transform, diagramKind, true, SeoUITheme.Current.Primary);
+            if (labelText != null) labelText.transform.SetAsLastSibling();
             SetTabState(button, false);
             return button;
         }
@@ -727,7 +768,7 @@ namespace Seo.UI
             int column = index % 2;
             int row = index / 2;
             SeoUIFactory.SetRect(go.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(28f + column * 282f, -88f - row * 166f), new Vector2(262f, 148f));
+                new Vector2(0f, 1f), new Vector2(34f + column * 332f, -92f - row * 190f), new Vector2(310f, 174f));
             var label = go.GetComponentInChildren<Text>(true);
             if (label != null)
             {
@@ -737,13 +778,15 @@ namespace Seo.UI
                 label.fontSizeMax = 17;
                 label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                 label.overflowMode = TMPro.TextOverflowModes.Truncate;
-                SeoUIFactory.SetRect(label.rectTransform, new Vector2(0.14f, 0.14f), new Vector2(0.86f, 0.34f),
+                SeoUIFactory.SetRect(label.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.27f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
 
             if (!string.IsNullOrEmpty(diagramKind))
             {
-                CreateToolDiagram(go.transform, diagramKind);
+                if (!CreateToolAssetThumbnail(go.transform, diagramKind))
+                    CreateToolDiagram(go.transform, diagramKind);
+                if (label != null) label.transform.SetAsLastSibling();
                 return;
             }
 
@@ -758,47 +801,134 @@ namespace Seo.UI
             iconText.lineSpacing = 0.72f;
         }
 
+        private static bool CreateToolAssetThumbnail(Transform parent, string kind, bool compact = false)
+        {
+            string prefabKey = null;
+            GameObject prefab = null;
+            Sprite directSprite = null;
+            switch (kind)
+            {
+                case "production": prefabKey = "Prefab_Smelter"; break;
+                case "logistics":
+                case "belt":
+                    directSprite = GetToolTextureSprite(SeoUITheme.Current.BeltTexture);
+                    break;
+                case "miner": prefabKey = "Prefab_Miner"; break;
+                case "smelter": prefabKey = "Prefab_Smelter"; break;
+                case "former": prefabKey = "Prefab_Former"; break;
+                case "synthesizer": prefabKey = "Prefab_Synthesizer"; break;
+                case "processing": prefabKey = "Prefab_ProcessingMachine"; break;
+                case "splitter": directSprite = GetToolTextureSprite(SeoUITheme.Current.SplitterTexture); break;
+                case "merger": directSprite = GetToolTextureSprite(SeoUITheme.Current.MergerTexture); break;
+                case "core": prefabKey = "Prefab_Core"; break;
+                case "edit": directSprite = SeoUITheme.Current.EditIcon; break;
+                case "save": directSprite = SeoUITheme.Current.SaveIcon; break;
+            }
+
+            if (prefab == null && string.IsNullOrEmpty(prefabKey) && directSprite == null) return false;
+
+            var iconObject = new GameObject("AssetThumbnail", typeof(RectTransform), typeof(CanvasRenderer),
+                typeof(Image));
+            iconObject.transform.SetParent(parent, false);
+            var icon = iconObject.GetComponent<Image>();
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            Vector2 size = compact ? new Vector2(62f, 62f) : new Vector2(126f, 118f);
+            Vector2 position = compact ? new Vector2(0f, -7f) : new Vector2(0f, -8f);
+            SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), position, size);
+
+            if (directSprite != null)
+            {
+                icon.sprite = directSprite;
+                icon.color = Color.white;
+            }
+            else if (prefab != null) TopViewIconCache.Assign(icon, prefab, kind);
+            else TopViewIconCache.Assign(icon, prefabKey);
+            return true;
+        }
+
+        private static Sprite GetToolTextureSprite(Texture2D texture)
+        {
+            if (texture == null) return null;
+            if (ToolTextureSprites.TryGetValue(texture, out var sprite)) return sprite;
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f), 100f);
+            ToolTextureSprites[texture] = sprite;
+            return sprite;
+        }
+
         private static void CreateToolDiagram(Transform parent, string kind, bool compact = false, Color? tint = null)
         {
             var root = new GameObject("ToolDiagram", typeof(RectTransform));
             root.transform.SetParent(parent, false);
-            float anchorY = compact ? 0.65f : 0.64f;
+            float anchorY = compact ? 0.67f : 0.66f;
             SeoUIFactory.SetRect(root.GetComponent<RectTransform>(), new Vector2(0.5f, anchorY),
                 new Vector2(0.5f, anchorY), new Vector2(0.5f, 0.5f), Vector2.zero,
                 compact ? new Vector2(78f, 44f) : new Vector2(118f, 62f));
-            root.transform.localScale = Vector3.one * (compact ? 0.62f : 1.08f);
+            root.transform.localScale = Vector3.one * (compact ? 0.48f : 1f);
             Color color = tint ?? SeoUITheme.Current.Primary;
 
             switch (kind)
             {
                 case "resource":
+                    CreateDiagramLine(root.transform, new Vector2(-32f, 28f), new Vector2(32f, 28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(32f, 28f), new Vector2(32f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(32f, -28f), new Vector2(-32f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-32f, -28f), new Vector2(-32f, 28f), 6f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(-17f, 10f), new Vector2(16f, 16f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(5f, 10f), new Vector2(16f, 16f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(-6f, -12f), new Vector2(16f, 16f), color);
+                    break;
                 case "save":
                     CreateDiagramLine(root.transform, new Vector2(-32f, 28f), new Vector2(32f, 28f), 6f, color);
                     CreateDiagramLine(root.transform, new Vector2(32f, 28f), new Vector2(32f, -28f), 6f, color);
                     CreateDiagramLine(root.transform, new Vector2(32f, -28f), new Vector2(-32f, -28f), 6f, color);
                     CreateDiagramLine(root.transform, new Vector2(-32f, -28f), new Vector2(-32f, 28f), 6f, color);
-                    CreateDiagramBlock(root.transform, new Vector2(0f, 12f), new Vector2(30f, 12f), color);
-                    CreateDiagramBlock(root.transform, new Vector2(0f, -12f), new Vector2(18f, 14f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(8f, 13f), new Vector2(30f, 14f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-18f, -17f), new Vector2(18f, -17f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-18f, -17f), new Vector2(-18f, 1f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(18f, -17f), new Vector2(18f, 1f), 5f, color);
                     break;
                 case "power":
-                case "generator":
                     CreateDiagramLine(root.transform, new Vector2(10f, 32f), new Vector2(-15f, 4f), 7f, color);
                     CreateDiagramLine(root.transform, new Vector2(-15f, 4f), new Vector2(8f, 4f), 7f, color);
                     CreateDiagramLine(root.transform, new Vector2(8f, 4f), new Vector2(-12f, -32f), 7f, color);
+                    break;
+                case "generator":
+                    CreateDiagramLine(root.transform, new Vector2(-30f, 27f), new Vector2(34f, 27f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(34f, 27f), new Vector2(34f, -27f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(34f, -27f), new Vector2(-30f, -27f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-30f, -27f), new Vector2(-30f, 27f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(7f, 19f), new Vector2(-9f, 2f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-9f, 2f), new Vector2(7f, 2f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(7f, 2f), new Vector2(-8f, -19f), 6f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(-43f, -12f), new Vector2(13f, 13f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-37f, -12f), new Vector2(-30f, -12f), 5f, color);
                     break;
                 case "focus":
                     CreateDiagramLine(root.transform, new Vector2(-34f, 0f), new Vector2(-12f, 0f), 5f, color);
                     CreateDiagramLine(root.transform, new Vector2(12f, 0f), new Vector2(34f, 0f), 5f, color);
                     CreateDiagramLine(root.transform, new Vector2(0f, -30f), new Vector2(0f, -10f), 5f, color);
                     CreateDiagramLine(root.transform, new Vector2(0f, 10f), new Vector2(0f, 30f), 5f, color);
-                    CreateDiagramBlock(root.transform, Vector2.zero, new Vector2(13f, 13f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-12f, 12f), new Vector2(12f, 12f), 4f, color);
+                    CreateDiagramLine(root.transform, new Vector2(12f, 12f), new Vector2(12f, -12f), 4f, color);
+                    CreateDiagramLine(root.transform, new Vector2(12f, -12f), new Vector2(-12f, -12f), 4f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-12f, -12f), new Vector2(-12f, 12f), 4f, color);
+                    CreateDiagramBlock(root.transform, Vector2.zero, new Vector2(8f, 8f), color);
                     break;
                 case "production":
-                    CreateDiagramBlock(root.transform, Vector2.zero, new Vector2(26f, 26f), color);
-                    CreateDiagramLine(root.transform, new Vector2(-38f, 0f), new Vector2(-18f, 0f), 6f, color);
-                    CreateDiagramLine(root.transform, new Vector2(18f, 0f), new Vector2(38f, 0f), 6f, color);
-                    CreateDiagramLine(root.transform, new Vector2(0f, -35f), new Vector2(0f, -18f), 6f, color);
-                    CreateDiagramLine(root.transform, new Vector2(0f, 18f), new Vector2(0f, 35f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-38f, 12f), new Vector2(-18f, 25f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-18f, 25f), new Vector2(0f, 12f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(0f, 12f), new Vector2(18f, 25f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(18f, 25f), new Vector2(38f, 12f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-38f, 12f), new Vector2(-38f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(38f, 12f), new Vector2(38f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-38f, -28f), new Vector2(38f, -28f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(25f, 25f), new Vector2(25f, 38f), 8f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(-18f, -10f), new Vector2(10f, 16f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(0f, -10f), new Vector2(10f, 16f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(18f, -10f), new Vector2(10f, 16f), color);
                     break;
                 case "logistics":
                     CreateDiagramArrow(root.transform, new Vector2(-42f, 14f), new Vector2(42f, 14f), color);
@@ -809,18 +939,31 @@ namespace Seo.UI
                     CreateDiagramLine(root.transform, new Vector2(-34f, -31f), new Vector2(-22f, -24f), 7f, color);
                     break;
                 case "miner":
-                    CreateDiagramLine(root.transform, new Vector2(-30f, 24f), new Vector2(30f, 6f), 7f, color);
-                    CreateDiagramLine(root.transform, new Vector2(-2f, 14f), new Vector2(-16f, -28f), 7f, color);
-                    CreateDiagramLine(root.transform, new Vector2(-38f, 20f), new Vector2(-24f, 30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-34f, -28f), new Vector2(0f, 30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(34f, -28f), new Vector2(0f, 30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-24f, -10f), new Vector2(24f, -10f), 5f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(0f, 8f), new Vector2(12f, 18f), color);
+                    CreateDiagramArrow(root.transform, new Vector2(0f, 0f), new Vector2(0f, -31f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(-33f, -29f), new Vector2(12f, 8f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(33f, -29f), new Vector2(12f, 8f), color);
                     break;
                 case "cable":
-                    CreateDiagramLine(root.transform, new Vector2(-42f, 0f), new Vector2(42f, 0f), 7f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-40f, 20f), new Vector2(-40f, -26f), 7f, color);
+                    CreateDiagramLine(root.transform, new Vector2(40f, 20f), new Vector2(40f, -26f), 7f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(-40f, 24f), new Vector2(15f, 10f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(40f, 24f), new Vector2(15f, 10f), color);
+                    CreateDiagramLine(root.transform, new Vector2(-34f, 22f), new Vector2(0f, 8f), 5f, color);
+                    CreateDiagramLine(root.transform, new Vector2(0f, 8f), new Vector2(34f, 22f), 5f, color);
                     break;
                 case "tower":
-                    CreateDiagramLine(root.transform, new Vector2(0f, 30f), new Vector2(-24f, -30f), 6f, color);
-                    CreateDiagramLine(root.transform, new Vector2(0f, 30f), new Vector2(24f, -30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(0f, 34f), new Vector2(-25f, -30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(0f, 34f), new Vector2(25f, -30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-30f, 15f), new Vector2(30f, 15f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-39f, 2f), new Vector2(39f, 2f), 6f, color);
                     CreateDiagramLine(root.transform, new Vector2(-17f, -12f), new Vector2(17f, -12f), 5f, color);
-                    CreateDiagramLine(root.transform, new Vector2(-27f, -30f), new Vector2(27f, -30f), 6f, color);
+                    CreateDiagramLine(root.transform, new Vector2(-29f, -30f), new Vector2(29f, -30f), 6f, color);
+                    CreateDiagramBlock(root.transform, new Vector2(-30f, 9f), new Vector2(7f, 7f), color);
+                    CreateDiagramBlock(root.transform, new Vector2(30f, 9f), new Vector2(7f, 7f), color);
                     break;
                 case "load":
                     CreateDiagramArrow(root.transform, new Vector2(0f, 30f), new Vector2(0f, -12f), color);
@@ -1731,6 +1874,72 @@ namespace Seo.UI
         }
     }
 
+    internal sealed class TopViewIconCache : MonoBehaviour
+    {
+        private static TopViewIconCache instance;
+        private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
+        private static readonly Dictionary<string, List<Image>> Waiting = new Dictionary<string, List<Image>>();
+
+        public static void Assign(Image target, string prefabKey)
+        {
+            if (target == null || string.IsNullOrEmpty(prefabKey)) return;
+            target.color = Color.white;
+            if (Sprites.TryGetValue(prefabKey, out var sprite))
+            {
+                target.sprite = sprite;
+                return;
+            }
+
+            if (Waiting.TryGetValue(prefabKey, out var targets))
+            {
+                targets.Add(target);
+                return;
+            }
+
+            Waiting[prefabKey] = new List<Image> { target };
+            EnsureInstance().StartCoroutine(LoadAndRender(prefabKey));
+        }
+
+        public static void Assign(Image target, GameObject prefab, string cacheKey)
+        {
+            if (target == null || prefab == null) return;
+            target.color = Color.white;
+            string key = "Direct_" + cacheKey;
+            if (!Sprites.TryGetValue(key, out var sprite))
+            {
+                sprite = RecipeResourceIconCache.RenderPrefab(prefab, true);
+                if (sprite != null) Sprites[key] = sprite;
+            }
+            target.sprite = sprite;
+        }
+
+        private static TopViewIconCache EnsureInstance()
+        {
+            if (instance != null) return instance;
+            var go = new GameObject("[Seo] Top View Icon Cache");
+            DontDestroyOnLoad(go);
+            instance = go.AddComponent<TopViewIconCache>();
+            return instance;
+        }
+
+        private static IEnumerator LoadAndRender(string prefabKey)
+        {
+            var handle = Addressables.LoadAssetAsync<GameObject>(prefabKey);
+            yield return handle;
+            Sprite sprite = handle.Result != null
+                ? RecipeResourceIconCache.RenderPrefab(handle.Result, true)
+                : null;
+            if (sprite != null) Sprites[prefabKey] = sprite;
+            Addressables.Release(handle);
+
+            if (!Waiting.TryGetValue(prefabKey, out var targets)) yield break;
+            Waiting.Remove(prefabKey);
+            if (sprite == null) yield break;
+            for (int i = 0; i < targets.Count; i++)
+                if (targets[i] != null) targets[i].sprite = sprite;
+        }
+    }
+
     // 게임에서 실제 사용하는 Addressables 자원 프리팹을 한 번씩 촬영해 레시피용 썸네일로 캐시한다.
     // 레시피 패널을 다시 열 때는 생성된 Sprite만 재사용하므로 프리팹 로드와 렌더 비용이 반복되지 않는다.
     internal sealed class RecipeResourceIconCache : MonoBehaviour
@@ -1799,7 +2008,7 @@ namespace Seo.UI
             var handle = Addressables.LoadAssetAsync<GameObject>(prefabKey);
             yield return handle;
 
-            Sprite sprite = handle.Result != null ? RenderPrefab(handle.Result) : null;
+            Sprite sprite = handle.Result != null ? RenderPrefab(handle.Result, false) : null;
             if (sprite != null) Sprites[prefabKey] = sprite;
             Addressables.Release(handle);
 
@@ -1812,7 +2021,7 @@ namespace Seo.UI
             }
         }
 
-        private static Sprite RenderPrefab(GameObject prefab)
+        internal static Sprite RenderPrefab(GameObject prefab, bool topDown)
         {
             var previewRoot = new GameObject("RecipeIconPreview");
             previewRoot.transform.position = new Vector3(10000f, 10000f, 10000f);
@@ -1847,10 +2056,28 @@ namespace Seo.UI
             previewCamera.allowMSAA = true;
             float extent = Mathf.Max(bounds.extents.x, bounds.extents.y, bounds.extents.z);
             previewCamera.orthographicSize = Mathf.Max(0.2f, extent * 1.18f);
-            Vector3 viewDirection = new Vector3(1f, 0.85f, -1f).normalized;
             float distance = Mathf.Max(2f, extent * 5f);
-            previewCamera.transform.position = bounds.center + viewDirection * distance;
-            previewCamera.transform.LookAt(bounds.center);
+            if (topDown)
+            {
+                var gameCamera = Camera.main;
+                if (gameCamera != null)
+                {
+                    previewCamera.transform.rotation = gameCamera.transform.rotation;
+                    previewCamera.transform.position = bounds.center - previewCamera.transform.forward * distance;
+                }
+                else
+                {
+                    Vector3 viewDirection = new Vector3(1f, 1.35f, -1f).normalized;
+                    previewCamera.transform.position = bounds.center + viewDirection * distance;
+                    previewCamera.transform.LookAt(bounds.center);
+                }
+            }
+            else
+            {
+                Vector3 viewDirection = new Vector3(1f, 0.85f, -1f).normalized;
+                previewCamera.transform.position = bounds.center + viewDirection * distance;
+                previewCamera.transform.LookAt(bounds.center);
+            }
             previewCamera.nearClipPlane = 0.01f;
             previewCamera.farClipPlane = distance * 3f;
 

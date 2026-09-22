@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Factory.Simulation;
 using Optimization;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,10 +14,10 @@ namespace Choi.Research
 
         [Header("씬에서 수정 가능한 패널")]
         [SerializeField] private GameObject panelRoot;
-        [SerializeField] private Text titleText;
-        [SerializeField] private Text descriptionText;
-        [SerializeField] private Text goalsText;
-        [SerializeField] private Text unlocksText;
+        [SerializeField] private TMP_Text titleText;
+        [SerializeField] private TMP_Text descriptionText;
+        [SerializeField] private TMP_Text goalsText;
+        [SerializeField] private TMP_Text unlocksText;
         [SerializeField] private Button supplyButton;
         [SerializeField] private Button closeButton;
         [SerializeField] private Transform tierTabRoot;
@@ -143,7 +144,7 @@ namespace Choi.Research
                 int index = i;
                 Button tab = Instantiate(tierTabPrefab, tierTabRoot);
                 tab.gameObject.SetActive(true);
-                tab.GetComponentInChildren<Text>().text = $"TIER {tiers[i].tier}";
+                tab.GetComponentInChildren<TMP_Text>().text = $"TIER {tiers[i].tier}";
                 tab.onClick.AddListener(() => { viewedTier = index; Refresh(); });
                 tierTabs.Add(tab);
             }
@@ -159,7 +160,7 @@ namespace Choi.Research
                 ResearchMachineReward reward = tier.machineRewards[i];
                 if (reward?.machine == null) continue;
                 GameObject card = Instantiate(rewardCardPrefab, rewardRoot); card.SetActive(true);
-                Text label = card.GetComponentInChildren<Text>(true); if (label != null) label.text = reward.machine.machineName;
+                TMP_Text label = card.GetComponentInChildren<TMP_Text>(true); if (label != null) label.text = reward.machine.machineName;
                 Image image = card.transform.Find("Icon")?.GetComponent<Image>(); if (image != null) { image.sprite = reward.icon; image.enabled = reward.icon != null; }
                 rewardCards.Add(card);
             }

@@ -9,6 +9,14 @@ namespace Seo.UI
         public Sprite PanelSprite;
         public Sprite ButtonSprite;
         public Sprite ButtonPressedSprite;
+        public Sprite EditIcon;
+        public Sprite SaveIcon;
+        public Sprite ReportIcon;
+        public Texture2D BeltTexture;
+        public Texture2D SplitterTexture;
+        public Texture2D MergerTexture;
+        public GameObject GeneratorPreviewPrefab;
+        public GameObject TowerPreviewPrefab;
         public TMP_FontAsset FontAsset;
 
         public Color ScreenPanel = new Color(0.025f, 0.055f, 0.09f, 0.96f);
