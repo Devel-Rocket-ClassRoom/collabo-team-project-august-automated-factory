@@ -3,6 +3,7 @@ using Factory.Building;
 using Factory.Buildings;
 using Factory.Simulation;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Text = TMPro.TMP_Text;
 
@@ -90,9 +91,16 @@ namespace Seo.UI
             }
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateRuntimeInstance()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoad()
         {
+            SceneManager.sceneLoaded -= CreateRuntimeInstance;
+            SceneManager.sceneLoaded += CreateRuntimeInstance;
+        }
+
+        private static void CreateRuntimeInstance(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
             if (FindFirstObjectByType<FactoryTutorialController>() != null) return;
             new GameObject("[Seo] Factory Tutorial").AddComponent<FactoryTutorialController>();
         }

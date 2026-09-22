@@ -4,6 +4,7 @@ using Factory.Building;
 using Factory.Simulation;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using PortRole = Factory.Building.BeltDragTool.EndpointRole;
 
@@ -35,9 +36,16 @@ namespace Seo.UI
         private Color? lastTintColor;
         private int lastTintStripCount = -1;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateRuntimeInstance()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoad()
         {
+            SceneManager.sceneLoaded -= CreateRuntimeInstance;
+            SceneManager.sceneLoaded += CreateRuntimeInstance;
+        }
+
+        private static void CreateRuntimeInstance(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
             if (FindFirstObjectByType<BeltConnectionFeedback>() != null) return;
             new GameObject("[Seo] Belt Connection Feedback").AddComponent<BeltConnectionFeedback>();
         }

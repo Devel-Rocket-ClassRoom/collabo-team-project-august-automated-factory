@@ -5,6 +5,7 @@ using Factory.UI;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 namespace Seo.UI
 {
@@ -32,9 +33,16 @@ namespace Seo.UI
         public int SelectedIndex => selectedIndex;
         public bool IsMachineInfoOpen => machineInfoPanel != null && machineInfoPanel.IsOpen;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateRuntimeInstance()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoad()
         {
+            SceneManager.sceneLoaded -= CreateRuntimeInstance;
+            SceneManager.sceneLoaded += CreateRuntimeInstance;
+        }
+
+        private static void CreateRuntimeInstance(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
             if (FindFirstObjectByType<UIManager>() != null) return;
             new GameObject("[Seo] UIManager").AddComponent<UIManager>();
         }

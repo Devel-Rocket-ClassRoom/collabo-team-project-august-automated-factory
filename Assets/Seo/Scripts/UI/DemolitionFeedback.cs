@@ -5,6 +5,7 @@ using Factory.Buildings;
 using Factory.Simulation;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Text = TMPro.TMP_Text;
 
@@ -35,9 +36,16 @@ namespace Seo.UI
         private string toastMessage;
         private int selectionSignature = int.MinValue;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateRuntimeInstance()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoad()
         {
+            SceneManager.sceneLoaded -= CreateRuntimeInstance;
+            SceneManager.sceneLoaded += CreateRuntimeInstance;
+        }
+
+        private static void CreateRuntimeInstance(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
             if (FindFirstObjectByType<DemolitionFeedback>() != null) return;
             new GameObject("[Seo] Demolition Feedback").AddComponent<DemolitionFeedback>();
         }

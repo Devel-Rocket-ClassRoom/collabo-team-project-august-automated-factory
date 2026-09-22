@@ -3,6 +3,7 @@ using Bae.Data;
 using Choi.SaveLoad;
 using Factory.Simulation;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Text = TMPro.TMP_Text;
 
@@ -65,9 +66,16 @@ namespace Seo.UI
         private float nextRefresh;
         private bool rowsBuilt;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreateRuntimeInstance()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneLoad()
         {
+            SceneManager.sceneLoaded -= CreateRuntimeInstance;
+            SceneManager.sceneLoaded += CreateRuntimeInstance;
+        }
+
+        private static void CreateRuntimeInstance(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
             if (FindFirstObjectByType<FactoryStatisticsPanel>() != null) return;
             new GameObject("[Seo] Factory Statistics").AddComponent<FactoryStatisticsPanel>();
         }
@@ -123,15 +131,7 @@ namespace Seo.UI
                 SeoUIFactory.SetRect(openLabel.rectTransform, new Vector2(0.10f, 0.08f), new Vector2(0.90f, 0.36f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             }
-            var reportIconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            reportIconObject.transform.SetParent(openButton.transform, false);
-            var reportIcon = reportIconObject.GetComponent<Image>();
-            reportIcon.sprite = SeoUITheme.Current.ReportIcon;
-            reportIcon.color = SeoUITheme.Current.Primary;
-            reportIcon.preserveAspect = true;
-            reportIcon.raycastTarget = false;
-            SeoUIFactory.SetRect(reportIconObject.GetComponent<RectTransform>(), new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -7f), new Vector2(58f, 58f));
+            FactoryHudController.CreateNavigationIcon(openButton.transform, "report");
             if (openLabel != null) openLabel.transform.SetAsLastSibling();
 
             var panel = SeoUIFactory.CreatePanel(parent, "FactoryStatisticsPanel", new Vector2(0.5f, 0.5f),
