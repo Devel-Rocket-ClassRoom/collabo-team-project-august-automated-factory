@@ -8,6 +8,8 @@ namespace Seo.UI
     {
         public static int GetConsumption(string machineKey)
         {
+            if (machineKey == "Splitter" || machineKey == "Merger") return 0;
+
             if (DataManager.Instance != null
                 && DataManager.Instance.machineDict.TryGetValue(machineKey, out var data)
                 && data.powerConsumption > 0)
@@ -21,8 +23,6 @@ namespace Seo.UI
                 case "Smelter": return 30;
                 case "Former": return 25;
                 case "Synthesizer": return 50;
-                case "Splitter": return 25;
-                case "Merger": return 25;
                 default: return 0;
             }
         }
