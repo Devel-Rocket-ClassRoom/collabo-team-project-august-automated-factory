@@ -27,6 +27,10 @@ namespace Factory.Building
         // InputBuffer/OutputBuffer를 그대로 참조(엔더상자처럼 내용물 공유) — Confirm()에서
         // LinkToMainCore로 배선한다.
         private const string MiniCoreMachineId = "MiniCore";
+        // 임시 기능 — 크로스 벨트(교차로). Bae님 Machines.json엔 없는 가짜 기계 id라, 아래에서
+        // MachineRuntime을 직접 만들어 쓴다(진짜 Processor/Miner를 만들지 않고 BeltDragTool의
+        // 크로스 벨트 한 칸을 놓는다). 자리 잡을 정식 UI가 정해지면 걷어내면 된다.
+        private const string CrossBeltMachineId = "CrossBelt";
 
         private static readonly Vector2Int[] FourDirs =
         {
@@ -36,6 +40,9 @@ namespace Factory.Building
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SimulationDriver driver;
         [SerializeField] private MachineVisualLibrary visualLibrary;
+        // 크로스 벨트(CrossBeltMachineId) 전용 — 실제 배치는 BeltDragTool.PlaceCrossableTile에
+        // 위임한다(ProcessorInstance가 아니라 BeltSegment를 만들어야 하므로).
+        [SerializeField] private BeltDragTool beltTool;
         [SerializeField] private Vector2 screenOffset = new Vector2(0f, 150f);
         [SerializeField] private Color validColor = new Color(0.3f, 0.9f, 0.4f, 0.8f);
         [SerializeField] private Color invalidColor = new Color(0.9f, 0.2f, 0.2f, 0.8f);
@@ -67,17 +74,30 @@ namespace Factory.Building
         public void SelectMachine(string machineId)
         {
             if (driver == null || driver.World == null) return;
-            var db = driver.World.Database;
-            if (!db.TryGetMachineId(machineId, out int id))
+
+            MachineRuntime runtime;
+            if (machineId == CrossBeltMachineId)
             {
-                Debug.LogError($"[MachineGhostTool] '{machineId}' 기계 데이터를 찾을 수 없습니다 — " +
-                    "Bae님 JSON(Machines.json)에 있는지, Bake를 다시 돌려야 하는 건 아닌지 확인하세요.");
-                return;
+                // Bae님 데이터에 없는 가짜 기계라 DB 조회 없이 직접 구성 — 1칸, 전용 모델 없음
+                // (폴백 박스), 건설비는 벨트 한 칸과 동일(콘크리트, BeltDragTool과 별개로 여기서만
+                // 관리 — 임시 기능이라 공유 상수로 안 뺐다).
+                runtime = new MachineRuntime(CrossBeltMachineId, Vector2Int.one, null, CrossBeltBuildCost());
+            }
+            else
+            {
+                var db = driver.World.Database;
+                if (!db.TryGetMachineId(machineId, out int id))
+                {
+                    Debug.LogError($"[MachineGhostTool] '{machineId}' 기계 데이터를 찾을 수 없습니다 — " +
+                        "Bae님 JSON(Machines.json)에 있는지, Bake를 다시 돌려야 하는 건 아닌지 확인하세요.");
+                    return;
+                }
+                runtime = db.Machines[id];
             }
 
             CancelPlacement();
             selectedMachineId = machineId;
-            selectedMachineRuntime = db.Machines[id];
+            selectedMachineRuntime = runtime;
             currentFacing = new Vector2Int(1, 0);
 
             // 고스트는 실제로 놓일 기계와 같은 모양이어야 유효/무효 색이 자연스럽다 — 실제 배치
@@ -233,6 +253,9 @@ namespace Factory.Building
 
         private bool ComputeFree()
         {
+            // 크로스 벨트도 여기선 그냥 1칸짜리 기계 하나일 뿐이다(Splitter/Merger와 동일 원칙) —
+            // "빈 칸이어야 한다"는 조건이 완전히 같아서 특별 취급이 필요 없다. 실제로 나중에 다른
+            // 벨트가 이 칸을 가로질러도 되는 특수 능력(IsCrossable)은 배치 후에나 의미가 생긴다.
             var footprint = EffectiveFootprint(selectedMachineRuntime.Footprint, currentFacing);
             bool free = driver == null || driver.World == null
                 || driver.World.Grid.IsFootprintFree(GridUtility.GetFootprintCells(currentCell, footprint));
@@ -265,6 +288,18 @@ namespace Factory.Building
         {
             if (selectedMachineId == null || !hasValidCell || driver == null || driver.World == null) return false;
             if (PlacementPermission != null && !PlacementPermission(selectedMachineId, currentCell)) return false;
+
+            if (selectedMachineId == CrossBeltMachineId)
+            {
+                if (beltTool == null) return false;
+                if (!driver.World.Grid.IsFootprintFree(GridUtility.GetFootprintCells(currentCell, Vector2Int.one))) return false;
+                if (!HasBuildResources(selectedMachineRuntime)) return false;
+                DeductBuildResources(selectedMachineRuntime);
+                beltTool.PlaceCrossableTile(currentCell, currentFacing);
+
+                CancelPlacement();
+                return true;
+            }
 
             var grid = driver.World.Grid;
             var db = driver.World.Database;
@@ -368,6 +403,18 @@ namespace Factory.Building
         {
             if (!TryGetCore(out var core)) return;
             BuildCostUtility.TryPay(core, runtime.BuildCost);
+        }
+
+        // 크로스 벨트 임시 건설비 — 벨트 한 칸(콘크리트 3)과 같은 값. BeltDragTool의
+        // concreteCostPerTile은 private라 여기서 못 물어보니 그냥 같은 값을 하드코딩했다
+        // (임시 기능이라 공용 상수로 뺄 정도는 아니라고 판단).
+        private ResourceAmount[] CrossBeltBuildCost()
+        {
+            if (driver != null && driver.World != null && driver.World.Database.TryGetResourceId("Concrete", out int concreteId))
+            {
+                return new[] { new ResourceAmount(concreteId, 3) };
+            }
+            return Array.Empty<ResourceAmount>();
         }
 
         private GameObject GetVisualPrefab(string machineId)

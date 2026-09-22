@@ -75,6 +75,7 @@ public static class SceneBootstrapper
         var stripPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltStripVisual.prefab");
         var cornerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltCornerVisual.prefab");
         var cornerLeftPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltCornerVisualLeft.prefab");
+        var crosserVisualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/BeltCrosserVisual.prefab");
         if (itemPrefab == null || corePrefab == null || ghostPrefab == null || stripPrefab == null)
         {
             Debug.LogWarning("[SceneBootstrapper] Prefab(s) not found — run Tools > Factory Prototype > Build Prefabs first.");
@@ -84,6 +85,7 @@ public static class SceneBootstrapper
         SetRef(beltTool, "stripPrefab", stripPrefab);
         SetRef(beltTool, "cornerPrefab", cornerPrefab);
         SetRef(beltTool, "cornerLeftPrefab", cornerLeftPrefab);
+        SetRef(beltTool, "crosserVisualPrefab", crosserVisualPrefab);
         SetRef(machineTool, "ghostPrefab", ghostPrefab);
 
         // Bae님 데이터(MachineData.prefabName)는 Addressables 키 문자열이라 아직 실제 프리팹을
@@ -91,6 +93,8 @@ public static class SceneBootstrapper
         // machineId->프리팹 매핑(MachineVisualLibrary 참고). Addressables 실제 연결되면 이 부분 걷어내면 됨.
         var visualLibrary = EnsureMachineVisualLibrary();
         SetRef(machineTool, "visualLibrary", visualLibrary);
+        // 크로스 벨트(CrossBeltMachineId) 확정 시 실제 배치를 BeltDragTool에 위임하는 데 쓴다.
+        SetRef(machineTool, "beltTool", beltTool);
 
         var coreSpawnerGO = EnsureEmpty("CoreSpawner", Vector3.zero);
         var coreSpawner = EnsureComponentOn<CoreSpawner>(coreSpawnerGO);
@@ -128,6 +132,9 @@ public static class SceneBootstrapper
         "UndoButton", // 되돌리기 기능을 철거로 교체하면서 없어짐 — UndoButton.cs 자체가 삭제돼서
                       // 이름만 같은 새 오브젝트를 만들어도 이 이름의 예전 오브젝트는 안 지워지고
                       // 스크립트만 깨진 채(Missing) 화면에 남아있었다.
+        "PaletteButton_CrossBelt", // 크로스 벨트 임시 팔레트 버튼 제거 — 정식 UI가 정해지면
+                                   // 다시 추가한다. MachineGhostTool.CrossBeltMachineId /
+                                   // BeltDragTool.PlaceCrossableTile 등 기능 코드 자체는 그대로 남아있다.
     };
 
     private static void RemoveLegacyObjects()

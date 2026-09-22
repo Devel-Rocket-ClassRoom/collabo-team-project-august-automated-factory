@@ -22,6 +22,11 @@ namespace Factory.Rendering
         [SerializeField] private GameObject itemVisualPrefab; // 자원별 모델이 없을 때의 폴백(구) 모양
         // 코너 세그먼트일 때만 값 있음 — 꺾이는 지점. 이게 없으면(직선) start->end 직선 이동.
         [SerializeField] private Transform bendPoint;
+        // 크로스 벨트의 두 축 세그먼트 전용 — 분류기/합류기처럼 "기계 안으로 들어갔다 반대편에서
+        // 나오는" 느낌을 주려고, 이 구간을 지나는 동안은 아이템을 아예 안 그린다(사용자 요청:
+        // 진짜 벨트라 원래는 위에서 굴러가는 게 보이는데, 그러면 안 됨). 시뮬레이션(Position
+        // 이동 자체)은 전혀 안 건드리고 순수 렌더링만 끈다.
+        [SerializeField] private bool hideItems;
 
         private sealed class Slot
         {
@@ -35,7 +40,7 @@ namespace Factory.Rendering
         private BeltSegment segment;
 
         // 런타임에 벨트를 놓는 건설 도구가 에디터 SerializedObject 없이 직접 배선할 때 쓴다.
-        public void Initialize(SimulationDriver driver, int segmentId, Transform startPoint, Transform endPoint, GameObject itemVisualPrefab = null, Transform bendPoint = null)
+        public void Initialize(SimulationDriver driver, int segmentId, Transform startPoint, Transform endPoint, GameObject itemVisualPrefab = null, Transform bendPoint = null, bool hideItems = false)
         {
             this.driver = driver;
             this.segmentId = segmentId;
@@ -43,11 +48,18 @@ namespace Factory.Rendering
             this.endPoint = endPoint;
             if (itemVisualPrefab != null) this.itemVisualPrefab = itemVisualPrefab;
             this.bendPoint = bendPoint;
+            this.hideItems = hideItems;
             segment = null;
         }
 
         private void LateUpdate()
         {
+            if (hideItems)
+            {
+                for (int i = 0; i < pool.Count; i++) pool[i].Root.gameObject.SetActive(false);
+                return;
+            }
+
             if (segment == null)
             {
                 segment = FindSegment();

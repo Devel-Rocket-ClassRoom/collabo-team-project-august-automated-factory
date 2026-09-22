@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Factory.Simulation
 {
@@ -16,6 +17,17 @@ namespace Factory.Simulation
         // 그대로 돌려준다(SimulationWorld.RefundBeltCost). 나중에 비용이 바뀌어도 이미 지어진
         // 벨트는 자기가 실제로 낸 값을 기억하고 있어야 하므로 상수 참조가 아니라 값으로 저장.
         public int ConcreteCost;
+
+        // "크로스" 팔레트 버튼(MachineGhostTool.CrossBeltMachineId)으로 놓은 세그먼트만 true.
+        // 크로스 타일은 한 칸에 이런 세그먼트가 항상 "쌍"으로(주축 1개 + 그 수직축 1개) 있고,
+        // 둘 다 IsCrossable=true다 — BeltDragTool.Crossing.cs의 PlaceCrossableTile 참고.
+        public bool IsCrossable;
+
+        // 이 세그먼트가 뻗는 방향(고스트에서 고른 Facing 그대로, 또는 그걸 90도 돌린 수직축).
+        // TryGetOccupantForConnection(BeltDragTool.Ports.cs)이 "어느 방향에서 접근했느냐"를
+        // 이 값과 비교해서, 크로스 타일의 두 축(1번 레이어 주축 vs 2번 레이어 수직축) 중
+        // 실제로 어느 세그먼트를 말하는 건지 가려낸다.
+        public Vector2Int CrossAxis;
 
         // 체인의 첫 세그먼트에만 하나가 설정됨: 기계 산출물을 이 세그먼트로 실어 나른다.
         // 채굴기는 원격 전송(코어로 직배송)이라 벨트 소스가 될 수 없다 — Processor만 있음.
