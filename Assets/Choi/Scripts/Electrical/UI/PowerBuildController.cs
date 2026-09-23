@@ -18,8 +18,8 @@ namespace Choi.SaveLoad
         Remove,
     }
 
-    /// <summary>기존 BuildInputRouter를 수정하지 않고, 선택 중에만 잠시 비활성화하는 전력 배치 도구입니다.</summary>
-    public sealed class PowerBuildController : MonoBehaviour
+    /// <summary>전력 배치 도구. 전선 제스처는 공용 라우터로 받아 카메라 조작을 함께 지원합니다.</summary>
+    public sealed class PowerBuildController : MonoBehaviour, IBuildTool
     {
         private const float CableHeight = 1.65f;
         private const float CableWidth = 0.035f;
@@ -78,6 +78,9 @@ namespace Choi.SaveLoad
 
         private void Update()
         {
+            // 전선 입력은 라우터에서만 처리한다. 두 손가락 카메라 조작을 연결로 오인하지 않는다.
+            if (Mode == PowerBuildMode.Cable) return;
+
             // 터치/드래그 이벤트가 없어도(가만히 놓여있는 동안도) 자원 상태가 바뀔 수 있으니
             // 매 프레임 가볍게 재확인한다 — 안 그러면 자원이 다시 채워져도 손을 한 번 더 대야
             // 초록으로 바뀐다(HandleNodePlacementDrag는 press/드래그 이벤트가 있을 때만 돈다).
@@ -111,12 +114,6 @@ namespace Choi.SaveLoad
             if (Mode == PowerBuildMode.None)
             {
                 if (pressed) SelectPowerRangeAt(cell);
-                return;
-            }
-
-            if (Mode == PowerBuildMode.Cable)
-            {
-                HandleCablePlacement(cell, pressed, held, released);
                 return;
             }
 
@@ -187,14 +184,13 @@ namespace Choi.SaveLoad
             if (buildRouter != null)
             {
                 buildRouter.SetMode(BuildInputRouter.Mode.None);
-                // 노드 배치는 고스트를 잡고 있을 때만 라우터를 잠근다. 그 외에는 다른 건설
-                // 도구처럼 배경 드래그로 카메라를 이동할 수 있다. 전선은 자체 드래그 도구라 잠근다.
-                buildRouter.enabled = mode != PowerBuildMode.Cable;
+                buildRouter.enabled = true;
+                if (mode == PowerBuildMode.Cable) buildRouter.SetExternalTool(this);
             }
             if (mode == PowerBuildMode.Generator || mode == PowerBuildMode.TransmissionTower)
                 BeginNodePlacement(mode);
             LastMessage = mode == PowerBuildMode.Generator ? "좌클릭 드래그로 발전기를 옮기고 확정하세요 · 우클릭 드래그는 화면 이동"
-                : mode == PowerBuildMode.Cable ? "시작점에서 끝점까지 드래그해 전선을 이으세요"
+                : mode == PowerBuildMode.Cable ? "드래그로 전선 연결 · 우클릭 드래그/두 손가락으로 화면 이동"
                 : mode == PowerBuildMode.TransmissionTower ? "좌클릭 드래그로 송전탑을 옮기고 확정하세요 · 우클릭 드래그는 화면 이동"
                 : "철거할 발전기/전선/송전탑을 선택하세요";
         }
@@ -713,6 +709,24 @@ namespace Choi.SaveLoad
             }
         }
 
+        void IBuildTool.OnPressBegin(Vector2 position) => HandleCablePointer(position, true, true, false);
+        void IBuildTool.OnDrag(Vector2 position) => HandleCablePointer(position, false, true, false);
+        void IBuildTool.OnReleased(Vector2 position) => HandleCablePointer(position, false, false, true);
+        void IBuildTool.OnCancelled() => CancelPlacementPreview();
+
+        private void HandleCablePointer(Vector2 position, bool pressed, bool held, bool released)
+        {
+            if (!isActiveAndEnabled || Mode != PowerBuildMode.Cable) return;
+            if (targetCamera == null) targetCamera = Camera.main;
+            if (targetCamera == null || !GridUtility.TryRaycastToCell(
+                    targetCamera.ScreenPointToRay(position), groundPlane, out Vector2Int cell))
+            {
+                if (released) CancelPlacementPreview();
+                return;
+            }
+            HandleCablePlacement(cell, pressed, held, released);
+        }
+
         private void HandleCablePlacement(Vector2Int cell, bool pressed, bool held, bool released)
         {
             if (pressed && !isCableDragging)
@@ -960,7 +974,10 @@ namespace Choi.SaveLoad
 
         private void RestoreBuildRouter()
         {
-            if (buildRouter != null) buildRouter.enabled = true;
+            if (buildRouter == null) return;
+            if (ReferenceEquals(buildRouter.ExternalTool, this))
+                buildRouter.SetMode(BuildInputRouter.Mode.None);
+            buildRouter.enabled = true;
         }
 
         private static bool TryGetPointerState(out Vector2 position, out int? pointerId,
