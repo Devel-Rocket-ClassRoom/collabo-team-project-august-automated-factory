@@ -158,6 +158,7 @@ namespace Factory.UI
                     // FlushProcessorBuffers 참고).
                     driver.World.FlushProcessorBuffers(targetProcessorIndex);
                     processor.RecipeId = recipeId;
+                    processor.RecipeSetSequence = ProcessorInstance.NextRecipeSetSequence();
                 }
             }
             Close();
