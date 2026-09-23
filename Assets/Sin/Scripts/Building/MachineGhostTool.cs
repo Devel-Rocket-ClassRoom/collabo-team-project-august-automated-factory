@@ -606,6 +606,7 @@ namespace Factory.Building
                 go.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
             }
             go.name = $"{kind}_{index}";
+            MachineVisualRegistry.Register(kind, index, go);
 
             var view = go.GetComponent<MachineView>() ?? go.AddComponent<MachineView>();
             view.Initialize(kind, index, driver);
