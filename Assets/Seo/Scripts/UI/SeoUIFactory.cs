@@ -6,6 +6,68 @@ using UnityEngine.UI;
 
 namespace Seo.UI
 {
+    // Keep the title artwork and its menu in one fitted composition on foldable screens.
+    internal sealed class TitleCompositionFitter : MonoBehaviour
+    {
+        private RectTransform composition;
+        private RectTransform canvasRect;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void Register()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene,
+            UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            if (scene.name != "Title") return;
+            var canvas = GameObject.Find("Canvas");
+            if (canvas != null && canvas.GetComponent<TitleCompositionFitter>() == null)
+                canvas.AddComponent<TitleCompositionFitter>();
+        }
+
+        private void Awake()
+        {
+            canvasRect = (RectTransform)transform;
+            var scaler = GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = SeoUIFactory.LandscapeReference;
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+            }
+            var children = new List<Transform>();
+            foreach (Transform child in transform) children.Add(child);
+            composition = new GameObject("SeoTitleComposition", typeof(RectTransform)).GetComponent<RectTransform>();
+            composition.SetParent(transform, false);
+            SeoUIFactory.SetRect(composition, Vector2.one * 0.5f, Vector2.one * 0.5f,
+                Vector2.one * 0.5f, Vector2.zero, new Vector2(2152.366f, 1310f));
+            foreach (var child in children) child.SetParent(composition, false);
+            // Preserve the authored 1920-wide menu coordinates inside the wider artwork.
+            foreach (var child in children)
+            {
+                if (!(child is RectTransform rect)) continue;
+                rect.anchoredPosition -= new Vector2((rect.anchorMin.x - 0.5f) * 232.366f + 55.452f, 0f);
+            }
+            var backdrop = new GameObject("SeoTitleBackdrop", typeof(RectTransform), typeof(Image));
+            backdrop.transform.SetParent(transform, false);
+            backdrop.transform.SetAsFirstSibling();
+            SeoUIFactory.SetRect(backdrop.GetComponent<RectTransform>(), Vector2.zero, Vector2.one,
+                Vector2.one * 0.5f, Vector2.zero, Vector2.zero);
+            backdrop.GetComponent<Image>().color = new Color(0.035f, 0.055f, 0.07f, 1f);
+            backdrop.GetComponent<Image>().raycastTarget = false;
+        }
+
+        private void LateUpdate()
+        {
+            float fit = Mathf.Min(canvasRect.rect.width / composition.sizeDelta.x,
+                canvasRect.rect.height / composition.sizeDelta.y);
+            composition.localScale = Vector3.one * fit;
+        }
+    }
+
     public static class SeoUIFactory
     {
         public static readonly Vector2 LandscapeReference = new Vector2(1920f, 1080f);
