@@ -405,6 +405,7 @@ namespace Seo.UI
         private void LateUpdate()
         {
             if (!built || safeRoot == null || dockRoot == null) return;
+            LayoutBeltFeedback();
             var size = safeRoot.rect.size;
             float scale = Mathf.Max(0.01f, canvas.scaleFactor);
             int count = sideMenuRoot.transform.childCount;
@@ -427,6 +428,23 @@ namespace Seo.UI
             dockRect.sizeDelta = new Vector2(Mathf.Min(760f, size.x - dockX - 16f),
                 Mathf.Min(760f, size.y - 32f));
             LayoutContextButtons(size, scale);
+        }
+
+        private void LayoutBeltFeedback()
+        {
+            if (contextBarRect == null) return;
+            bool beltMode = buildRouter != null && buildRouter.CurrentMode == BuildInputRouter.Mode.Belt;
+            float buttonHeight = Mathf.Max(96f, 56f / Mathf.Max(0.01f, canvas.scaleFactor));
+            float messageHeight = beltMode ? 88f : 0f;
+            contextBarRect.sizeDelta = new Vector2(contextBarRect.sizeDelta.x, buttonHeight + 20f + messageHeight);
+            if (cancelButton != null && beltMode)
+                cancelButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -messageHeight * 0.5f);
+            var feedback = safeRoot.Find("SeoBeltFeedback") as RectTransform;
+            if (feedback == null) return;
+            // One background covers both the instruction and the cancel button.
+            feedback.GetComponent<Image>().enabled = false;
+            feedback.anchoredPosition = contextBarRect.anchoredPosition + new Vector2(0f, buttonHeight + 20f);
+            feedback.sizeDelta = new Vector2(contextBarRect.sizeDelta.x, messageHeight);
         }
 
         private void LayoutContextButtons(Vector2 safeSize, float scale)
