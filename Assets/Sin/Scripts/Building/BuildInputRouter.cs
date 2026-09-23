@@ -16,6 +16,7 @@ namespace Factory.Building
             Belt,
             PlaceMachine,
             Demolish,
+            External,
         }
 
         [SerializeField] private BeltDragTool beltTool;
@@ -29,6 +30,15 @@ namespace Factory.Building
         // 기계 정보 확인 탭이 아니다"를 판단하는 데 쓴다.
         public bool IsToolActive => mode != Mode.None;
         public Mode CurrentMode => mode;
+        public IBuildTool ExternalTool { get; private set; }
+
+        // 외부 폴더의 도구를 공통 입력 인터페이스로 연결한다. 구체적인 기능은 호출자가 소유한다.
+        public void SetExternalTool(IBuildTool tool)
+        {
+            SetMode(Mode.None);
+            ExternalTool = tool;
+            if (tool != null) SetMode(Mode.External);
+        }
         // 튜토리얼처럼 건설 입력은 허용하되 카메라 이동/줌만 잠가야 하는 흐름에서 사용한다.
         public bool CameraInputEnabled { get; set; } = true;
 
@@ -43,6 +53,7 @@ namespace Factory.Building
         public void SetMode(Mode newMode)
         {
             if (singleTouchActive) CancelActiveTool();
+            if (newMode != Mode.External) ExternalTool = null;
             mode = newMode;
             ModeChanged?.Invoke(mode);
         }
@@ -247,6 +258,7 @@ namespace Factory.Building
                 case Mode.Belt: return beltTool;
                 case Mode.PlaceMachine: return machineTool;
                 case Mode.Demolish: return demolishTool;
+                case Mode.External: return ExternalTool;
                 default: return null;
             }
         }
