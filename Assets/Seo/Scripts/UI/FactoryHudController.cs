@@ -61,7 +61,7 @@ namespace Seo.UI
         private GameObject confirmButton;
         private GameObject demolishConfirmButton;
         private Button groupMoveButton;
-        private Button reselectMoveButton;
+        private Button groupMoveRotateButton;
         private GameObject cancelButton;
         private GameObject placementCostPanel;
         private Transform placementCostContent;
@@ -1370,11 +1370,11 @@ namespace Seo.UI
             groupMoveButton = SeoUIFactory.CreateTMPButton(bar.transform, "SeoGroupMove", "이동", HandleGroupMove);
             SeoUIFactory.SetRect(groupMoveButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(210f, 56f));
-            reselectMoveButton = SeoUIFactory.CreateTMPButton(bar.transform, "SeoMoveReselect", "다시 선택", CancelGroupMove);
-            SeoUIFactory.SetRect(reselectMoveButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
+            groupMoveRotateButton = SeoUIFactory.CreateTMPButton(bar.transform, "SeoMoveRotate", "회전", RotateGroupMove);
+            SeoUIFactory.SetRect(groupMoveRotateButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-232f, 0f), new Vector2(210f, 56f));
             groupMoveButton.gameObject.SetActive(false);
-            reselectMoveButton.gameObject.SetActive(false);
+            groupMoveRotateButton.gameObject.SetActive(false);
 
             var cancel = SeoUIFactory.CreateTMPButton(bar.transform, "SeoBuildCancel", "취소", CancelCurrentInteraction);
             var confirmRt = confirmButton != null ? confirmButton.GetComponent<RectTransform>() : null;
@@ -1494,6 +1494,11 @@ namespace Seo.UI
                 if (moved) buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
                 ShowToast(message);
             }
+        }
+
+        private void RotateGroupMove()
+        {
+            GroupMoveTool.ActiveFor(buildRouter)?.Rotate();
         }
 
         private void CancelGroupMove()
@@ -1870,7 +1875,7 @@ namespace Seo.UI
                 groupMoveButton.GetComponentInChildren<Text>(true).text = movingSelection ? "이동 확정" : "이동";
                 groupMoveButton.interactable = !movingSelection || moveTool.CanConfirm;
             }
-            if (reselectMoveButton != null) reselectMoveButton.gameObject.SetActive(movingSelection);
+            if (groupMoveRotateButton != null) groupMoveRotateButton.gameObject.SetActive(movingSelection);
             if (cancelButton != null)
             {
                 cancelButton.SetActive(mode != BuildInputRouter.Mode.None || placingPower);
