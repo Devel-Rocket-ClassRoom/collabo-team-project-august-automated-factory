@@ -86,12 +86,66 @@ namespace Seo.Building
             entries.Add(entry);
         }
 
+        public static int NormalizeTurns(int quarterTurns) => ((quarterTurns % 4) + 4) % 4;
+
+        public static Vector2Int RotateDirection(Vector2Int direction, int quarterTurns)
+        {
+            // 기존 기계 설치의 회전 버튼과 같은 방향으로 돌린다.
+            for (int i = 0; i < NormalizeTurns(quarterTurns); i++)
+                direction = new Vector2Int(-direction.y, direction.x);
+            return direction;
+        }
+
+        public RectInt GetTargetBounds(Vector2Int offset, int quarterTurns)
+        {
+            var size = Bounds.size;
+            if ((NormalizeTurns(quarterTurns) & 1) != 0) size = new Vector2Int(size.y, size.x);
+            return new RectInt(Bounds.position + offset, size);
+        }
+
+        // 최소 모서리를 기준으로 회전된 사각형을 정렬한다. 홀수/짝수 크기 조합도 반 칸 어긋나지 않는다.
+        public Vector2Int TransformCell(Vector2Int cell, Vector2Int offset, int quarterTurns)
+        {
+            var local = cell - Bounds.position;
+            switch (NormalizeTurns(quarterTurns))
+            {
+                case 1: local = new Vector2Int(Bounds.height - 1 - local.y, local.x); break;
+                case 2: local = new Vector2Int(Bounds.width - 1 - local.x, Bounds.height - 1 - local.y); break;
+                case 3: local = new Vector2Int(local.y, Bounds.width - 1 - local.x); break;
+            }
+            return Bounds.position + offset + local;
+        }
+
+        public Vector3 TransformPosition(Vector3 position, Vector2Int offset, int quarterTurns)
+        {
+            var origin = new Vector3(Bounds.xMin, 0f, Bounds.yMin) * GridUtility.CellSize;
+            var local = position - origin;
+            float width = Bounds.width * GridUtility.CellSize;
+            float height = Bounds.height * GridUtility.CellSize;
+            switch (NormalizeTurns(quarterTurns))
+            {
+                case 1: local = new Vector3(height - local.z, local.y, local.x); break;
+                case 2: local = new Vector3(width - local.x, local.y, height - local.z); break;
+                case 3: local = new Vector3(local.z, local.y, width - local.x); break;
+            }
+            return origin + new Vector3(offset.x, 0f, offset.y) * GridUtility.CellSize + local;
+        }
+
+        public Vector2Int GetTargetAnchor(Entry entry, Vector2Int offset, int quarterTurns) => Vector2Int.Min(
+            TransformCell(entry.Anchor, offset, quarterTurns),
+            TransformCell(entry.Anchor + entry.Footprint - Vector2Int.one, offset, quarterTurns));
+
+        public static Vector2Int GetTargetFootprint(Entry entry, int quarterTurns) =>
+            (NormalizeTurns(quarterTurns) & 1) == 0 ? entry.Footprint : new Vector2Int(entry.Footprint.y, entry.Footprint.x);
+
         public bool Validate(Vector2Int offset, out string reason,
-            Func<Vector2Int, bool> externallyBlocked = null, Func<string, Vector2Int, bool> placementAllowed = null)
+            Func<Vector2Int, bool> externallyBlocked = null, Func<string, Vector2Int, bool> placementAllowed = null,
+            int quarterTurns = 0)
         {
             reason = null;
             if (committed || entries.Count == 0) { reason = "이동할 기계·벨트를 선택하세요 · 코어와 전력 시설 제외"; return false; }
-            if (offset == Vector2Int.zero) { reason = "선택한 묶음을 새 위치로 드래그하세요"; return false; }
+            if (offset == Vector2Int.zero && NormalizeTurns(quarterTurns) == 0)
+            { reason = "선택한 묶음을 드래그하거나 회전하세요"; return false; }
             foreach (var entry in entries)
             {
                 if (!ReferenceEquals(entry.Instance, GetInstance(entry.Type, entry.Index)))
@@ -103,13 +157,13 @@ namespace Seo.Building
                         : world.Grid.TryGetOccupant(source, out occupant);
                     if (!present || occupant.Type != entry.Type || occupant.InstanceIndex != entry.Index)
                     { reason = "선택한 설치물의 위치가 바뀌었습니다. 다시 선택하세요"; return false; }
-                    var target = source + offset;
+                    var target = TransformCell(source, offset, quarterTurns);
                     if ((world.Grid.TryGetOccupant(target, out occupant) && !members.Contains((occupant.Type, occupant.InstanceIndex)))
                         || (world.Grid.TryGetCrossingOccupant(target, out occupant) && !members.Contains((occupant.Type, occupant.InstanceIndex)))
                         || (externallyBlocked?.Invoke(target) ?? false))
                     { reason = "다른 기계·벨트 또는 전력 시설과 겹칩니다"; return false; }
                 }
-                Vector2Int anchor = entry.Anchor + offset;
+                Vector2Int anchor = GetTargetAnchor(entry, offset, quarterTurns);
                 if (entry.Instance is MinerInstance miner)
                 {
                     if (!world.Grid.TryGetOreDeposit(anchor, out int depositId)
@@ -127,9 +181,10 @@ namespace Seo.Building
         }
 
         public bool TryCommit(Vector2Int offset, out string reason,
-            Func<Vector2Int, bool> externallyBlocked = null, Func<string, Vector2Int, bool> placementAllowed = null)
+            Func<Vector2Int, bool> externallyBlocked = null, Func<string, Vector2Int, bool> placementAllowed = null,
+            int quarterTurns = 0)
         {
-            if (!Validate(offset, out reason, externallyBlocked, placementAllowed)) return false;
+            if (!Validate(offset, out reason, externallyBlocked, placementAllowed, quarterTurns)) return false;
             // 묶음 내부의 연결은 그대로 보존하고, 경계를 가로지르는 연결만 해제한다.
             for (int i = 0; i < world.Segments.Count; i++)
             {
@@ -151,15 +206,23 @@ namespace Seo.Building
             foreach (var entry in entries) world.Grid.UnregisterOccupant(entry.Type, entry.Index);
             foreach (var entry in entries)
             {
-                Vector2Int anchor = entry.Anchor + offset;
+                Vector2Int anchor = GetTargetAnchor(entry, offset, quarterTurns);
+                Vector2Int footprint = GetTargetFootprint(entry, quarterTurns);
                 if (entry.Type == CellOccupantType.Belt)
                 {
+                    var belt = (BeltSegment)entry.Instance;
+                    belt.CrossAxis = RotateDirection(belt.CrossAxis, quarterTurns);
                     if (entry.Crossing) world.Grid.RegisterCrossingSegment(anchor, entry.Index);
                     else world.Grid.RegisterSegment(anchor, entry.Index);
                 }
                 else
                 {
-                    if (entry.Instance is ProcessorInstance processor) processor.Anchor = anchor;
+                    if (entry.Instance is ProcessorInstance processor)
+                    {
+                        processor.Anchor = anchor;
+                        processor.Footprint = footprint;
+                        processor.Facing = RotateDirection(processor.Facing, quarterTurns);
+                    }
                     if (entry.Instance is MinerInstance miner && world.Grid.TryGetOreDeposit(anchor, out int depositId))
                     {
                         var deposit = world.Database.OreDeposits[depositId];
@@ -168,7 +231,7 @@ namespace Seo.Building
                         miner.MineIntervalSeconds = deposit.MineIntervalSeconds;
                         miner.YieldPerCycle = deposit.YieldPerCycle;
                     }
-                    world.Grid.RegisterBuildingFootprint(GridUtility.GetFootprintCells(anchor, entry.Footprint), entry.Type, entry.Index);
+                    world.Grid.RegisterBuildingFootprint(GridUtility.GetFootprintCells(anchor, footprint), entry.Type, entry.Index);
                 }
             }
             committed = true;

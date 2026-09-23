@@ -20,6 +20,7 @@ namespace Seo.Building
         private FactoryMoveSelection selection;
         private GameObject previewRoot;
         private Vector2Int offset;
+        private int quarterTurns;
         private Vector2Int grabCell;
         private bool dragging;
         private bool? lastTintValid;
@@ -137,7 +138,7 @@ namespace Seo.Building
         public void OnPressBegin(Vector2 screenPosition)
         {
             if (selection == null || !TryCell(screenPosition, out var cell)) return;
-            var displayedBounds = new RectInt(selection.Bounds.position + offset, selection.Bounds.size);
+            var displayedBounds = selection.GetTargetBounds(offset, quarterTurns);
             grabCell = displayedBounds.Contains(cell) ? cell - offset : selection.Bounds.position;
             dragging = true;
             SetOffset(cell - grabCell);
@@ -166,8 +167,25 @@ namespace Seo.Building
         private void SetOffset(Vector2Int value)
         {
             offset = value;
-            if (previewRoot != null) previewRoot.transform.position = new Vector3(offset.x, 0.03f, offset.y) * GridUtility.CellSize;
+            UpdatePreviewTransform();
             RefreshValidity();
+        }
+
+        public void Rotate()
+        {
+            if (selection == null) return;
+            dragging = false;
+            quarterTurns = (quarterTurns + 1) % 4;
+            UpdatePreviewTransform();
+            RefreshValidity();
+        }
+
+        private void UpdatePreviewTransform()
+        {
+            if (previewRoot == null || selection == null) return;
+            previewRoot.transform.SetPositionAndRotation(
+                selection.TransformPosition(Vector3.zero, offset, quarterTurns) + Vector3.up * 0.03f,
+                Quaternion.Euler(0f, -quarterTurns * 90f, 0f));
         }
 
         private void Update()
@@ -182,8 +200,8 @@ namespace Seo.Building
             CanConfirm = false;
             string reason = "공장 상태가 변경됐습니다. 다시 선택하세요";
             if (selection != null && driver != null && ReferenceEquals(driver.World, selection.World))
-                CanConfirm = selection.Validate(offset, out reason, BeltDragTool.ExternalCellBlocked, MachineGhostTool.PlacementPermission);
-            Status = summary + "\n" + (CanConfirm ? "이동 확정 · 묶음 내부 연결 유지 / 바깥 연결 해제" : reason);
+                CanConfirm = selection.Validate(offset, out reason, BeltDragTool.ExternalCellBlocked, MachineGhostTool.PlacementPermission, quarterTurns);
+            Status = summary + $" · 회전 {quarterTurns * 90}°\n" + (CanConfirm ? "이동 확정 · 묶음 내부 연결 유지 / 바깥 연결 해제" : reason);
             if (lastTintValid == CanConfirm && tint != null) return;
             // Unity 네이티브 객체는 MonoBehaviour 필드 초기화가 아닌 실행 시점에 생성한다.
             tint ??= new MaterialPropertyBlock();
@@ -204,11 +222,13 @@ namespace Seo.Building
             if (!CanConfirm) return false;
             foreach (var visual in originals)
                 if (visual == null) { Status = "설치물 표시가 바뀌었습니다. 다시 선택하세요"; CanConfirm = false; return false; }
-            if (!selection.TryCommit(offset, out string reason, BeltDragTool.ExternalCellBlocked, MachineGhostTool.PlacementPermission))
+            if (!selection.TryCommit(offset, out string reason, BeltDragTool.ExternalCellBlocked, MachineGhostTool.PlacementPermission, quarterTurns))
             { Status = reason; return false; }
-            var translation = new Vector3(offset.x, 0f, offset.y) * GridUtility.CellSize;
-            // 벨트의 Start/End/Bend와 아이템 표시도 같은 루트 밑에 있으므로 함께 평행 이동한다.
-            foreach (var visual in originals) visual.position += translation;
+            var rotation = Quaternion.Euler(0f, -quarterTurns * 90f, 0f);
+            // 미리보기와 동일한 변환으로 Start/End/Bend, 아이템 표시, 기계 방향을 함께 돌린다.
+            foreach (var visual in originals)
+                visual.SetPositionAndRotation(selection.TransformPosition(visual.position, offset, quarterTurns),
+                    rotation * visual.rotation);
             string completed = summary + " 이동 완료 · 바깥쪽 벨트는 다시 연결하세요";
             CancelMove();
             Status = completed;
@@ -221,6 +241,7 @@ namespace Seo.Building
             dragging = false;
             CanConfirm = false;
             offset = Vector2Int.zero;
+            quarterTurns = 0;
             lastTintValid = null;
             originals.Clear();
             previews.Clear();
