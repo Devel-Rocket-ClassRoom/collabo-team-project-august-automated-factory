@@ -176,6 +176,76 @@ public class RoutingSystemTests
     }
 
     [Test]
+    public void CoreToSplitterToThreeGenerators_OnlyOneFuelSelected_StillDispensesToThatOne()
+    {
+        // 사용자 보고: 분류기 갈래에 발전기 3대를 물리고 하나만 연료(석탄)를 고르면 아무것도
+        // 안 나오다가, 셋 다 골라야만 코어에서 석탄이 나왔다. 원인은 IsRequestingConsumer가
+        // "연료를 실제로 골랐는지"가 아니라 "발전기이기만 하면" 요청 중으로 쳐서, 아직 연료를
+        // 안 고른 발전기가 우선순위 다툼에서 이겨버리면 입구 벨트가 그 발전기(
+        // SelectedFuelResourceId=-1)로 잠겨서 아무것도 못 내보냈기 때문 — 이제 연료를 실제로
+        // 고른 것만 "요청 중"으로 쳐야 한다(BeltRouting.IsRequestingConsumer).
+        var db = BuildDatabase(out _, out int coalId, out _);
+        var world = new SimulationWorld(db);
+
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        int coreIndex = world.AddProcessor(core);
+        world.CoreProcessorIndex = coreIndex;
+        core.InputBuffer[coalId] = 20;
+
+        int splitterIndex = world.AddProcessor(new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter });
+
+        var gen1 = new ProcessorInstance(db.ResourceCount) { IsGeneratorFuelPort = true, SelectedFuelResourceId = coalId, RecipeSetSequence = ProcessorInstance.NextRecipeSetSequence() };
+        var gen2 = new ProcessorInstance(db.ResourceCount) { IsGeneratorFuelPort = true }; // 연료 미선택
+        var gen3 = new ProcessorInstance(db.ResourceCount) { IsGeneratorFuelPort = true }; // 연료 미선택
+        int gen1Index = world.AddProcessor(gen1);
+        int gen2Index = world.AddProcessor(gen2);
+        int gen3Index = world.AddProcessor(gen3);
+
+        world.AddBeltSegment(new BeltSegment { Id = 0, SourceProcessorId = coreIndex, TargetProcessorId = splitterIndex });
+        world.AddBeltSegment(new BeltSegment { Id = 1, SourceProcessorId = splitterIndex, TargetProcessorId = gen1Index });
+        world.AddBeltSegment(new BeltSegment { Id = 2, SourceProcessorId = splitterIndex, TargetProcessorId = gen2Index });
+        world.AddBeltSegment(new BeltSegment { Id = 3, SourceProcessorId = splitterIndex, TargetProcessorId = gen3Index });
+
+        for (int i = 0; i < 200; i++) world.Tick(0.05f);
+
+        Assert.Greater(gen1.InputBuffer[coalId], 0, "연료를 고른 발전기 하나만 있어도 코어에서 석탄이 나와야 함");
+        Assert.AreEqual(0, gen2.InputBuffer[coalId], "연료 미선택 발전기는 여전히 아무것도 안 받아야 함");
+        Assert.AreEqual(0, gen3.InputBuffer[coalId], "연료 미선택 발전기는 여전히 아무것도 안 받아야 함");
+    }
+
+    [Test]
+    public void ChainedSplitters_ThreeInARow_ItemsReachTheFinalMachine()
+    {
+        // 사용자 질문: "분류기에 분류기 연결하고 분류기 연결하고 하면?" — 분류기 출력이 또 다른
+        // 분류기 입력으로 여러 단 이어지는 체인이 실제로 작동하는지 확인. BeltRouting.Resolve가
+        // 라우팅 노드를 만나면 재귀적으로 그 갈래를 또 훑으므로(BeltRouting.cs 참고) 이론상
+        // 단수에 상관없이 되어야 하는데, 실제로 끝까지 뚫리는지 직접 검증한다.
+        var db = BuildChainDatabase(out int ironId, out _, out int plateId, out int formRecipeId, out _);
+        var world = new SimulationWorld(db);
+
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        int coreIndex = world.AddProcessor(core);
+        world.CoreProcessorIndex = coreIndex;
+        core.InputBuffer[ironId] = 30;
+
+        int splitter1Index = world.AddProcessor(new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter });
+        int splitter2Index = world.AddProcessor(new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter });
+        int splitter3Index = world.AddProcessor(new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter });
+        var former = new ProcessorInstance(db.ResourceCount) { RecipeId = formRecipeId };
+        int formerIndex = world.AddProcessor(former);
+
+        world.AddBeltSegment(new BeltSegment { Id = 0, SourceProcessorId = coreIndex, TargetProcessorId = splitter1Index });
+        world.AddBeltSegment(new BeltSegment { Id = 1, SourceProcessorId = splitter1Index, TargetProcessorId = splitter2Index });
+        world.AddBeltSegment(new BeltSegment { Id = 2, SourceProcessorId = splitter2Index, TargetProcessorId = splitter3Index });
+        world.AddBeltSegment(new BeltSegment { Id = 3, SourceProcessorId = splitter3Index, TargetProcessorId = formerIndex });
+
+        for (int i = 0; i < 1200; i++) world.Tick(0.05f); // 60초 분량 — 3단 전파 + 처리 시간 넉넉히.
+
+        Assert.Greater(former.OutputBuffer[plateId], 0, "분류기 3개를 연달아 거쳐도 마지막 기계까지 자원이 도착해서 철판이 나와야 함");
+        Assert.Less(core.InputBuffer[ironId], 30, "코어가 실제로 철 주괴를 내보냈어야 함");
+    }
+
+    [Test]
     public void CoreToSplitterToThreeMachines_OnlyMiddleHasRecipe_CoreStillDispenses()
     {
         // 사용자 보고: 분류기 출력 3개에 제련로 3대를 물리고 "가운데만" 레시피를 지정하면

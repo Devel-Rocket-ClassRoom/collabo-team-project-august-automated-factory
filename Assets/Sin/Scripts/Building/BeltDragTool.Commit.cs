@@ -321,24 +321,22 @@ namespace Factory.Building
 
             ComputeCellSpan(miniPath, hasUp ? 1 : 0, out Vector3 entry, out Vector3 exit, out Vector3? bend);
 
-            // 이 세그먼트가 미리보기 중 PreviewAdjacentBeltBend/PreviewOnBuildingBeltBend에
-            // 의해 숨겨져 있었을 수 있다 — 숨긴 오브젝트는 SetActive(false)라서 GameObject.Find로
-            // 못 찾으니, 진짜로 다시 그릴 거면 여기서 직접 참조로 없애야 아래에서 또 하나가
-            // 겹쳐 생기지 않는다.
-            if (hiddenNeighborVisuals.TryGetValue(segmentId, out var hiddenVisual))
-            {
-                if (hiddenVisual != null) Destroy(hiddenVisual);
-                hiddenNeighborVisuals.Remove(segmentId);
-            }
+            // 이 세그먼트가 미리보기 중 PreviewAdjacentBeltBend/PreviewOnBuildingBeltBend에 의해
+            // 숨겨져 있었을 수 있다(SpawnHiddenNeighborPreview가 SetActive(false)) — 이제 그
+            // 트래킹만 지우면 된다. 실제 재활성화/재사용은 GetOrCreateBeltRoot가 beltVisualRoots
+            // 딕셔너리로(GameObject.Find가 아니라) 직접 찾아서 해준다 — 예전엔 여기서 그 숨긴
+            // 오브젝트를 Destroy하고 새로 만들었는데, 지금은 같은 오브젝트를 그대로 재사용하는 게
+            // 맞다(풀링과 중복되는 낭비이기도 하고, 무엇보다 Destroy 직후 GetOrCreateBeltRoot가
+            // "이미 등록된 루트"로 착각해 활성화를 안 시키는 경로를 타면 벨트가 아예 안 보이는
+            // 버그로 이어졌다 — 사용자 보고).
+            hiddenNeighborVisuals.Remove(segmentId);
 
-            var existing = GameObject.Find($"Belt_{segmentId}");
-            if (existing != null)
-            {
-                // Destroy는 프레임 끝에 처리되는데 바로 아래에서 같은 이름으로 새로 만든다 —
-                // 그 사이 GameObject.Find(철거 도구 등)가 없어질 오브젝트를 집지 않게 이름부터 바꾼다.
-                existing.name = $"Belt_{segmentId}_replaced";
-                Destroy(existing);
-            }
+            // SpawnCommittedVisual이 GetOrCreateBeltRoot로 이 segmentId의 기존 루트를 그대로
+            // 찾아 재사용한다(Geometry 자식만 새로 갈아끼움) — 예전엔 여기서 통째로 Destroy하고
+            // 새 GameObject를 Instantiate했는데, 벨트가 많아지면(재배선이 잦은 분류기/합류기
+            // 주변, 기계 자동연결 등) 그 비용이 누적돼 렉으로 체감된다(사용자 지적). 이제 벨트
+            // 하나당 실제 GameObject는 동시 존재 개수만큼만 만들어지고, 철거된 자리는 풀로
+            // 돌아갔다가 재사용된다(ReturnBeltVisual/GetOrCreateBeltRoot 참고).
             // 2번 레이어(수직축)에 등록된 세그먼트면 다시 그릴 때도 낮춰서 그려야 "밑으로
             // 지나간다"는 느낌이 재배선/철거 이후에도 유지된다. 표시 모델(showCrosser)은
             // 크로스 타일의 두 축 중 1번 레이어(주축) 쪽에서만 다시 얹고, 수직축은 계속 아무

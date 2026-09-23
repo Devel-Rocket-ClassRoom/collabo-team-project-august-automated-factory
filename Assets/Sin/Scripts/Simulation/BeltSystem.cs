@@ -20,6 +20,10 @@ namespace Factory.Simulation
         private readonly Dictionary<int, BeltSegment> segmentsById = new Dictionary<int, BeltSegment>();
         private readonly List<BeltSegment> processingOrder = new List<BeltSegment>();
         private readonly HashSet<int> visited = new HashSet<int>();
+        // BuildDownstreamFirstOrder가 마지막으로 계산했을 때의 BeltTopologyVersion. 벨트 연결이
+        // 실제로 안 바뀌었으면(대부분의 틱) 매번 다시 훑지 않고 이전 결과를 그대로 쓴다(사용자
+        // 지적: "벨트 많으면 렉"). -1은 아직 한 번도 계산 안 한 상태.
+        private int cachedProcessingOrderVersion = -1;
 
         // 세그먼트가 새로 추가될 때마다 호출 (드문 이벤트라 매번 재구성해도 무방).
         public void Configure(List<BeltSegment> segments)
@@ -40,7 +44,11 @@ namespace Factory.Simulation
                 LoadFromSource(segments[i], segments, processors, database);
             }
 
-            BuildDownstreamFirstOrder(segments);
+            if (cachedProcessingOrderVersion != BeltTopologyVersion.Current)
+            {
+                BuildDownstreamFirstOrder(segments);
+                cachedProcessingOrderVersion = BeltTopologyVersion.Current;
+            }
             for (int i = 0; i < processingOrder.Count; i++)
             {
                 AdvanceSegment(processingOrder[i], deltaSeconds, processors);
@@ -49,6 +57,7 @@ namespace Factory.Simulation
 
         // NextSegmentId를 따라가는 후위 순회(post-order DFS): 한 세그먼트를 결과 리스트에
         // 넣기 전에 그 다음(하류) 세그먼트부터 먼저 넣으므로, 리스트 앞쪽이 항상 더 하류다.
+        // 벨트 연결이 안 바뀐 틱에는 안 불린다(Tick의 버전 체크 참고) — 결과가 그대로 유효하다.
         private void BuildDownstreamFirstOrder(List<BeltSegment> segments)
         {
             processingOrder.Clear();

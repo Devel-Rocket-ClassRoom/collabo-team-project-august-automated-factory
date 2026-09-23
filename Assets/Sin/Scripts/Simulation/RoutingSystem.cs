@@ -13,9 +13,6 @@ namespace Factory.Simulation
     // 프로토타입 규모라 매 틱 O(세그먼트) 스캔이어도 무방하다(BeltSystem.IsClaimedByAnotherLane와 같은 수준).
     public sealed class RoutingSystem
     {
-        // 매 틱 재사용하는 버퍼(GC Alloc 0 유지).
-        private readonly List<BeltSegment> outputBelts = new List<BeltSegment>();
-
         public void Tick(List<ProcessorInstance> processors, List<BeltSegment> segments, GameDatabase database)
         {
             for (int i = 0; i < processors.Count; i++)
@@ -36,7 +33,8 @@ namespace Factory.Simulation
         // 레시피가 바뀌면 이제 필요 없는 자원도 계속 그 갈래로 밀어넣었다(사용자 보고).
         private void TickSplitter(ProcessorInstance splitter, int splitterIndex, List<ProcessorInstance> processors, List<BeltSegment> segments, GameDatabase database)
         {
-            CollectOutputBelts(processors, segments, splitterIndex);
+            EnsureOutputBeltsCache(splitter, splitterIndex, processors, segments);
+            var outputBelts = splitter.CachedOutputBelts;
             int n = outputBelts.Count;
             if (n == 0) return;
 
@@ -63,10 +61,10 @@ namespace Factory.Simulation
         // 이유로, 출력 끝 기계가 지금 원하지 않는 자원은 버퍼에 있어도 건너뛴다.
         private void TickMerger(ProcessorInstance merger, int mergerIndex, List<ProcessorInstance> processors, List<BeltSegment> segments, GameDatabase database)
         {
-            CollectOutputBelts(processors, segments, mergerIndex);
-            if (outputBelts.Count == 0) return;
+            EnsureOutputBeltsCache(merger, mergerIndex, processors, segments);
+            if (merger.CachedOutputBelts.Count == 0) return;
 
-            var output = outputBelts[0]; // 합류기는 출력 1개
+            var output = merger.CachedOutputBelts[0]; // 합류기는 출력 1개
             if (!HeadFree(output)) return;
 
             int resourceId = ResolveDispatchResource(merger.InputBuffer, output, processors, segments, database, merger.RoutingCursor);
@@ -129,8 +127,17 @@ namespace Factory.Simulation
             return -1;
         }
 
-        private void CollectOutputBelts(List<ProcessorInstance> processors, List<BeltSegment> segments, int nodeIndex)
+        // node의 출력 벨트 목록을 node.CachedOutputBelts에 저장해둔다. BeltTopologyVersion이
+        // 지난번 계산 때와 같으면(벨트를 아무것도 안 건드렸으면) 다시 훑지 않고 그대로 둔다 —
+        // 매 틱 전체 세그먼트를 스캔하던 비용을 "실제로 뭔가 바뀐 틱"에만 내게 한다(사용자
+        // 지적: "벨트 많으면 렉"). 캐시 무효화 신호(BeltTopologyVersion.Bump)는 BeltSegment의
+        // Source/Target/NextSegmentId 세터와 ProcessorInstance.RecipeId 세터가 자동으로 낸다.
+        private static void EnsureOutputBeltsCache(ProcessorInstance node, int nodeIndex, List<ProcessorInstance> processors, List<BeltSegment> segments)
         {
+            if (node.CachedOutputBeltsVersion == BeltTopologyVersion.Current && node.CachedOutputBelts != null) return;
+
+            if (node.CachedOutputBelts == null) node.CachedOutputBelts = new List<BeltSegment>();
+            var outputBelts = node.CachedOutputBelts;
             outputBelts.Clear();
             for (int i = 0; i < segments.Count; i++)
             {
@@ -149,6 +156,8 @@ namespace Factory.Simulation
                 while (at > 0 && outputBelts[at - 1].Id > s.Id) at--;
                 outputBelts.Insert(at, s);
             }
+
+            node.CachedOutputBeltsVersion = BeltTopologyVersion.Current;
         }
 
         private static bool HeadFree(BeltSegment belt)
