@@ -90,6 +90,27 @@ namespace Bae.Data
             {
                 MachineDatabase db = JsonUtility.FromJson<MachineDatabase>(jsonText);
                 foreach (var machine in db.machines) machineDict[machine.machineID] = machine;
+                RestoreMissingBuildCosts();
+            }
+        }
+
+        // Older installed builds exported machines without costs. Keep external data,
+        // but fill missing costs before SimulationDriver constructs its database.
+        private void RestoreMissingBuildCosts()
+        {
+            TextAsset bundledJson = Resources.Load<TextAsset>("JSON/Machines");
+            if (bundledJson == null) return;
+            MachineDatabase bundled = JsonUtility.FromJson<MachineDatabase>(bundledJson.text);
+            if (bundled?.machines == null) return;
+
+            foreach (var baseline in bundled.machines)
+            {
+                if (baseline.buildCostItems == null || baseline.buildCostItems.Count == 0) continue;
+                if (!machineDict.TryGetValue(baseline.machineID, out var loaded)) continue;
+                if (loaded.buildCostItems != null && loaded.buildCostItems.Count > 0) continue;
+
+                loaded.buildCostItems = new List<string>(baseline.buildCostItems);
+                Debug.LogWarning($"[DataManager] {baseline.machineID}: 외부 JSON에 누락된 설치 비용을 내장 데이터로 복원했습니다.");
             }
         }
 
