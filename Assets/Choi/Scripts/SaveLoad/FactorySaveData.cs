@@ -22,6 +22,11 @@ namespace Choi.SaveLoad
         public string machineKey;
         public string outputResourceKey;
         public float baseSpeed = 1f;
+        // 매장지 밸런스 패치 후 옛 세이브를 로드해도 최신 값을 따라가도록, 로드 시 이 키로
+        // 현재 GameDatabase.OreDeposits에서 다시 찾아 MinerInstance.OreDepositId를 채운다
+        // (FactorySaveBridge.RestoreMiners 참고). 아래 두 값은 그 조회가 실패했을 때만(구버전
+        // 세이브, 매장지 정의 삭제 등) 쓰이는 폴백이다.
+        public string oreDepositKey;
         public float mineIntervalSeconds;
         public int yieldPerCycle;
         public float progress;

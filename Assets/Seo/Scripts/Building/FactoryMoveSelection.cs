@@ -163,6 +163,8 @@ namespace Seo.Building
                     if (entry.Instance is MinerInstance miner && world.Grid.TryGetOreDeposit(anchor, out int depositId))
                     {
                         var deposit = world.Database.OreDeposits[depositId];
+                        miner.OreDepositId = depositId;
+                        miner.OutputResourceId = deposit.ResourceId;
                         miner.MineIntervalSeconds = deposit.MineIntervalSeconds;
                         miner.YieldPerCycle = deposit.YieldPerCycle;
                     }
