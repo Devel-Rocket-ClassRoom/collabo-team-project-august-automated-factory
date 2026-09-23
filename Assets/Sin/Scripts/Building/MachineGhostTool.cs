@@ -100,7 +100,6 @@ namespace Factory.Building
             CancelPlacement();
             selectedMachineId = machineId;
             selectedMachineRuntime = runtime;
-            currentFacing = new Vector2Int(1, 0);
 
             // 고스트는 실제로 놓일 기계와 같은 모양이어야 유효/무효 색이 자연스럽다 — 실제 배치
             // (SpawnMachineVisual)와 같은 우선순위: Addressables 키(있으면) > 라이브러리 프리팹 > 공용 박스.
