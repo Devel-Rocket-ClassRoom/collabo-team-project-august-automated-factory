@@ -465,7 +465,15 @@ namespace Factory.Building
 
                 var segment = segments[inOccupant.InstanceIndex];
                 bool isDeadEnd = segment.NextSegmentId == null && segment.TargetProcessorId == null;
-                if (isDeadEnd) segment.TargetProcessorId = index;
+                if (isDeadEnd)
+                {
+                    segment.TargetProcessorId = index;
+                    // 벨트 스트립은 생성 시점의 드래그 path로 한 번만 구워진다(RerenderSegmentStrip
+                    // 주석 참고) — 안 다시 그려주면, 나중에 옆에 기계를 지어 자동 연결해도 자원은
+                    // 실제로 들어가는데(구조상 연결 완료) 스트립은 계속 "막다른 끝" 모습 그대로 남아
+                    // 마치 옆에 그냥 버려지는 것처럼 보인다(사용자 보고).
+                    beltTool?.RerenderSegmentStrip(inOccupant.InstanceIndex);
+                }
             }
 
             // 발전기는 연료 입력만 받는 설비라 출력 벨트를 자동으로 물리지 않는다.
@@ -477,7 +485,11 @@ namespace Factory.Building
                 if (!grid.TryGetOccupant(outputCells[i], out var outOccupant) || outOccupant.Type != CellOccupantType.Belt) continue;
 
                 var segment = segments[outOccupant.InstanceIndex];
-                if (IsChainStart(segments, segment)) segment.SourceProcessorId = index;
+                if (IsChainStart(segments, segment))
+                {
+                    segment.SourceProcessorId = index;
+                    beltTool?.RerenderSegmentStrip(outOccupant.InstanceIndex);
+                }
             }
         }
 
@@ -502,11 +514,16 @@ namespace Factory.Building
                 if (inputFace)
                 {
                     bool isDeadEnd = seg.NextSegmentId == null && seg.TargetProcessorId == null;
-                    if (isDeadEnd) seg.TargetProcessorId = index;
+                    if (isDeadEnd)
+                    {
+                        seg.TargetProcessorId = index;
+                        beltTool?.RerenderSegmentStrip(occ.InstanceIndex);
+                    }
                 }
                 else if (IsChainStart(segments, seg))
                 {
                     seg.SourceProcessorId = index;
+                    beltTool?.RerenderSegmentStrip(occ.InstanceIndex);
                 }
             }
         }
@@ -528,10 +545,12 @@ namespace Factory.Building
                 if (isDeadEnd)
                 {
                     segment.TargetProcessorId = index;
+                    beltTool?.RerenderSegmentStrip(occ.InstanceIndex);
                 }
                 else if (IsChainStart(segments, segment))
                 {
                     segment.SourceProcessorId = index;
+                    beltTool?.RerenderSegmentStrip(occ.InstanceIndex);
                 }
             }
         }
