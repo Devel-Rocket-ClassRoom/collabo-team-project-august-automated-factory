@@ -3,6 +3,7 @@ using Factory.Building;
 using Factory.Data;
 using Factory.Simulation;
 using Factory.UI;
+using Seo.Building;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -24,6 +25,8 @@ namespace Seo.UI
         {
             public int ResourceId;
             public GameObject Root;
+            public Text Name;
+            public Image Icon;
             public Text Amount;
         }
 
@@ -57,6 +60,8 @@ namespace Seo.UI
         private GameObject rotateButton;
         private GameObject confirmButton;
         private GameObject demolishConfirmButton;
+        private Button groupMoveButton;
+        private Button reselectMoveButton;
         private GameObject cancelButton;
         private GameObject placementCostPanel;
         private Transform placementCostContent;
@@ -71,6 +76,9 @@ namespace Seo.UI
         private Transform coreResourceContent;
         private RectTransform coreResourceViewport;
         private ScrollRect coreResourceScroll;
+        private Text coreResourceTitle;
+        private RectTransform coreResourceClose;
+        private RectTransform coreResourceScrollbar;
         private Text coreResourceEmptyText;
         private Text powerText;
         private Text toastText;
@@ -231,9 +239,9 @@ namespace Seo.UI
             SeoUIFactory.SetRect(rewardedAdLabel.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, -16f));
 
-            var resourceCard = SeoUIFactory.CreatePanel(safeRoot, "SeoResourceCard", new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(166f, -24f), new Vector2(820f, 380f));
-            resourceCard.rectTransform.pivot = new Vector2(0f, 1f);
+            var resourceCard = SeoUIFactory.CreatePanel(safeRoot, "SeoResourceCard", new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1100f, 720f));
+            resourceCard.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             coreResourcePanel = resourceCard.gameObject;
             CreateCardAccent(resourceCard.transform, SeoUITheme.Current.Primary);
             var resourceTitle = SeoUIFactory.CreateTMPText(resourceCard.transform, "Title", "코어 보유 자원", 24,
@@ -241,12 +249,14 @@ namespace Seo.UI
             SeoUIFactory.SetRect(resourceTitle.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f), new Vector2(28f, -12f), new Vector2(-120f, 42f));
             resourceTitle.color = SeoUITheme.Current.Primary;
+            coreResourceTitle = resourceTitle;
             var resourceClose = SeoUIFactory.CreateTMPButton(resourceCard.transform, "Close", "×",
                 ToggleCoreResourcePanel);
             SeoUIFactory.SetRect(resourceClose.GetComponent<RectTransform>(), Vector2.one, Vector2.one,
                 Vector2.one, new Vector2(-18f, -16f), new Vector2(68f, 58f));
             var resourceCloseLabel = resourceClose.GetComponentInChildren<Text>(true);
             if (resourceCloseLabel != null) resourceCloseLabel.fontSize = 38;
+            coreResourceClose = resourceClose.GetComponent<RectTransform>();
             var resourceViewport = new GameObject("ResourceViewport", typeof(RectTransform),
                 typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
             resourceViewport.transform.SetParent(resourceCard.transform, false);
@@ -273,6 +283,7 @@ namespace Seo.UI
                 typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar));
             scrollbarObject.transform.SetParent(resourceCard.transform, false);
             var scrollbarRect = scrollbarObject.GetComponent<RectTransform>();
+            coreResourceScrollbar = scrollbarRect;
             scrollbarRect.anchorMin = new Vector2(1f, 0f);
             scrollbarRect.anchorMax = new Vector2(1f, 1f);
             scrollbarRect.pivot = new Vector2(1f, 0.5f);
@@ -535,10 +546,51 @@ namespace Seo.UI
             if (show) powerDetailPanel.transform.SetAsLastSibling();
         }
 
+        private float LayoutCoreResourcePanel()
+        {
+            // 작은 게임 화면에서도 이름 약 17px, 수량 약 19px 이상을 확보한다.
+            float unit = Mathf.Max(1f, 0.6f / Mathf.Max(0.01f, canvas.scaleFactor));
+            var panelRect = (RectTransform)coreResourcePanel.transform;
+            panelRect.sizeDelta = new Vector2(Mathf.Min(1100f * unit, safeRoot.rect.width - 48f),
+                Mathf.Min(720f * unit, safeRoot.rect.height - 48f));
+            coreResourceTitle.fontSize = 32f * unit;
+            coreResourceTitle.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            SeoUIFactory.SetRect(coreResourceTitle.rectTransform, new Vector2(0f, 1f), Vector2.one,
+                new Vector2(0f, 1f), new Vector2(28f, -16f) * unit, new Vector2(-140f, 52f) * unit);
+            SeoUIFactory.SetRect(coreResourceClose, Vector2.one, Vector2.one, Vector2.one,
+                new Vector2(-18f, -16f) * unit, new Vector2(68f, 58f) * unit);
+            coreResourceClose.GetComponentInChildren<Text>(true).fontSize = 38f * unit;
+            coreResourceViewport.offsetMin = new Vector2(24f, 24f) * unit;
+            coreResourceViewport.offsetMax = new Vector2(-48f, -90f) * unit;
+            coreResourceScrollbar.offsetMin = new Vector2(-34f, 24f) * unit;
+            coreResourceScrollbar.offsetMax = new Vector2(-18f, -90f) * unit;
+            coreResourceScroll.scrollSensitivity = 90f * unit;
+            return unit;
+        }
+
         private void RefreshCoreResourcePanel()
         {
             var driver = FindFirstObjectByType<Factory.Simulation.SimulationDriver>();
             if (driver == null || driver.World == null || coreResourceContent == null) return;
+
+            float unit = LayoutCoreResourcePanel();
+            float gap = 16f * unit;
+            float availableWidth = ((RectTransform)coreResourcePanel.transform).sizeDelta.x - 72f * unit;
+            int columns = availableWidth >= 896f * unit ? 2 : 1;
+            float cardWidth = (availableWidth - gap * (columns - 1)) / columns;
+            // Noto Sans KR은 28pt에서도 한 줄 높이가 약 41이다. 글자 크기만 기준으로
+            // 높이를 잡으면 TMP의 세로 overflow 판정으로 이름 전체가 사라질 수 있다.
+            float lineScale = 1.5f;
+            var font = SeoUITheme.Current.FontAsset;
+            if (font != null && font.faceInfo.pointSize > 0f)
+            {
+                var face = font.faceInfo;
+                lineScale = Mathf.Max(lineScale, Mathf.Max(face.lineHeight, face.ascentLine - face.descentLine)
+                    * face.scale / face.pointSize);
+            }
+            float nameHeight = (Mathf.Ceil(28f * lineScale) + 8f) * unit;
+            float amountHeight = (Mathf.Ceil(32f * lineScale) + 8f) * unit;
+            float cardHeight = nameHeight + amountHeight + 28f * unit;
 
             var resources = driver.World.Database.Resources;
             if (coreResourceEntries.Count == 0)
@@ -547,42 +599,37 @@ namespace Seo.UI
                 {
                     var resource = resources[i];
                     var card = SeoUIFactory.CreatePanel(coreResourceContent, "CoreResource_" + resource.Key,
-                        new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(144f, 58f),
+                        new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(cardWidth, cardHeight),
                         new Color(0.035f, 0.10f, 0.14f, 0.96f));
                     card.rectTransform.pivot = new Vector2(0f, 1f);
 
                     var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer),
                         typeof(Image));
                     iconObject.transform.SetParent(card.transform, false);
-                    SeoUIFactory.SetRect(iconObject.GetComponent<RectTransform>(), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(4f, -8f), new Vector2(42f, 42f));
                     var icon = iconObject.GetComponent<Image>();
                     icon.preserveAspect = true;
                     icon.raycastTarget = false;
                     RecipeResourceIconCache.Assign(icon, resource.Key, resource.PrefabName, resource.Color);
 
-                    var name = SeoUIFactory.CreateTMPText(card.transform, "Name", resource.DisplayName, 14,
+                    var name = SeoUIFactory.CreateTMPText(card.transform, "Name",
+                        string.IsNullOrWhiteSpace(resource.DisplayName) ? resource.Key : resource.DisplayName, 28,
                         TextAnchor.MiddleLeft, FontStyle.Bold);
-                    SeoUIFactory.SetRect(name.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(50f, -8f), new Vector2(61f, 42f));
-                    name.enableAutoSizing = true;
-                    name.fontSizeMin = 10;
-                    name.fontSizeMax = 14;
-                    name.overflowMode = TMPro.TextOverflowModes.Truncate;
+                    name.enableAutoSizing = false;
+                    name.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+                    name.overflowMode = TMPro.TextOverflowModes.Overflow;
+                    name.color = SeoUITheme.Current.Text;
 
-                    var amount = SeoUIFactory.CreateTMPText(card.transform, "Amount", "×0", 16,
-                        TextAnchor.MiddleRight, FontStyle.Bold);
-                    SeoUIFactory.SetRect(amount.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                        new Vector2(0f, 1f), new Vector2(109f, -8f), new Vector2(31f, 42f));
+                    var amount = SeoUIFactory.CreateTMPText(card.transform, "Amount", "×0", 32,
+                        TextAnchor.MiddleLeft, FontStyle.Bold);
                     amount.color = SeoUITheme.Current.Primary;
-                    amount.enableAutoSizing = true;
-                    amount.fontSizeMin = 10;
-                    amount.fontSizeMax = 16;
+                    amount.enableAutoSizing = false;
                     amount.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                     coreResourceEntries.Add(new CoreResourceEntry
                     {
                         ResourceId = i,
                         Root = card.gameObject,
+                        Name = name,
+                        Icon = icon,
                         Amount = amount,
                     });
                 }
@@ -608,10 +655,20 @@ namespace Seo.UI
                 entry.Root.SetActive(hasResource);
                 if (!hasResource) continue;
 
-                int column = visible % 5;
-                int row = visible / 5;
-                entry.Root.GetComponent<RectTransform>().anchoredPosition =
-                    new Vector2(column * 150f, -row * 64f);
+                int column = visible % columns;
+                int row = visible / columns;
+                var cardRect = entry.Root.GetComponent<RectTransform>();
+                cardRect.sizeDelta = new Vector2(cardWidth, cardHeight);
+                cardRect.anchoredPosition = new Vector2(column * (cardWidth + gap), -row * (cardHeight + gap));
+                SeoUIFactory.SetRect(entry.Icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                    new Vector2(0f, 0.5f), new Vector2(16f, 0f) * unit, new Vector2(76f, 76f) * unit);
+                SeoUIFactory.SetRect(entry.Name.rectTransform, new Vector2(0f, 1f), Vector2.one,
+                    new Vector2(0f, 1f), new Vector2(108f, -12f) * unit, new Vector2(-124f * unit, nameHeight));
+                SeoUIFactory.SetRect(entry.Amount.rectTransform, new Vector2(0f, 1f), Vector2.one,
+                    new Vector2(0f, 1f), new Vector2(108f * unit, -16f * unit - nameHeight),
+                    new Vector2(-124f * unit, amountHeight));
+                entry.Name.fontSize = 28f * unit;
+                entry.Amount.fontSize = 32f * unit;
                 entry.Amount.text = "×" + count.ToString("N0");
                 visible++;
             }
@@ -619,9 +676,9 @@ namespace Seo.UI
             var contentRect = coreResourceContent as RectTransform;
             if (contentRect != null)
             {
-                int rowCount = Mathf.CeilToInt(visible / 5f);
-                float viewportHeight = coreResourceViewport != null ? coreResourceViewport.rect.height : 0f;
-                float contentHeight = rowCount > 0 ? rowCount * 64f - 6f : 0f;
+                int rowCount = Mathf.CeilToInt(visible / (float)columns);
+                float viewportHeight = ((RectTransform)coreResourcePanel.transform).sizeDelta.y - 114f * unit;
+                float contentHeight = rowCount > 0 ? rowCount * (cardHeight + gap) - gap : 0f;
                 contentRect.sizeDelta = new Vector2(0f, Mathf.Max(viewportHeight, contentHeight));
             }
 
@@ -1304,6 +1361,15 @@ namespace Seo.UI
             var demolishAction = demolishConfirmButton != null ? demolishConfirmButton.GetComponent<Button>() : null;
             if (demolishAction != null) demolishAction.onClick.AddListener(HandleDemolitionConfirmed);
 
+            groupMoveButton = SeoUIFactory.CreateTMPButton(bar.transform, "SeoGroupMove", "이동", HandleGroupMove);
+            SeoUIFactory.SetRect(groupMoveButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(210f, 56f));
+            reselectMoveButton = SeoUIFactory.CreateTMPButton(bar.transform, "SeoMoveReselect", "다시 선택", CancelGroupMove);
+            SeoUIFactory.SetRect(reselectMoveButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-232f, 0f), new Vector2(210f, 56f));
+            groupMoveButton.gameObject.SetActive(false);
+            reselectMoveButton.gameObject.SetActive(false);
+
             var cancel = SeoUIFactory.CreateTMPButton(bar.transform, "SeoBuildCancel", "취소", CancelCurrentInteraction);
             var confirmRt = confirmButton != null ? confirmButton.GetComponent<RectTransform>() : null;
             Vector2 actionSize = confirmRt != null ? confirmRt.sizeDelta : new Vector2(210f, 56f);
@@ -1355,6 +1421,11 @@ namespace Seo.UI
 
         private void CancelCurrentInteraction()
         {
+            if (GroupMoveTool.ActiveFor(buildRouter) != null)
+            {
+                CancelGroupMove();
+                return;
+            }
             editModeActive = false;
             SetTabState(editModeButton, false);
             pendingPlacementMachineId = null;
@@ -1386,7 +1457,31 @@ namespace Seo.UI
                 buildRouter.enabled = true;
                 buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
             }
-            ShowToast("편집 모드 · 기계·벨트·전력 시설을 선택하세요");
+            ShowToast("영역을 드래그한 뒤 철거 또는 이동을 누르세요 · 이동은 전력 시설 제외");
+        }
+
+        private void HandleGroupMove()
+        {
+            if (!editModeActive || buildRouter == null) return;
+            if (buildRouter.CurrentMode == BuildInputRouter.Mode.Demolish)
+            {
+                GroupMoveTool.BeginSelectionMove(buildRouter, FindFirstObjectByType<DemolishTool>(), out string message);
+                ShowToast(message);
+            }
+            else if (GroupMoveTool.ActiveFor(buildRouter) is GroupMoveTool moveTool)
+            {
+                bool moved = moveTool.Confirm();
+                string message = moveTool.Status;
+                if (moved) buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
+                ShowToast(message);
+            }
+        }
+
+        private void CancelGroupMove()
+        {
+            if (buildRouter == null) return;
+            buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
+            ShowToast("이동을 취소했습니다 · 영역을 다시 선택하세요");
         }
 
         private void HandleDemolitionConfirmed()
@@ -1735,6 +1830,8 @@ namespace Seo.UI
             var powerController = FindFirstObjectByType<PowerBuildController>();
             bool placingPower = powerController != null && powerController.HasPendingNodePlacement;
             bool placingGenerator = placingPower && powerController.Mode == PowerBuildMode.Generator;
+            var moveTool = GroupMoveTool.ActiveFor(buildRouter);
+            bool movingSelection = moveTool != null;
 
             // 발전기도 단일 연료 입력 방향을 정해야 하므로, 고스트를 놓는 동안 같은 회전
             // 버튼을 노출한다. RotatePlacementButton이 발전기 모드에서는 전력 도구로 전달한다.
@@ -1751,13 +1848,21 @@ namespace Seo.UI
             if (demolishConfirmButton != null)
             {
                 demolishConfirmButton.SetActive(mode == BuildInputRouter.Mode.Demolish);
-                if (mode == BuildInputRouter.Mode.Demolish) SetActionButtonX(demolishConfirmButton, 116f);
+                if (mode == BuildInputRouter.Mode.Demolish) SetActionButtonX(demolishConfirmButton, -232f);
             }
+            if (groupMoveButton != null)
+            {
+                groupMoveButton.gameObject.SetActive(editModeActive && (mode == BuildInputRouter.Mode.Demolish || movingSelection));
+                groupMoveButton.GetComponentInChildren<Text>(true).text = movingSelection ? "이동 확정" : "이동";
+                groupMoveButton.interactable = !movingSelection || moveTool.CanConfirm;
+            }
+            if (reselectMoveButton != null) reselectMoveButton.gameObject.SetActive(movingSelection);
             if (cancelButton != null)
             {
                 cancelButton.SetActive(mode != BuildInputRouter.Mode.None || placingPower);
                 float x = placingMachine ? (placingMiner ? 116f : 232f)
-                    : placingGenerator ? 232f : placingPower ? 116f : mode == BuildInputRouter.Mode.Demolish ? -116f : 0f;
+                    : placingGenerator ? 232f : placingPower ? 116f
+                    : mode == BuildInputRouter.Mode.Demolish || movingSelection ? 232f : 0f;
                 SetActionButtonX(cancelButton, x);
             }
 

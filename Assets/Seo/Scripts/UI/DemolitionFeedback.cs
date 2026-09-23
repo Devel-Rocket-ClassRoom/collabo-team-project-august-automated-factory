@@ -3,6 +3,7 @@ using System.Reflection;
 using Factory.Building;
 using Factory.Buildings;
 using Factory.Simulation;
+using Seo.Building;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -61,6 +62,17 @@ namespace Seo.UI
             if (router == null || demolishTool == null || driver == null || driver.World == null || !EnsureUI()) return;
 
             bool demolishMode = router.CurrentMode == BuildInputRouter.Mode.Demolish;
+            if (GroupMoveTool.ActiveFor(router) is GroupMoveTool moveTool)
+            {
+                if (wasDemolishMode) HandleDemolishModeEnded();
+                wasDemolishMode = false;
+                RestoreHighlights();
+                SetOutlineVisible(false);
+                if (confirmButton != null) confirmButton.interactable = false;
+                panelRoot.SetActive(true);
+                SetSummary(moveTool.Status, moveTool.CanConfirm ? SeoUITheme.Current.Success : SeoUITheme.Current.Warning);
+                return;
+            }
             if (!demolishMode)
             {
                 if (wasDemolishMode) HandleDemolishModeEnded();
@@ -118,7 +130,7 @@ namespace Seo.UI
                 var confirmRect = confirmObject.GetComponent<RectTransform>();
                 if (confirmRect != null)
                 {
-                    confirmRect.anchoredPosition = new Vector2(116f, 0f);
+                    confirmRect.anchoredPosition = new Vector2(-232f, 0f);
                     confirmRect.sizeDelta = new Vector2(210f, 56f);
                 }
 
@@ -167,7 +179,7 @@ namespace Seo.UI
 
             if (!hasTargets)
             {
-                SetSummary("철거 영역을 드래그하세요 · 코어는 자동으로 제외됩니다", SeoUITheme.Current.Warning);
+                SetSummary("영역을 드래그한 뒤 철거 또는 이동을 누르세요\n이동: 기계·벨트만 · 코어와 전력 시설 제외", SeoUITheme.Current.Warning);
                 return;
             }
 
@@ -199,7 +211,7 @@ namespace Seo.UI
             var nameParts = new List<string>();
             foreach (var pair in names) nameParts.Add(pair.Key + " " + pair.Value);
             string detail = nameParts.Count > 0 ? string.Join(" · ", nameParts) : "기계 없음";
-            SetSummary($"철거 예정 · 기계 {machineCount}개 · 벨트 {beltCount}개\n{detail} · 코어 제외",
+            SetSummary($"선택 · 기계 {machineCount}개 · 벨트 {beltCount}개\n{detail} · 이동 시 전력 시설 제외",
                 SeoUITheme.Current.Danger);
         }
 

@@ -36,6 +36,9 @@ namespace Factory.Building
 
         public bool HasSelection => selected.Count > 0
             || (hasSelectionArea && (ExternalHasTargets?.Invoke(selectionBounds) ?? false));
+        public Camera TargetCamera => targetCamera;
+        public SimulationDriver Driver => driver;
+        public IEnumerable<(CellOccupantType type, int index)> Selected => selected;
 
         public void Initialize(Camera targetCamera, SimulationDriver driver)
         {
