@@ -341,13 +341,15 @@ namespace Factory.Building
             }
             // 2번 레이어(수직축)에 등록된 세그먼트면 다시 그릴 때도 낮춰서 그려야 "밑으로
             // 지나간다"는 느낌이 재배선/철거 이후에도 유지된다. 표시 모델(showCrosser)은
-            // 크로스 타일의 두 축 중 1번 레이어(주축) 쪽에서만 다시 얹는다 — 둘 다
-            // IsCrossable=true라서 여기서도 layer로 갈라야 한다(안 그러면 재배선 때 모델이
-            // 두 번 겹쳐 생긴다). 아이템 숨김(hideItems)은 축 상관없이 둘 다 계속 유지한다.
+            // 크로스 타일의 두 축 중 1번 레이어(주축) 쪽에서만 다시 얹고, 수직축은 계속 아무
+            // 메쉬도 안 그린다(hideStrip) — 둘 다 IsCrossable=true라서 여기서도 layer로
+            // 갈라야 한다(안 그러면 재배선 때 아이콘이 두 번 겹치거나 스트립이 도로 생긴다).
+            // 아이템 숨김(hideItems)은 축 상관없이 둘 다 계속 유지한다.
             bool isCrossing = grid.TryGetCrossingOccupant(cell, out var crossingHere) && crossingHere.InstanceIndex == segmentId;
             bool isPrimaryAxis = grid.TryGetOccupant(cell, out var primaryHere) && primaryHere.InstanceIndex == segmentId;
+            bool showCrosser = segment.IsCrossable && isPrimaryAxis;
             SpawnCommittedVisual(entry, exit, bend, segmentId, isCrossing,
-                showCrosser: segment.IsCrossable && isPrimaryAxis, hideItems: segment.IsCrossable);
+                showCrosser, hideItems: segment.IsCrossable, hideStrip: segment.IsCrossable && !showCrosser);
         }
     }
 }

@@ -36,10 +36,13 @@ namespace Factory.Building
         // isCrossing이면 크로스 벨트(WorldGrid 2번째 벨트 레이어)로 등록된 세그먼트라는 뜻 —
         // 같은 칸의 원래 벨트와 겹쳐 보이지 않도록 살짝 낮춰서 "밑으로 지나간다"는 느낌을 준다.
         // showCrosser는 별개다: "여기가 교차 가능한 지점"이라는 표시 모델을 이 세그먼트 위에
-        // 얹을지 — IsCrossable로 놓은 크로스 타일 쪽(PlaceCrossableTile)에서만 켠다. 나중에
-        // 실제로 그 위를 지나가는(낮게 깔리는) 벨트 쪽은 표시를 또 안 얹는다(둘 다 얹으면
-        // 같은 자리에 모델이 두 개 겹친다). 둘 다 실제 배선/시뮬레이션엔 영향 없는 순수 시각 처리.
-        private void SpawnCommittedVisual(Vector3 from, Vector3 to, Vector3? bend, int segmentId, bool isCrossing = false, bool showCrosser = false, bool hideItems = false)
+        // 얹을지 — IsCrossable로 놓은 크로스 타일의 주축 쪽에서만 켠다.
+        // hideStrip은 크로스 타일의 수직축 전용 — 그쪽은 아무 메쉬도 안 그린다(앵커만 만들어서
+        // BeltItemRenderer가 계속 쓸 수 있게). 안 그러면 주축의 크로스 아이콘 밑에 평범한
+        // 회색 스트립이 따로 깔려서, 크로스 하나 놓았는데 "벨트가 하나 더 설치된 것처럼" 보인다
+        // (사용자 보고) — 분류기/합류기처럼 한 덩어리로 보이려면 아이콘 하나가 유일한 표현이어야 한다.
+        // 셋 다 실제 배선/시뮬레이션엔 영향 없는 순수 시각 처리.
+        private void SpawnCommittedVisual(Vector3 from, Vector3 to, Vector3? bend, int segmentId, bool isCrossing = false, bool showCrosser = false, bool hideItems = false, bool hideStrip = false)
         {
             var root = new GameObject($"Belt_{segmentId}");
 
@@ -69,10 +72,14 @@ namespace Factory.Building
                 bendAnchor.position = bend.Value + itemHeightOffset;
             }
 
-            // 교차 지점 표시 모델이 있으면 그게 이 칸의 유일한 시각 표현이다 — 밑에 평범한
-            // 스트립/코너를 또 깔면 겹쳐 보인다("직선 벨트가 왜 또 그려지냐" 보고). 앵커(Start/
-            // End/Bend)는 어느 쪽이든 항상 만든다 — BeltItemRenderer가 아이템 이동에 계속 쓴다.
-            if (showCrosser && crosserVisualPrefab != null)
+            // 앵커(Start/End/Bend)는 어느 쪽이든 항상 만든다 — BeltItemRenderer가 아이템 이동에
+            // 계속 쓴다. 실제로 보이는 메쉬만 세 갈래로 갈린다: 크로스 아이콘(showCrosser),
+            // 아무것도 안 그림(hideStrip), 평범한 스트립/코너(그 외 일반 벨트) 순으로 우선한다.
+            if (hideStrip)
+            {
+                // 크로스 타일 수직축 — 일부러 아무것도 안 그린다.
+            }
+            else if (showCrosser && crosserVisualPrefab != null)
             {
                 // 이 모델은 이미 4방향을 다 보여주는 대칭(십자) 모양이라 방향별로 돌릴 필요가
                 // 없다 — 방향 스핀을 먹였더니, 배치 중 고스트(방향 따라 도는 임시 상자)에서
