@@ -184,6 +184,35 @@ public class BuildToolsIntegrationTests
     }
 
     [Test]
+    public void ReturnBeltVisual_PoolsAndReusesTheSameGameObject_WhenANewBeltIsPlaced()
+    {
+        // 사용자 지적: "풀만 하고 꺼내서 쓰지는 않는 거 아니냐" — 벨트를 철거하면 GameObject를
+        // 비활성화해서 풀에 넣어두기만 하고, 새 벨트를 놓을 때 정말로 그 오브젝트를 재사용하는지
+        // (그냥 계속 새로 만들기만 하는 건 아닌지) 인스턴스 identity로 직접 확인한다.
+        DragBelt(new Vector2Int(0, 0), new Vector2Int(1, 0));
+        int firstId = driver.World.Segments[driver.World.Segments.Count - 1].Id;
+        var firstVisual = GameObject.Find($"Belt_{firstId}");
+        Assert.IsNotNull(firstVisual, "벨트를 놓으면 Belt_{id} 오브젝트가 있어야 함");
+        int pooledInstanceId = firstVisual.GetInstanceID();
+
+        // DemolishTool.Confirm이 벨트 철거 시 실제로 부르는 것과 같은 호출.
+        beltTool.ReturnBeltVisual(firstId);
+        driver.World.RemoveSegment(firstId);
+
+        Assert.IsNull(GameObject.Find($"Belt_{firstId}"), "반납된 벨트는 비활성화되어 이름으로 못 찾아야 함");
+        Assert.IsNotNull(GameObject.Find("Belt_Pooled"), "반납된 벨트는 풀에 Belt_Pooled로 대기 중이어야 함");
+
+        DragBelt(new Vector2Int(5, 0), new Vector2Int(6, 0)); // 전혀 다른 위치에 새 벨트.
+        int secondId = driver.World.Segments[driver.World.Segments.Count - 1].Id;
+        var secondVisual = GameObject.Find($"Belt_{secondId}");
+
+        Assert.IsNotNull(secondVisual, "새 벨트도 Belt_{id} 오브젝트가 있어야 함");
+        Assert.AreEqual(pooledInstanceId, secondVisual.GetInstanceID(),
+            "새 벨트가 풀에 반납된 오브젝트를 재사용해야 함(새로 또 만들면 안 됨)");
+        Assert.IsNull(GameObject.Find("Belt_Pooled"), "재사용됐으면 풀에 남은 Belt_Pooled가 없어야 함");
+    }
+
+    [Test]
     public void PlacingMachine_AdjacentToExistingDeadEndBelt_AutoConnects()
     {
         // "벨트를 먼저 뻗어두고 나중에 옆에 기계를 놓는" 시나리오. 소스는 코어(항상 존재하는

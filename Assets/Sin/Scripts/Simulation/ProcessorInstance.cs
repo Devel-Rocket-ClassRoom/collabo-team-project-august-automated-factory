@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Factory.Simulation
@@ -21,7 +22,19 @@ namespace Factory.Simulation
     public sealed class ProcessorInstance
     {
         public int MachineId;
-        public int RecipeId = -1;
+
+        private int recipeId = -1;
+        // 이 기계가 지금 원하는 레시피. 대입될 때마다 BeltTopologyVersion을 올린다 — 분류기
+        // 입구 벨트가 "어느 갈래로 보낼지" 캐싱해두는 BeltRouting 캐시가, 레시피가 바뀌면
+        // (연결 안 바뀌어도) 다시 계산하도록 하기 위해서다. 안 그러면 레시피 미지정이던
+        // 기계에 레시피를 갓 지정해도 캐시가 "그 갈래는 아직 원하는 게 없다"는 옛 판단을
+        // 계속 재사용하는 새 버그가 생긴다.
+        public int RecipeId
+        {
+            get => recipeId;
+            set { recipeId = value; BeltTopologyVersion.Bump(); }
+        }
+
         public float SpeedMultiplier = 1f;
 
         // 전력 유무는 여기 하나로만 판정한다. PowerGridSystem은 전력 없으면 SpeedMultiplier를
@@ -42,6 +55,13 @@ namespace Factory.Simulation
         // 위치(분류기 = 다음 출력 벨트 인덱스, 합류기 = 마지막으로 내보낸 자원 id).
         public RoutingRole RoutingRole = RoutingRole.None;
         public int RoutingCursor;
+
+        // 라우팅 노드(분류기/합류기) 전용 캐시 — "이 노드에서 나가는, 실제로 요청하는 기계로
+        // 이어지는 출력 벨트들" 목록(RoutingSystem.CollectOutputBelts). BeltTopologyVersion이
+        // 안 바뀌었으면 매 틱 전체 세그먼트를 다시 훑지 않고 그대로 재사용한다(사용자 지적:
+        // "벨트 많으면 렉"). 기본값 -1은 아직 한 번도 계산 안 한 상태.
+        public List<BeltSegment> CachedOutputBelts;
+        public int CachedOutputBeltsVersion = -1;
 
         // 현재 진행 중인 사이클이 실제로 재료를 소비한 레시피. RecipeId는 사용자가 언제든
         // (처리 도중에도) 바꿀 수 있지만, 이미 시작된 사이클은 끝까지 이 값 기준으로
@@ -66,7 +86,20 @@ namespace Factory.Simulation
         public int OwnerPowerNodeId = -1;
         public int CoalResourceId = -1;
         public int BatteryResourceId = -1;
-        public int SelectedFuelResourceId = -1;
+
+        private int selectedFuelResourceId = -1;
+        // 발전기가 지금 원하는 연료 종류. RecipeId와 똑같은 이유로 대입될 때마다
+        // BeltTopologyVersion을 올려야 한다 — 이게 빠져있으면(실제로 빠져있던 버그) 연료를
+        // 골라도 BeltRouting/RoutingSystem이 캐시해둔 "누가 요청 중인가" 판단이 갱신 안 돼서,
+        // 우연히 다른 무언가(다른 벨트 공사 등)가 캐시를 무효화시켜줄 때까지 계속 예전 판단
+        // 그대로 남는다 — 발전기 3대 중 하나만 연료를 골라도 반영이 안 되고, 결국 셋 다 골라야
+        // (그리고 그 사이 다른 공사가 우연히 캐시를 갱신시켜줘야) 겨우 반영되는 것처럼 보였다
+        // (사용자 보고).
+        public int SelectedFuelResourceId
+        {
+            get => selectedFuelResourceId;
+            set { selectedFuelResourceId = value; BeltTopologyVersion.Bump(); }
+        }
 
         // footprint가 1칸보다 큰 기계(예: 2x2 합성기)의 포트 계산 기준. 어느 footprint 칸을
         // 밟아서 연결하든 항상 이 앵커 기준으로 포트 위치를 계산한다(GridUtility.GetPortCells).
