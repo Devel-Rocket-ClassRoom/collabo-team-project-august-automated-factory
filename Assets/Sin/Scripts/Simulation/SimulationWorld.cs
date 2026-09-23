@@ -50,6 +50,11 @@ namespace Factory.Simulation
         {
             Segments.Add(segment);
             beltSystem.Configure(Segments);
+            // 새 세그먼트 자체는 Source/Target/Next가 전부 null인 채로 추가될 수 있어서(예:
+            // 아직 아무 데도 안 이어진 첫 조각) 그 세터들의 자동 Bump에 안 걸릴 수 있다 —
+            // 그래도 Segments 리스트 자체가 늘어난 건 BuildDownstreamFirstOrder/CollectOutputBelts
+            // 캐시가 알아야 하는 구조 변화라 여기서 명시적으로 올린다.
+            BeltTopologyVersion.Bump();
             return Segments.Count - 1;
         }
 
@@ -174,6 +179,9 @@ namespace Factory.Simulation
             for (int j = 0; j < items.Count; j++) RefundToCore(items[j].ResourceId, 1);
             RefundBeltCost(Segments[id].ConcreteCost);
             Segments[id] = null;
+            // 리스트 슬롯 자체를 비우는 건(세그먼트 객체의 프로퍼티 대입이 아니라) 세터의 자동
+            // Bump에 안 걸리니 명시적으로 올린다 — AddBeltSegment의 주석과 같은 이유.
+            BeltTopologyVersion.Bump();
 
             // 이 세그먼트로 흘러들던 상류 세그먼트의 연결을 끊는다(RemoveProcessor가
             // SourceProcessorId/TargetProcessorId를 끊어주는 것과 같은 취지). Tick 루프만 보면

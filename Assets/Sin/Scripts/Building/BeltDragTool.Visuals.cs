@@ -44,19 +44,29 @@ namespace Factory.Building
         // 셋 다 실제 배선/시뮬레이션엔 영향 없는 순수 시각 처리.
         private void SpawnCommittedVisual(Vector3 from, Vector3 to, Vector3? bend, int segmentId, bool isCrossing = false, bool showCrosser = false, bool hideItems = false, bool hideStrip = false)
         {
-            var root = new GameObject($"Belt_{segmentId}");
+            var root = GetOrCreateBeltRoot(segmentId);
 
             float surfaceY = beltSurfaceY - (isCrossing ? crossingLoweredOffset : 0f);
 
             // 아이템이 벨트 면(surfaceY) 위에 얹혀 굴러가는 것처럼 반지름만큼 띄운다.
             Vector3 itemHeightOffset = Vector3.up * (surfaceY + 0.01f + itemVisualRadius);
 
+            // Start/End/Bend 앵커 + 스트립/코너/크로서 메쉬는 전부 이 전용 자식 하나
+            // ("Geometry") 밑에 모아둔다 — 재배선(RerenderSegmentStrip)될 때 이 자식 하나만
+            // 통째로 갈아끼우면 되고, BeltItemRenderer가 root 바로 밑에 만들어둔 아이템 풀
+            // (BeltItem 슬롯들)은 이 자식과 형제 관계라 전혀 안 건드린다 — 재배선마다 아이템
+            // 풀까지 같이 날리고 새로 만들면 풀링 이득이 없어진다.
+            var oldGeometry = root.transform.Find("Geometry");
+            if (oldGeometry != null) Destroy(oldGeometry.gameObject);
+            var geometry = new GameObject("Geometry").transform;
+            geometry.SetParent(root.transform, false);
+
             var startAnchor = new GameObject("Start").transform;
-            startAnchor.SetParent(root.transform);
+            startAnchor.SetParent(geometry);
             startAnchor.position = from + itemHeightOffset;
 
             var endAnchor = new GameObject("End").transform;
-            endAnchor.SetParent(root.transform);
+            endAnchor.SetParent(geometry);
             endAnchor.position = to + itemHeightOffset;
 
             // 코너면 꺾이는 지점도 앵커로 만들어 BeltItemRenderer에 넘긴다 — 안 그러면 아이템이
@@ -68,7 +78,7 @@ namespace Factory.Building
             if (bend.HasValue)
             {
                 bendAnchor = new GameObject("Bend").transform;
-                bendAnchor.SetParent(root.transform);
+                bendAnchor.SetParent(geometry);
                 bendAnchor.position = bend.Value + itemHeightOffset;
             }
 
@@ -86,7 +96,7 @@ namespace Factory.Building
                 // 확정 모델로 바뀌는 순간 회전값이 서로 안 맞아 갑자기 홱 도는 것처럼 보였다
                 // (사용자 보고). 프리팹 자체의 기본 자세(이미 눕혀놓음) 그대로만 쓴다.
                 Vector3 center = (from + to) * 0.5f;
-                var crosser = Instantiate(crosserVisualPrefab, root.transform);
+                var crosser = Instantiate(crosserVisualPrefab, geometry);
                 crosser.transform.position = new Vector3(center.x, beltSurfaceY, center.z);
                 crosser.name = "CrosserVisual";
             }
@@ -94,22 +104,94 @@ namespace Factory.Building
             {
                 if (cornerPrefab != null)
                 {
-                    SpawnBeltCorner(bend.Value, bend.Value - from, to - bend.Value, committedColor, root.transform, keepMaterial: true, surfaceY: surfaceY);
+                    SpawnBeltCorner(bend.Value, bend.Value - from, to - bend.Value, committedColor, geometry, keepMaterial: true, surfaceY: surfaceY);
                 }
                 else
                 {
                     // 폴백: 진입 절반 + 이탈 절반 두 조각으로 나눠 그려 칸 전체를 덮는다.
-                    BuildVisuals.CreateStrip(from, bend.Value, committedThickness, committedColor, root.transform, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: surfaceY);
-                    BuildVisuals.CreateStrip(bend.Value, to, committedThickness, committedColor, root.transform, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: surfaceY);
+                    BuildVisuals.CreateStrip(from, bend.Value, committedThickness, committedColor, geometry, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: surfaceY);
+                    BuildVisuals.CreateStrip(bend.Value, to, committedThickness, committedColor, geometry, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: surfaceY);
                 }
             }
             else
             {
-                BuildVisuals.CreateStrip(from, to, committedThickness, committedColor, root.transform, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: surfaceY);
+                BuildVisuals.CreateStrip(from, to, committedThickness, committedColor, geometry, prefab: stripPrefab, keepPrefabMaterial: true, flatSurfaceY: surfaceY);
             }
 
-            var itemRenderer = root.AddComponent<BeltItemRenderer>();
+            var itemRenderer = root.GetComponent<BeltItemRenderer>();
+            if (itemRenderer == null) itemRenderer = root.AddComponent<BeltItemRenderer>();
             itemRenderer.Initialize(driver, segmentId, startAnchor, endAnchor, itemVisualPrefab, bendAnchor, hideItems);
+        }
+
+        // segmentId로 이미 등록된 벨트 루트가 있으면 그대로 재사용한다(재배선/재도색 케이스 —
+        // SpawnCommittedVisual이 Geometry 자식만 새로 갈아끼운다). 없으면 풀에서 하나 꺼내
+        // 재활용하고(비활성 상태로 보관돼있던 것), 풀도 비어있으면 그제서야 진짜 new GameObject를
+        // 만든다. 벨트를 아무리 많이 짓고 부수고 해도, 동시에 존재하는 최대 개수만큼만 실제
+        // GameObject가 생긴다.
+        //
+        // 어느 경로로 얻었든 반드시 SetActive(true)를 거친다 — "이미 등록된 루트" 쪽도 예외가
+        // 아니다: 드래그 미리보기 중엔 실제 벨트가 잠깐 SetActive(false)로 숨겨졌다가
+        // (SpawnHiddenNeighborPreview) 나중에 다시 그려지는데, 그때도 여전히 beltVisualRoots엔
+        // 그 비활성 오브젝트가 "현재 루트"로 등록돼 있다. 여기서 활성화를 빼먹으면 재배선된
+        // 벨트가 데이터상으로는 멀쩡히 연결됐는데 화면엔 아예 안 보이는 버그가 난다(사용자 보고
+        // — 벨트 지웠다 다시 이으면 양옆 벨트가 안 보임).
+        private GameObject GetOrCreateBeltRoot(int segmentId)
+        {
+            if (beltVisualRoots.TryGetValue(segmentId, out var existing) && existing != null)
+            {
+                existing.SetActive(true);
+                return existing;
+            }
+
+            GameObject root;
+            if (pooledBeltVisuals.Count > 0)
+            {
+                root = pooledBeltVisuals.Pop();
+                root.SetActive(true);
+            }
+            else
+            {
+                root = new GameObject();
+            }
+
+            root.name = $"Belt_{segmentId}";
+            beltVisualRoots[segmentId] = root;
+            return root;
+        }
+
+        // 벨트가 철거될 때(DemolishTool) Destroy 대신 이걸 부른다 — 통째로 없애는 대신
+        // 비활성화해서 풀에 넣어두고, 다음에 벨트가 새로 놓일 때 GetOrCreateBeltRoot가 이
+        // 오브젝트를 다시 꺼내 쓴다. 이름을 바꿔서 비활성 상태에서도 옛 segmentId로
+        // GameObject.Find가 잘못 찾는 일이 없게 한다(비활성은 원래 Find로 안 잡히지만, 혹시
+        // 다시 활성화되는 타이밍과 겹쳐도 안전하도록).
+        public void ReturnBeltVisual(int segmentId)
+        {
+            if (!beltVisualRoots.TryGetValue(segmentId, out var root) || root == null)
+            {
+                beltVisualRoots.Remove(segmentId);
+                // 이 딕셔너리에 없다는 건 이 벨트가 GetOrCreateBeltRoot를 거치지 않고 만들어진
+                // 경우다(예: BeltDragTool이 아직 없을 때 세이브 로드가 쓰는 폴백 경로,
+                // FactorySaveBridge.SpawnBeltVisual 참고) — 그래도 화면에 남아있으면 지워야
+                // 하니 예전 방식(이름 검색)으로 한 번 더 찾아서 지운다.
+                var orphan = GameObject.Find($"Belt_{segmentId}");
+                if (orphan != null) Destroy(orphan);
+                return;
+            }
+
+            beltVisualRoots.Remove(segmentId);
+            var itemRenderer = root.GetComponent<BeltItemRenderer>();
+            if (itemRenderer != null) Destroy(itemRenderer);
+            // Geometry뿐 아니라 BeltItemRenderer가 만들어둔 아이템 풀 슬롯(BeltItem, root 바로
+            // 밑의 형제)도 여기서 같이 치운다 — 컴포넌트만 Destroy하면 그 풀이 만든 자식
+            // 오브젝트들은 안 지워지고 고아로 남아 계속 쌓인다(재사용 때마다 새 BeltItemRenderer가
+            // 빈 풀로 다시 시작하므로 옛 자식들을 다시 쓸 일도 없다).
+            for (int i = root.transform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(root.transform.GetChild(i).gameObject);
+            }
+            root.name = "Belt_Pooled";
+            root.SetActive(false);
+            pooledBeltVisuals.Push(root);
         }
         // 여기부터
         // 세이브 로드도 최초 배치와 완전히 같은 프리팹/높이/아이템 렌더러 경로를 사용한다.
