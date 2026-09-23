@@ -178,11 +178,13 @@ namespace Factory.Building
                 {
                     case CellOccupantType.Miner:
                         DestroyVisual($"{MachineInstanceKind.Miner}_{index}");
+                        Factory.Rendering.MachineVisualRegistry.Unregister(MachineInstanceKind.Miner, index);
                         grid.UnregisterOccupant(type, index);
                         world.RemoveMiner(index);
                         break;
                     case CellOccupantType.Processor:
                         DestroyVisual($"{MachineInstanceKind.Processor}_{index}");
+                        Factory.Rendering.MachineVisualRegistry.Unregister(MachineInstanceKind.Processor, index);
                         grid.UnregisterOccupant(type, index);
                         world.RemoveProcessor(index);
                         break;
