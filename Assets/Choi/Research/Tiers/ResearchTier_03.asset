@@ -16,16 +16,24 @@ MonoBehaviour:
   displayName: "\uCCA8\uB2E8 \uC0B0\uC5C5"
   description: "\uCF54\uC5B4\uC758 \uC790\uC6D0\uC744 \uC5F0\uAD6C\uC18C\uC5D0 \uB204\uC801
     \uB0A9\uD488\uD558\uC138\uC694."
-  unlockedMapSize: 700
+  unlockedMapSize: 500
   resourceGoals:
+  - resourceId: RefinedQuartz
+    amount: 10000
+  - resourceId: QuartzPlate
+    amount: 10000
   - resourceId: Gear
-    amount: 100
+    amount: 8000
+  - resourceId: IronBeam
+    amount: 6000
   - resourceId: EnergyCell
-    amount: 100
+    amount: 8000
+  - resourceId: HighCapacityBattery
+    amount: 6000
   machineRewards:
   - machine: {fileID: 11400000, guid: 644b6242e54681549b932f9d109c47ec, type: 2}
     icon: {fileID: 0}
   recipeRewards:
+  - {fileID: 11400000, guid: ac8a4eaed9777dc49a6c06bba6f7209f, type: 2}
   - {fileID: 11400000, guid: 3ab198361a62fb44abd3e5d9da5543c5, type: 2}
   - {fileID: 11400000, guid: 6983669a2aabae8488c532b599e8fa33, type: 2}
-  - {fileID: 11400000, guid: 53c4294edf57ecc4290182cb4fb53cac, type: 2}
