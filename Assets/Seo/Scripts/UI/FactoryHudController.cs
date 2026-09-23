@@ -63,6 +63,8 @@ namespace Seo.UI
         private Button groupMoveButton;
         private Button groupMoveRotateButton;
         private GameObject cancelButton;
+        private RectTransform contextBarRect;
+        private float contextButtonStep = 232f;
         private GameObject placementCostPanel;
         private Transform placementCostContent;
         private Text placementCostTitle;
@@ -424,6 +426,37 @@ namespace Seo.UI
             dockRect.anchoredPosition = new Vector2(dockX, 0f);
             dockRect.sizeDelta = new Vector2(Mathf.Min(760f, size.x - dockX - 16f),
                 Mathf.Min(760f, size.y - 32f));
+            LayoutContextButtons(size, scale);
+        }
+
+        private void LayoutContextButtons(Vector2 safeSize, float scale)
+        {
+            if (contextBarRect == null) return;
+            float width = Mathf.Min(880f, safeSize.x - 32f);
+            float buttonWidth = (width - 64f) / 3f;
+            float buttonHeight = Mathf.Max(96f, 56f / scale);
+            float fontSize = Mathf.Min(Mathf.Max(30f, 18f / scale), (buttonWidth - 32f) / 5f);
+            contextButtonStep = buttonWidth + 16f;
+            contextBarRect.sizeDelta = new Vector2(width, buttonHeight + 20f);
+            foreach (Transform child in contextBarRect)
+            {
+                if (child.GetComponent<Button>() == null) continue;
+                var rect = (RectTransform)child;
+                rect.sizeDelta = new Vector2(buttonWidth, buttonHeight);
+                rect.localScale = Vector3.one;
+                var label = child.GetComponentInChildren<Text>(true);
+                if (label == null) continue;
+                label.font = SeoUITheme.Current.FontAsset;
+                label.enableAutoSizing = false;
+                label.fontSize = fontSize;
+                label.fontStyle = TMPro.FontStyles.Bold;
+                label.alignment = TMPro.TextAlignmentOptions.Center;
+                label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+                SeoUIFactory.SetRect(label.rectTransform, Vector2.zero, Vector2.one,
+                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-32f, -20f));
+            }
+            if (groupMoveRotateButton != null)
+                SetActionButtonX(groupMoveRotateButton.gameObject, -232f);
         }
 
         private static void ApplyCardBackground(Button button)
@@ -1352,6 +1385,7 @@ namespace Seo.UI
             var bar = SeoUIFactory.CreatePanel(safeRoot, "SeoContextBar", new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f), new Vector2(0f, 214f), new Vector2(710f, 76f));
             bar.rectTransform.pivot = new Vector2(0.5f, 0f);
+            contextBarRect = bar.rectTransform;
 
             rotateButton = MoveActionButton("RotateButton", bar.transform, -232f);
             var rotateLabel = rotateButton != null ? rotateButton.GetComponentInChildren<Text>(true) : null;
@@ -1890,11 +1924,11 @@ namespace Seo.UI
             if (parent != null) parent.SetActive(mode != BuildInputRouter.Mode.None || placingPower);
         }
 
-        private static void SetActionButtonX(GameObject button, float x)
+        private void SetActionButtonX(GameObject button, float x)
         {
             if (button == null) return;
             var rt = button.GetComponent<RectTransform>();
-            if (rt != null) rt.anchoredPosition = new Vector2(x, 0f);
+            if (rt != null) rt.anchoredPosition = new Vector2(x * contextButtonStep / 232f, 0f);
         }
 
         private void UpdatePowerStatus()

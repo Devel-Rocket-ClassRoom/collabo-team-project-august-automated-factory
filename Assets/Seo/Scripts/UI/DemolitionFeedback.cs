@@ -111,15 +111,25 @@ namespace Seo.UI
             if (panelRoot == null)
             {
                 var panel = SeoUIFactory.CreatePanel(parent, "SeoDemolitionFeedback", new Vector2(0.5f, 0f),
-                    new Vector2(0.5f, 0f), new Vector2(0f, 306f), new Vector2(820f, 88f),
+                    new Vector2(0.5f, 0f), new Vector2(0f, 340f), new Vector2(920f, 112f),
                     new Color(0.13f, 0.025f, 0.025f, 0.97f));
                 panel.rectTransform.pivot = new Vector2(0.5f, 0f);
                 panelRoot = panel.gameObject;
-                summaryText = SeoUIFactory.CreateTMPText(panel.transform, "Summary", string.Empty, 20,
+                summaryText = SeoUIFactory.CreateTMPText(panel.transform, "Summary", string.Empty, 24,
                     TextAnchor.MiddleCenter, FontStyle.Bold);
                 summaryText.rectTransform.offsetMin = new Vector2(24f, 8f);
                 summaryText.rectTransform.offsetMax = new Vector2(-24f, -8f);
                 panelRoot.SetActive(false);
+            }
+
+            var actionBar = parent.Find("SeoContextBar") as RectTransform;
+            var safeRect = parent as RectTransform;
+            if (actionBar != null && safeRect != null)
+            {
+                var summaryRect = (RectTransform)panelRoot.transform;
+                summaryRect.anchoredPosition = new Vector2(0f,
+                    actionBar.anchoredPosition.y + actionBar.rect.height + 12f);
+                summaryRect.sizeDelta = new Vector2(Mathf.Min(920f, safeRect.rect.width - 32f), 112f);
             }
 
             var confirmObject = GameObject.Find("DemolishConfirmButton");
@@ -127,13 +137,6 @@ namespace Seo.UI
             {
                 confirmButton = confirmObject.GetComponent<Button>();
                 StyleActionButton(confirmButton, "철거 확정");
-                var confirmRect = confirmObject.GetComponent<RectTransform>();
-                if (confirmRect != null)
-                {
-                    confirmRect.anchoredPosition = new Vector2(-232f, 0f);
-                    confirmRect.sizeDelta = new Vector2(210f, 56f);
-                }
-
             }
 
             return panelRoot != null;
@@ -146,8 +149,7 @@ namespace Seo.UI
             var label = button.GetComponentInChildren<Text>(true);
             if (label == null) return;
             label.text = labelText;
-            label.fontSize = 24;
-                label.fontStyle = TMPro.FontStyles.Bold;
+            label.fontStyle = TMPro.FontStyles.Bold;
             label.color = SeoUITheme.Current.Text;
         }
 
