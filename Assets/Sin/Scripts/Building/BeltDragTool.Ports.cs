@@ -64,6 +64,25 @@ namespace Factory.Building
                 }
                 case CellOccupantType.Belt:
                 {
+                    var belt = driver.World.Segments[occupant.InstanceIndex];
+
+                    // 크로스 타일의 축 세그먼트는 일반 벨트와 달리 방향이 고정이다(CrossAxis,
+                    // 기계 포트와 같은 개념) — 아무 쪽에서나 이어붙일 수 있는 보통 벨트와 섞어
+                    // 취급하면, 그 축의 입력 쪽에서 거꾸로 드래그를 시작해도 "출력"으로 잘못
+                    // 받아들여져서 실제 축 방향과 반대로 벨트가 이어지는 버그가 난다(사용자 보고:
+                    // "왜 방향과 반대로도 설치가 되냐"). +CrossAxis 쪽에서 시작(Source)하거나
+                    // -CrossAxis 쪽에서 끝(Target)나는 것만 유효하고, 그 반대는 전부 무효다.
+                    if (belt != null && belt.IsCrossable)
+                    {
+                        isFixed = true;
+                        if (!driver.World.Grid.TryGetCellOf(CellOccupantType.Belt, occupant.InstanceIndex, out var segCell))
+                            return EndpointRole.None;
+                        Vector2Int dir = touchingCell - segCell;
+                        if (isStart && dir == belt.CrossAxis) return EndpointRole.Source;
+                        if (!isStart && dir == -belt.CrossAxis) return EndpointRole.Target;
+                        return EndpointRole.None;
+                    }
+
                     isFixed = false;
                     if (isStart) return EndpointRole.Source;
 
@@ -72,8 +91,7 @@ namespace Factory.Building
                     // 세그먼트(또는 기계)가 먹이고 있는 벨트에 억지로 연결하면 그 벨트 고유의
                     // 방향대로 아이템이 흘러버려서, 반대 방향으로 지어진 막다른 벨트끼리
                     // 마주보고 있을 때 아이템이 반대쪽으로 순간이동한 것처럼 보이는 버그가 생긴다.
-                    var targetSegment = driver.World.Segments[occupant.InstanceIndex];
-                    return MachineGhostTool.IsChainStart(driver.World.Segments, targetSegment)
+                    return MachineGhostTool.IsChainStart(driver.World.Segments, belt)
                         ? EndpointRole.Target
                         : EndpointRole.None;
                 }

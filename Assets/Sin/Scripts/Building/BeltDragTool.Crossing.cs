@@ -91,8 +91,11 @@ namespace Factory.Building
             var renderPath = new List<Vector2Int> { cell - axis, cell, cell + axis };
             ComputeCellSpan(renderPath, 1, out Vector3 entry, out Vector3 exit, out Vector3? bend);
             // 크로스 타일의 두 축은 분류기/합류기처럼 "기계 안으로 들어갔다 나오는" 느낌이어야
-            // 한다(사용자 요청) — 이 두 세그먼트 위에서는 아이템을 아예 안 그린다.
-            SpawnCommittedVisual(entry, exit, bend, segmentId, isCrossing, showCrosser, hideItems: true);
+            // 한다(사용자 요청) — 이 두 세그먼트 위에서는 아이템을 아예 안 그린다. 메쉬도 주축
+            // (showCrosser)만 크로스 아이콘으로 그리고, 수직축은 아무것도 안 그린다(hideStrip) —
+            // 안 그러면 아이콘 밑에 평범한 벨트 스트립이 따로 보여서 "벨트가 하나 더 설치된
+            // 것처럼" 보인다(사용자 보고).
+            SpawnCommittedVisual(entry, exit, bend, segmentId, isCrossing, showCrosser, hideItems: true, hideStrip: !showCrosser);
         }
     }
 }
