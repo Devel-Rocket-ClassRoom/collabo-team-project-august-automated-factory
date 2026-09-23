@@ -48,6 +48,16 @@ namespace Factory.Simulation
         // 완료되어야 한다 — 안 그러면 옛 레시피 재료로 새 레시피 산출물을 공짜로 만들어내게 된다.
         public int ActiveRecipeId = -1;
 
+        // 사용자가 레시피 선택 패널에서 실제로 레시피를 지정한 순서(RecipeSelectionPanel.
+        // SelectRecipe에서만 찍음 — 코드가 기본값/초기화로 RecipeId를 대입하는 경우는 안 침).
+        // 분류기 입구로 들어오는 벨트 하나가 여러 갈래 중 어디 취향에 맞출지 정할 때
+        // (BeltRouting.Resolve), "가장 최근에 사용자가 레시피를 정해준 갈래"를 우선한다 —
+        // 예전엔 갈래 id(먼저 만들어진 벨트) 순으로 정해서, 나중에 다른 갈래 레시피를 바꿔도
+        // 계속 옛 갈래로만 자원이 쏠렸다(사용자 보고).
+        public int RecipeSetSequence;
+        private static int nextRecipeSetSequence = 1;
+        public static int NextRecipeSetSequence() => nextRecipeSetSequence++;
+
         // 입력 포트 = 이 기계가 놓인 셀 - Facing, 출력 포트 = 놓인 셀 + Facing.
         public Vector2Int Facing = new Vector2Int(1, 0);
         // true면(코어) 고정 포트 대신 4면 전부 입출력 가능.

@@ -9,12 +9,13 @@ public class RoutingSystemTests
     [Test]
     public void Splitter_DistributesEvenlyAcrossThreeOutputs_RoundRobin()
     {
-        var db = BuildDatabase(out int oreId, out _);
+        var db = BuildDatabase(out int oreId, out _, out int sinkRecipeId);
         var splitter = new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter };
         splitter.InputBuffer[oreId] = 30;
 
-        // 각 출력 벨트는 "요청하는 기계"(레시피 지정됨)로 이어져야 분류기가 보낸다.
-        var processors = new List<ProcessorInstance> { splitter, Sink(db), Sink(db), Sink(db) };
+        // 각 출력 벨트는 "요청하는 기계"(레시피 지정 + 그 레시피가 실제로 이 자원을 씀)로
+        // 이어져야 분류기가 보낸다.
+        var processors = new List<ProcessorInstance> { splitter, Sink(db, sinkRecipeId), Sink(db, sinkRecipeId), Sink(db, sinkRecipeId) };
         var outA = new BeltSegment { Id = 0, SourceProcessorId = 0, TargetProcessorId = 1 };
         var outB = new BeltSegment { Id = 1, SourceProcessorId = 0, TargetProcessorId = 2 };
         var outC = new BeltSegment { Id = 2, SourceProcessorId = 0, TargetProcessorId = 3 };
@@ -25,7 +26,7 @@ public class RoutingSystemTests
         int a = 0, b = 0, c = 0;
         for (int i = 0; i < 30; i++)
         {
-            system.Tick(processors, segments);
+            system.Tick(processors, segments, db);
             // 벨트가 곧바로 실어 갔다고 치고 입구를 비운다(다음 틱에 또 받을 수 있게).
             a += Drain(outA);
             b += Drain(outB);
@@ -42,11 +43,11 @@ public class RoutingSystemTests
     [Test]
     public void Splitter_SkipsBlockedOutput_AndKeepsFlowingToTheRest()
     {
-        var db = BuildDatabase(out int oreId, out _);
+        var db = BuildDatabase(out int oreId, out _, out int sinkRecipeId);
         var splitter = new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter };
         splitter.InputBuffer[oreId] = 20;
 
-        var processors = new List<ProcessorInstance> { splitter, Sink(db), Sink(db), Sink(db) };
+        var processors = new List<ProcessorInstance> { splitter, Sink(db, sinkRecipeId), Sink(db, sinkRecipeId), Sink(db, sinkRecipeId) };
         var outA = new BeltSegment { Id = 0, SourceProcessorId = 0, TargetProcessorId = 1 };
         var outBlocked = new BeltSegment { Id = 1, SourceProcessorId = 0, TargetProcessorId = 2 };
         var outC = new BeltSegment { Id = 2, SourceProcessorId = 0, TargetProcessorId = 3 };
@@ -59,7 +60,7 @@ public class RoutingSystemTests
         int a = 0, c = 0;
         for (int i = 0; i < 20; i++)
         {
-            system.Tick(processors, segments);
+            system.Tick(processors, segments, db);
             a += Drain(outA);
             c += Drain(outC);
         }
@@ -72,13 +73,14 @@ public class RoutingSystemTests
     [Test]
     public void Merger_CombinesInputsIntoOneOutput_AlternatingResourceTypes()
     {
-        var db = BuildDatabase(out int oreId, out int coalId);
+        var db = BuildDatabase(out int oreId, out int coalId, out int sinkRecipeId);
         var merger = new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Merger };
         // 여러 입력 벨트가 배달해준 상태를 흉내 — InputBuffer에 두 종류가 쌓여 있다.
         merger.InputBuffer[oreId] = 15;
         merger.InputBuffer[coalId] = 15;
 
-        var processors = new List<ProcessorInstance> { merger, Sink(db) };
+        // 합류기 출력을 받는 기계는 오레/석탄을 둘 다 쓰는 레시피여야 번갈아 내보내는 걸 확인할 수 있다.
+        var processors = new List<ProcessorInstance> { merger, Sink(db, sinkRecipeId) };
         var output = new BeltSegment { Id = 0, SourceProcessorId = 0, TargetProcessorId = 1 };
 
         var segments = new List<BeltSegment> { output };
@@ -89,7 +91,7 @@ public class RoutingSystemTests
         int lastResource = -1;
         for (int i = 0; i < 30; i++)
         {
-            system.Tick(processors, segments);
+            system.Tick(processors, segments, db);
             if (output.Items.Count == 0) continue;
             int r = output.Items[0].ResourceId;
             if (r == oreId) ore++;
@@ -131,6 +133,46 @@ public class RoutingSystemTests
 
         Assert.Greater(former.OutputBuffer[plateId], 0, "코어 -> 분류기 -> 성형기 체인에서 철판이 나와야 함");
         Assert.AreEqual(20, core.InputBuffer[coalId], "레시피가 안 쓰는 석탄은 분류기 너머로도 안 실려야 함");
+    }
+
+    [Test]
+    public void CoreToSplitter_DemolishedBranchLosesPriority_RemainingBranchStillGetsFed()
+    {
+        // 사용자 보고: 분류기 출력 3개 중 가운데(철 레시피)로 가던 벨트를 철거했는데도, 코어에서
+        // 분류기로 들어가는 입구 벨트가 계속 가운데 쪽 자원(철)만 담당하려 해서 실제로 남아있는
+        // 옆 갈래(석탄 레시피)로는 영영 아무것도 안 나왔다. 갈래 우선순위가 "먼저 만들어진 벨트
+        // id" 기준이라, 철거로 끊긴 갈래라도 한 번 "선호 갈래"였으면 계속 그 자리를 차지했기
+        // 때문 — BeltRouting.Resolve가 이제 "연결된 갈래만" 후보로 보고, 그 중 "가장 최근에
+        // 레시피가 지정된 갈래"를 우선하도록 고쳤다.
+        var db = BuildIronOrCoalRecipeDatabase(out int ironId, out int coalId, out int ironRecipeId, out int coalRecipeId);
+        var world = new SimulationWorld(db);
+
+        var core = new ProcessorInstance(db.ResourceCount) { RecipeId = -1, UniversalPorts = true };
+        int coreIndex = world.AddProcessor(core);
+        world.CoreProcessorIndex = coreIndex;
+        core.InputBuffer[ironId] = 20;
+        core.InputBuffer[coalId] = 20;
+
+        int splitterIndex = world.AddProcessor(new ProcessorInstance(db.ResourceCount) { RoutingRole = RoutingRole.Splitter });
+        var middle = new ProcessorInstance(db.ResourceCount) { RecipeId = ironRecipeId, RecipeSetSequence = ProcessorInstance.NextRecipeSetSequence() };
+        var side = new ProcessorInstance(db.ResourceCount) { RecipeId = coalRecipeId, RecipeSetSequence = ProcessorInstance.NextRecipeSetSequence() };
+        int middleIndex = world.AddProcessor(middle);
+        int sideIndex = world.AddProcessor(side);
+
+        world.AddBeltSegment(new BeltSegment { Id = 0, SourceProcessorId = coreIndex, TargetProcessorId = splitterIndex });
+        // 가운데(id=1)가 옆(id=2)보다 먼저 만들어진 갈래 — 예전 코드였다면 계속 이쪽만 담당했을 것.
+        var middleBelt = new BeltSegment { Id = 1, SourceProcessorId = splitterIndex, TargetProcessorId = middleIndex };
+        world.AddBeltSegment(middleBelt);
+        world.AddBeltSegment(new BeltSegment { Id = 2, SourceProcessorId = splitterIndex, TargetProcessorId = sideIndex });
+
+        for (int i = 0; i < 50; i++) world.Tick(0.05f);
+        Assert.Greater(middle.InputBuffer[ironId], 0, "철거 전에는 가운데(철)로 자원이 흘러야 함");
+
+        world.RemoveSegment(middleBelt.Id); // 사용자가 가운데로 가던 벨트를 철거.
+
+        for (int i = 0; i < 400; i++) world.Tick(0.05f);
+
+        Assert.Greater(side.InputBuffer[coalId], 0, "가운데 갈래가 끊겼으면 남은 옆 갈래(석탄)로 반드시 흘러야 함");
     }
 
     [Test]
@@ -197,10 +239,11 @@ public class RoutingSystemTests
         Assert.Greater(synth.OutputBuffer[steelId], 0, "합류기가 섞어 보낸 철+석탄을 합성기가 한 포트로 받아 강철 주괴를 만들어야 함");
     }
 
-    // 라우팅 노드 출력 벨트의 "요청하는 종착 기계" 역할. RoutingSystem은 RecipeId>=0인지만
-    // 보므로(레시피 내용은 안 봄) 실제 레시피 없이 RecipeId=0으로 충분하다.
-    private static ProcessorInstance Sink(GameDatabase db)
-        => new ProcessorInstance(db.ResourceCount) { RecipeId = 0 };
+    // 라우팅 노드 출력 벨트의 "요청하는 종착 기계" 역할. RoutingSystem이 이제 레시피 내용까지
+    // 보므로(이 갈래가 실제로 그 자원을 쓰는지), 버퍼에 들어올 수 있는 자원을 전부 받는
+    // 레시피를 물려줘야 한다.
+    private static ProcessorInstance Sink(GameDatabase db, int recipeId)
+        => new ProcessorInstance(db.ResourceCount) { RecipeId = recipeId };
 
     private static int Drain(BeltSegment belt)
     {
@@ -247,13 +290,51 @@ public class RoutingSystemTests
         return db;
     }
 
-    private static GameDatabase BuildDatabase(out int oreId, out int coalId)
+    // 철만 쓰는 레시피 하나, 석탄만 쓰는 레시피 하나 — 분류기 갈래 두 개가 서로 다른 자원을
+    // 원하는 상황(가운데=철, 옆=석탄)을 재현하기 위한 전용 DB.
+    private static GameDatabase BuildIronOrCoalRecipeDatabase(out int ironId, out int coalId, out int ironRecipeId, out int coalRecipeId)
+    {
+        var items = new[] { new ItemData { itemID = "IronIngot" }, new ItemData { itemID = "Coal" } };
+        var recipes = new[]
+        {
+            new RecipeData
+            {
+                recipeID = "NeedsIron", machineID = "IronUser", timeToCraft = 1f,
+                inputItems = new List<string> { "IronIngot" }, outputItems = new List<string>(),
+            },
+            new RecipeData
+            {
+                recipeID = "NeedsCoal", machineID = "CoalUser", timeToCraft = 1f,
+                inputItems = new List<string> { "Coal" }, outputItems = new List<string>(),
+            },
+        };
+
+        var db = GameDatabase.Build(items, System.Array.Empty<MachineData>(), recipes);
+        ironId = db.GetResourceId("IronIngot");
+        coalId = db.GetResourceId("Coal");
+        ironRecipeId = db.GetRecipeId("NeedsIron");
+        coalRecipeId = db.GetRecipeId("NeedsCoal");
+        return db;
+    }
+
+    private static GameDatabase BuildDatabase(out int oreId, out int coalId, out int sinkRecipeId)
     {
         var ore = new ItemData { itemID = "IronOre" };
         var coal = new ItemData { itemID = "Coal" };
-        var db = GameDatabase.Build(new[] { ore, coal }, System.Array.Empty<MachineData>(), System.Array.Empty<RecipeData>());
+        // 오레/석탄을 둘 다 받아주는 더미 레시피 — 테스트용 Sink 기계가 무엇이 흘러들어와도
+        // "요청하는 기계"로 인식되게 한다.
+        var sinkRecipe = new RecipeData
+        {
+            recipeID = "SinkRecipe",
+            machineID = "Sink",
+            timeToCraft = 1f,
+            inputItems = new List<string> { "IronOre", "Coal" },
+            outputItems = new List<string>(),
+        };
+        var db = GameDatabase.Build(new[] { ore, coal }, System.Array.Empty<MachineData>(), new[] { sinkRecipe });
         oreId = db.GetResourceId("IronOre");
         coalId = db.GetResourceId("Coal");
+        sinkRecipeId = db.GetRecipeId("SinkRecipe");
         return db;
     }
 }
