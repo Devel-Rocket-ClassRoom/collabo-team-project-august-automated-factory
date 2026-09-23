@@ -8,7 +8,16 @@ namespace Factory.Simulation
     public sealed class BeltSegment
     {
         public int Id;
-        public int? NextSegmentId;
+
+        private int? nextSegmentId;
+        // 다음 세그먼트로의 연결. 대입될 때마다 BeltTopologyVersion을 올린다 — 이 값을 따라가는
+        // BeltSystem의 처리 순서 캐시/BeltRouting의 목적지 캐시가 이 신호로 다시 계산할지 판단한다.
+        public int? NextSegmentId
+        {
+            get => nextSegmentId;
+            set { nextSegmentId = value; BeltTopologyVersion.Bump(); }
+        }
+
         public float Length = 1f;
         public float SpeedUnitsPerSecond = SimulationConstants.DefaultBeltSpeed;
         public float ItemSpacing = SimulationConstants.DefaultItemSpacing;
@@ -29,9 +38,15 @@ namespace Factory.Simulation
         // 실제로 어느 세그먼트를 말하는 건지 가려낸다.
         public Vector2Int CrossAxis;
 
+        private int? sourceProcessorId;
         // 체인의 첫 세그먼트에만 하나가 설정됨: 기계 산출물을 이 세그먼트로 실어 나른다.
         // 채굴기는 원격 전송(코어로 직배송)이라 벨트 소스가 될 수 없다 — Processor만 있음.
-        public int? SourceProcessorId;
+        // 대입될 때마다 BeltTopologyVersion을 올린다(BeltTopologyVersion.cs 참고).
+        public int? SourceProcessorId
+        {
+            get => sourceProcessorId;
+            set { sourceProcessorId = value; BeltTopologyVersion.Bump(); }
+        }
 
         // 이 라인이 처음 실어 나른 자원으로 굳어진 값 — 한 번 정해지면 계속 그 자원만
         // 싣는다("벨트 하나당 한 종류"). 안 그러면 소스가 여러 자원을 갖고 있을 때(코어처럼)
@@ -44,10 +59,24 @@ namespace Factory.Simulation
         // 예전 재료만 계속 실어 날라서 기계가 영구히 기아 상태에 빠진다.
         public int LockedForRecipeId = -1;
 
+        private int? targetProcessorId;
         // 체인의 마지막 세그먼트(NextSegmentId == null)에만 설정됨: 도착한 아이템을 받는 기계.
-        public int? TargetProcessorId;
+        // 대입될 때마다 BeltTopologyVersion을 올린다(BeltTopologyVersion.cs 참고).
+        public int? TargetProcessorId
+        {
+            get => targetProcessorId;
+            set { targetProcessorId = value; BeltTopologyVersion.Bump(); }
+        }
 
         // Position 오름차순 정렬 유지 (Items[0] = 세그먼트 시작에 가장 가까운 아이템).
         public List<BeltItem> Items = new List<BeltItem>();
+
+        // BeltRouting.Resolve 캐시 — "이 세그먼트를 따라가면 결국 어느 기계로 도착하나"의
+        // 계산 결과. 매 틱 전체 체인/분류기 갈래를 다시 훑던 비용을 없애려고, 위 세터들이
+        // 자동으로 올리는 BeltTopologyVersion과 비교해서 안 바뀌었으면 재계산 없이 그대로
+        // 쓴다(BeltTopologyVersion.cs 참고). CachedTerminalVersion 기본값 -1은 아직 한 번도
+        // 계산 안 한 상태를 뜻한다(Current는 0부터 시작하므로 절대 우연히 같아질 일이 없음).
+        public ProcessorInstance CachedTerminal;
+        public int CachedTerminalVersion = -1;
     }
 }

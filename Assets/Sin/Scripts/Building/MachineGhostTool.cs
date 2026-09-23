@@ -415,14 +415,16 @@ namespace Factory.Building
             BuildCostUtility.TryPay(core, runtime.BuildCost);
         }
 
-        // 크로스 벨트 임시 건설비 — 벨트 한 칸(콘크리트 3)과 같은 값. BeltDragTool의
-        // concreteCostPerTile은 private라 여기서 못 물어보니 그냥 같은 값을 하드코딩했다
-        // (임시 기능이라 공용 상수로 뺄 정도는 아니라고 판단).
+        // 크로스 벨트 임시 건설비 — 벨트가 아니라 분류기/합류기랑 같은 부류(라우팅 노드)의
+        // 기계라, 벨트 한 칸 값이 아니라 그 둘과 같은 건설비를 그대로 물려받는다(사용자 지적:
+        // "분류기, 배분기 류의 기계"). Bae님 Machines.json의 Splitter 건설비를 그대로 조회해서
+        // 쓰므로, 나중에 밸런스 패치로 그쪽 값이 바뀌면 크로스 벨트도 같이 따라간다. Splitter
+        // 데이터가 없는 극단적인 경우(테스트 DB 등)에만 빈 배열(무료)로 폴백한다.
         private ResourceAmount[] CrossBeltBuildCost()
         {
-            if (driver != null && driver.World != null && driver.World.Database.TryGetResourceId("Concrete", out int concreteId))
+            if (driver != null && driver.World != null && driver.World.Database.TryGetMachineId("Splitter", out int splitterId))
             {
-                return new[] { new ResourceAmount(concreteId, 3) };
+                return driver.World.Database.Machines[splitterId].BuildCost;
             }
             return Array.Empty<ResourceAmount>();
         }

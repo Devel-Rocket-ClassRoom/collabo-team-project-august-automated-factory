@@ -138,6 +138,7 @@ namespace Factory.UI
                 {
                     driver.World.FlushGeneratorFuel(targetProcessorIndex);
                     processor.SelectedFuelResourceId = resourceId;
+                    processor.RecipeSetSequence = ProcessorInstance.NextRecipeSetSequence();
                 }
             }
             Close();

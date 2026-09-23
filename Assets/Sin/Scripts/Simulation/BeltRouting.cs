@@ -11,8 +11,17 @@ namespace Factory.Simulation
     // 입력 버퍼에 죽은 재고로 쌓이기만 하므로, 애초에 목적지로 치지 않는다.
     public static class BeltRouting
     {
+        // 발전기는 IsGeneratorFuelPort 자체가 아니라 "연료 종류를 실제로 골랐는지"
+        // (SelectedFuelResourceId >= 0)로 요청 여부를 판정해야 한다 — 레시피 미지정 기계와
+        // 같은 이유다. 안 그러면 연료를 아직 안 고른 발전기도 "요청 중"으로 잡혀서, 분류기
+        // 갈래가 3개(발전기 3대)일 때 그 중 하나만 연료를 골라도 우선순위 다툼에서 아직 연료를
+        // 안 고른 다른 발전기가 이겨버릴 수 있다 — 그럼 입구 벨트가 그 발전기를 목적지로
+        // 잠그는데 SelectedFuelResourceId가 -1이라 아무것도 못 내보내서, 결과적으로 셋 다
+        // 연료를 골라야만(그래야 누가 이기든 유효함) 코어에서 석탄이 나오는 것처럼 보인다
+        // (사용자 보고).
         public static bool IsRequestingConsumer(ProcessorInstance p)
-            => p != null && (p.RecipeId >= 0 || p.UniversalPorts || p.IsGeneratorFuelPort);
+            => p != null && (p.RecipeId >= 0 || p.UniversalPorts
+                || (p.IsGeneratorFuelPort && p.SelectedFuelResourceId >= 0));
 
         // segment에서 NextSegmentId를 따라간 최종 목적 기계. 라우팅 노드(분류기/합류기)는 종착이
         // 아니라 통과 지점이라, 그 출력 갈래 중 "요청하는 기계"로 이어지는 갈래를 우선 따라간다.
@@ -28,7 +37,23 @@ namespace Factory.Simulation
             return Resolve(segment, processors, segments, segments.Count + 1);
         }
 
+        // 세그먼트 하나당(BeltSegment.CachedTerminal) 결과를 저장해두고, BeltTopologyVersion이
+        // 안 바뀌었으면 그대로 재사용한다 — 매 틱 벨트 체인/분류기 갈래를 처음부터 다시 훑던
+        // 비용을 없앤다(사용자 지적: "벨트 많으면 렉"). 분류기 갈래 재귀 호출(아래 ResolveUncached
+        // 안의 Resolve(branch, ...))도 이 캐시를 그대로 타므로, 갈래 하나가 여러 곳에서
+        // 재귀적으로 다시 물어봐도 실제 계산은 토폴로지가 바뀔 때 딱 한 번만 일어난다.
         private static ProcessorInstance Resolve(
+            BeltSegment segment, List<ProcessorInstance> processors, List<BeltSegment> segments, int guard)
+        {
+            if (segment.CachedTerminalVersion == BeltTopologyVersion.Current) return segment.CachedTerminal;
+
+            var result = ResolveUncached(segment, processors, segments, guard);
+            segment.CachedTerminal = result;
+            segment.CachedTerminalVersion = BeltTopologyVersion.Current;
+            return result;
+        }
+
+        private static ProcessorInstance ResolveUncached(
             BeltSegment segment, List<ProcessorInstance> processors, List<BeltSegment> segments, int guard)
         {
             var current = segment;

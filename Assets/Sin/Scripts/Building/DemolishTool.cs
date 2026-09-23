@@ -170,6 +170,7 @@ namespace Factory.Building
 
             var world = driver.World;
             var grid = world.Grid;
+            if (beltTool == null) beltTool = FindAnyObjectByType<BeltDragTool>();
 
             foreach (var (type, index) in selected)
             {
@@ -187,7 +188,12 @@ namespace Factory.Building
                         break;
                     case CellOccupantType.Belt:
                         grid.TryGetCellOf(CellOccupantType.Belt, index, out var removedCell);
-                        DestroyVisual($"Belt_{index}");
+                        // 통째로 Destroy하지 않고 풀에 반납한다 — 벨트를 놓았다 지웠다 반복해도
+                        // GameObject가 계속 새로 생겼다 사라지는 대신, 다음 벨트 배치 때
+                        // 그대로 재사용된다(BeltDragTool.GetOrCreateBeltRoot 참고, 사용자 지적:
+                        // "벨트 많이 설치하면 렉").
+                        if (beltTool != null) beltTool.ReturnBeltVisual(index);
+                        else DestroyVisual($"Belt_{index}");
                         grid.UnregisterOccupant(type, index);
                         world.RemoveSegment(index);
                         RefreshNeighborBeltVisuals(grid, removedCell);
