@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Factory.Data;
 
 namespace Factory.Simulation
 {
@@ -15,22 +16,25 @@ namespace Factory.Simulation
         // 매 틱 재사용하는 버퍼(GC Alloc 0 유지).
         private readonly List<BeltSegment> outputBelts = new List<BeltSegment>();
 
-        public void Tick(List<ProcessorInstance> processors, List<BeltSegment> segments)
+        public void Tick(List<ProcessorInstance> processors, List<BeltSegment> segments, GameDatabase database)
         {
             for (int i = 0; i < processors.Count; i++)
             {
                 var node = processors[i];
                 if (node == null) continue;
 
-                if (node.RoutingRole == RoutingRole.Splitter) TickSplitter(node, i, processors, segments);
-                else if (node.RoutingRole == RoutingRole.Merger) TickMerger(node, i, processors, segments);
+                if (node.RoutingRole == RoutingRole.Splitter) TickSplitter(node, i, processors, segments, database);
+                else if (node.RoutingRole == RoutingRole.Merger) TickMerger(node, i, processors, segments, database);
             }
         }
 
         // 입력 벨트가 InputBuffer로 배달해준 것을, 연결된 출력 벨트에 라운드로빈으로 하나씩
-        // 얹는다. 커서 벨트의 입구가 막혀 있으면 건너뛰고 다음 빈 벨트로 보낸다(비율은 잠깐
-        // 깨지지만 전체가 멈추지 않음 — 설계 결정).
-        private void TickSplitter(ProcessorInstance splitter, int splitterIndex, List<ProcessorInstance> processors, List<BeltSegment> segments)
+        // 얹는다. 커서 벨트의 입구가 막혀 있거나 그 갈래 끝이 지금 당장 원하는 자원이 버퍼에
+        // 없으면 건너뛰고 다음 벨트로 넘어간다(비율은 잠깐 깨지지만 전체가 멈추지 않음 — 설계
+        // 결정). "그 갈래가 원하는 자원"은 ResolveDispatchResource가 갈래 끝 기계의 현재
+        // 레시피를 보고 정한다 — 예전엔 그냥 버퍼에 있는 아무 자원이나 뱉어서, 갈래 끝 기계의
+        // 레시피가 바뀌면 이제 필요 없는 자원도 계속 그 갈래로 밀어넣었다(사용자 보고).
+        private void TickSplitter(ProcessorInstance splitter, int splitterIndex, List<ProcessorInstance> processors, List<BeltSegment> segments, GameDatabase database)
         {
             CollectOutputBelts(processors, segments, splitterIndex);
             int n = outputBelts.Count;
@@ -43,8 +47,8 @@ namespace Factory.Simulation
                 var belt = outputBelts[idx];
                 if (!HeadFree(belt)) continue;
 
-                int resourceId = FirstNonEmpty(splitter.InputBuffer);
-                if (resourceId < 0) return; // 나눠 보낼 게 없음
+                int resourceId = ResolveDispatchResource(splitter.InputBuffer, belt, processors, segments, database);
+                if (resourceId < 0) continue; // 이 갈래가 지금 원하는 자원이 버퍼에 없음 — 다음 갈래로.
 
                 belt.Items.Insert(0, new BeltItem(resourceId, 0f));
                 splitter.InputBuffer[resourceId]--;
@@ -55,8 +59,9 @@ namespace Factory.Simulation
 
         // 여러 입력 벨트가 InputBuffer로 배달해준 것을, 단일 출력 벨트에 얹는다. 자원 종류가
         // 섞여 있으면 종류를 번갈아 내보낸다(RoutingCursor = 마지막으로 내보낸 자원 id) — 한
-        // 종류만 몰아 내보내면 다운스트림 2입력 기계가 한쪽 재료만 받아 굶는다.
-        private void TickMerger(ProcessorInstance merger, int mergerIndex, List<ProcessorInstance> processors, List<BeltSegment> segments)
+        // 종류만 몰아 내보내면 다운스트림 2입력 기계가 한쪽 재료만 받아 굶는다. Splitter와 같은
+        // 이유로, 출력 끝 기계가 지금 원하지 않는 자원은 버퍼에 있어도 건너뛴다.
+        private void TickMerger(ProcessorInstance merger, int mergerIndex, List<ProcessorInstance> processors, List<BeltSegment> segments, GameDatabase database)
         {
             CollectOutputBelts(processors, segments, mergerIndex);
             if (outputBelts.Count == 0) return;
@@ -64,12 +69,64 @@ namespace Factory.Simulation
             var output = outputBelts[0]; // 합류기는 출력 1개
             if (!HeadFree(output)) return;
 
-            int resourceId = NextNonEmptyRoundRobin(merger.InputBuffer, merger.RoutingCursor);
+            int resourceId = ResolveDispatchResource(merger.InputBuffer, output, processors, segments, database, merger.RoutingCursor);
             if (resourceId < 0) return;
 
             output.Items.Insert(0, new BeltItem(resourceId, 0f));
             merger.InputBuffer[resourceId]--;
             merger.RoutingCursor = resourceId;
+        }
+
+        // belt가 이어지는 갈래 끝 기계가 "지금 실제로 받을 수 있는" 자원을 buffer에서 찾는다:
+        // 레시피를 지정했으면 그 레시피가 필요로 하는 자원 중 버퍼에 있는 것만, 저장고
+        // (UniversalPorts)면 버퍼에 있는 아무거나. afterResourceId가 주어지면(합류기) 그 다음
+        // id부터 한 바퀴 라운드로빈으로 찾아서 여러 자원을 번갈아 내보내는 동작을 유지하고,
+        // 없으면(분류기) 그냥 맨 앞부터 찾는다 — 분류기는 갈래마다 필요한 자원이 보통 하나뿐이라
+        // 순서를 안 따져도 된다.
+        private static int ResolveDispatchResource(int[] buffer, BeltSegment belt, List<ProcessorInstance> processors,
+            List<BeltSegment> segments, GameDatabase database, int afterResourceId = -1)
+        {
+            var target = BeltRouting.ResolveTerminal(belt, processors, segments);
+            if (target == null) return -1;
+
+            if (target.UniversalPorts)
+            {
+                return afterResourceId < 0 ? FirstNonEmpty(buffer) : NextNonEmptyRoundRobin(buffer, afterResourceId);
+            }
+
+            if (target.IsGeneratorFuelPort)
+            {
+                // 발전기 연료 포트는 레시피가 아니라 SelectedFuelResourceId 하나만 원한다
+                // (BeltSystem.TickCoreOutgoing의 같은 분기 참고).
+                int fuelId = target.SelectedFuelResourceId;
+                if (fuelId < 0 || fuelId >= buffer.Length || buffer[fuelId] <= 0) return -1;
+                return fuelId;
+            }
+
+            if (target.RecipeId < 0) return -1; // 레시피 미지정 — 뭘 원하는지 모름.
+
+            var inputs = database.Recipes[target.RecipeId].Inputs;
+            if (afterResourceId < 0)
+            {
+                for (int i = 0; i < inputs.Length; i++)
+                {
+                    int r = inputs[i].ResourceId;
+                    if (buffer[r] > 0) return r;
+                }
+                return -1;
+            }
+
+            int len = buffer.Length;
+            for (int step = 1; step <= len; step++)
+            {
+                int r = (((afterResourceId + step) % len) + len) % len;
+                if (buffer[r] <= 0) continue;
+                for (int i = 0; i < inputs.Length; i++)
+                {
+                    if (inputs[i].ResourceId == r) return r;
+                }
+            }
+            return -1;
         }
 
         private void CollectOutputBelts(List<ProcessorInstance> processors, List<BeltSegment> segments, int nodeIndex)
