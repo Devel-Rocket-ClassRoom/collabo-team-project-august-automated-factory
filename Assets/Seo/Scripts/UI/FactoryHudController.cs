@@ -866,7 +866,8 @@ namespace Seo.UI
             productionTab = CreateTab(menu.transform, "생산", "production", 0, Category.Production);
             logisticsTab = CreateTab(menu.transform, "물류", "logistics", 1, Category.Logistics);
             powerTab = CreateTab(menu.transform, "전력 설비", "power_build", 2, Category.Power);
-            editModeButton = CreateRailButton(menu.transform, "EditMode", "편집", "edit", 6, EnterEditMode);
+            editModeButton = CreateRailButton(menu.transform, "EditMode", "편집", "edit", 6, EnterEditMode,
+                exitEditMode: false);
             systemTab = CreateTab(menu.transform, "저장", "save", 4, Category.System);
             sideMenuRoot.SetActive(true);
         }
@@ -877,9 +878,14 @@ namespace Seo.UI
         }
 
         internal static Button CreateRailButton(Transform parent, string name, string label, string diagramKind, int index,
-            UnityEngine.Events.UnityAction action)
+            UnityEngine.Events.UnityAction action, bool exitEditMode = true)
         {
-            var button = SeoUIFactory.CreateTMPButton(parent, name, label, action);
+            var button = SeoUIFactory.CreateTMPButton(parent, name, label, () =>
+            {
+                // 생산 보고서처럼 다른 Seo UI에서 추가한 메뉴도 같은 종료 처리를 거친다.
+                if (exitEditMode) FindFirstObjectByType<FactoryHudController>()?.ExitEditMode();
+                action?.Invoke();
+            });
             ApplyCardBackground(button);
             button.transform.SetSiblingIndex(index);
             var layout = button.gameObject.AddComponent<LayoutElement>();
@@ -1460,6 +1466,19 @@ namespace Seo.UI
             ShowToast("영역을 드래그한 뒤 철거 또는 이동을 누르세요 · 이동은 전력 시설 제외");
         }
 
+        private void ExitEditMode()
+        {
+            if (!editModeActive) return;
+            editModeActive = false;
+            SetTabState(editModeButton, false);
+            // None 전환으로 철거 선택과 묶음 이동 미리보기를 함께 취소한다.
+            CancelActiveBuildMode();
+            var powerController = FindFirstObjectByType<PowerBuildController>();
+            if (powerController != null && powerController.Mode == PowerBuildMode.Remove)
+                powerController.SetMode(PowerBuildMode.None);
+            UpdateContextActions();
+        }
+
         private void HandleGroupMove()
         {
             if (!editModeActive || buildRouter == null) return;
@@ -1542,11 +1561,6 @@ namespace Seo.UI
 
         private void ToggleCategory(Category category)
         {
-            if (editModeActive)
-            {
-                ShowToast("취소 버튼으로 편집 모드를 종료하세요");
-                return;
-            }
             if (openCategory.HasValue && openCategory.Value == category)
             {
                 CloseCategoryPanel(true);
@@ -1558,7 +1572,7 @@ namespace Seo.UI
 
         private void SetCategory(Category category)
         {
-            editModeActive = false;
+            ExitEditMode();
             CancelActiveBuildMode();
             openCategory = category;
             if (dockRoot != null) dockRoot.SetActive(true);
