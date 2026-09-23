@@ -92,6 +92,8 @@ namespace Choi.SaveLoad
                     machineKey = world.Database.Machines[miner.MachineId].Key,
                     outputResourceKey = world.Database.Resources[miner.OutputResourceId].Key,
                     baseSpeed = powerGrid.GetBaseSpeed(miner),
+                    oreDepositKey = miner.OreDepositId >= 0 && miner.OreDepositId < world.Database.OreDeposits.Count
+                        ? world.Database.OreDeposits[miner.OreDepositId].Key : string.Empty,
                     mineIntervalSeconds = miner.MineIntervalSeconds,
                     yieldPerCycle = miner.YieldPerCycle,
                     progress = miner.Progress,
@@ -210,11 +212,32 @@ namespace Choi.SaveLoad
                     continue;
                 }
 
+                // 매장지 밸런스 패치 후 이 세이브를 로드해도 최신 값을 즉시 따라가도록 키로
+                // 다시 찾는다(MinerSystem.Tick이 매 틱 이 id로 갱신). 키가 없는 구버전 세이브는
+                // "이 자원을 캐는 매장지"로 유추해서 채운다(이 게임은 자원 하나당 매장지가
+                // 하나뿐이라 안전한 매칭) — 그마저 실패하면(매장지 정의가 아예 삭제된 경우 등)
+                // -1로 두고 세이브에 박제된 옛 값을 그대로 폴백으로 쓴다.
+                int oreDepositId = -1;
+                if (!string.IsNullOrEmpty(saved.oreDepositKey))
+                {
+                    world.Database.TryGetOreDepositId(saved.oreDepositKey, out oreDepositId);
+                }
+                if (oreDepositId < 0)
+                {
+                    for (int d = 0; d < world.Database.OreDeposits.Count; d++)
+                    {
+                        if (world.Database.OreDeposits[d].ResourceId != resourceId) continue;
+                        oreDepositId = d;
+                        break;
+                    }
+                }
+
                 var miner = new MinerInstance
                 {
                     MachineId = machineId,
                     OutputResourceId = resourceId,
                     SpeedMultiplier = saved.baseSpeed,
+                    OreDepositId = oreDepositId,
                     MineIntervalSeconds = saved.mineIntervalSeconds,
                     YieldPerCycle = saved.yieldPerCycle,
                     Progress = saved.progress,

@@ -338,6 +338,7 @@ namespace Factory.Building
                     OutputResourceId = deposit.ResourceId,
                     MineIntervalSeconds = deposit.MineIntervalSeconds,
                     YieldPerCycle = deposit.YieldPerCycle,
+                    OreDepositId = oreDepositId,
                 };
                 int index = driver.World.AddMiner(miner);
                 grid.RegisterBuildingFootprint(footprintCells, CellOccupantType.Miner, index);
