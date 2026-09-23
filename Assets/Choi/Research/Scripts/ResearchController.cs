@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Choi.SaveLoad;
 using Factory.Simulation;
 using Optimization;
 using TMPro;
@@ -8,7 +9,7 @@ using UnityEngine.UI;
 
 namespace Choi.Research
 {
-    public sealed class ResearchController : MonoBehaviour
+    public sealed class ResearchController : MonoBehaviour, IPowerSaveParticipant
     {
         public static ResearchController Instance { get; private set; }
 
@@ -36,6 +37,66 @@ namespace Choi.Research
         private readonly List<GameObject> rewardCards = new List<GameObject>();
         public int CompletedTier => completedTier;
         public event Action UnlocksChanged;
+
+        public string SaveId => "research-progress";
+        public string SaveType => "Choi.ResearchProgress.v1";
+        public int SaveOrder => 100; // 공장과 코어 재고를 복원한 뒤 연구 해금을 갱신한다.
+        public bool CanSave => true;
+
+        [Serializable]
+        private sealed class ResearchProgressData
+        {
+            public int completedTier;
+            public List<int> suppliedAmounts = new List<int>();
+            public int unlockedMapSize;
+        }
+
+        public string CaptureStateJson()
+        {
+            Resolve();
+            FloorChunkManager chunks = FindFirstObjectByType<FloorChunkManager>();
+            return JsonUtility.ToJson(new ResearchProgressData
+            {
+                completedTier = completedTier,
+                suppliedAmounts = new List<int>(suppliedAmounts),
+                unlockedMapSize = floor != null ? floor.unlockedSize : chunks != null ? chunks.unlockedSize : 0,
+            });
+        }
+
+        public void RestoreStateJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                throw new ArgumentException("Research save JSON is empty.", nameof(json));
+
+            ResearchProgressData data = JsonUtility.FromJson<ResearchProgressData>(json);
+            if (data == null) throw new InvalidOperationException("Research save data is invalid.");
+
+            completedTier = Mathf.Clamp(data.completedTier, 0, tiers.Count);
+            suppliedAmounts = data.suppliedAmounts ?? new List<int>();
+            EnsureProgressSize(completedTier < tiers.Count ? tiers[completedTier].resourceGoals.Count : 0);
+            for (int i = 0; i < suppliedAmounts.Count; i++)
+                suppliedAmounts[i] = Mathf.Clamp(suppliedAmounts[i], 0, tiers[completedTier].resourceGoals[i].amount);
+
+            Resolve();
+            // 이전 저장을 불러오면 지도도 그 시점의 해금 범위로 되돌린다.
+            int mapSize = data.unlockedMapSize;
+            for (int i = 0; i < completedTier; i++)
+                mapSize = Mathf.Max(mapSize, tiers[i].unlockedMapSize);
+            if (mapSize > 0)
+            {
+                floor?.SetUnlockedSize(mapSize);
+                FloorChunkManager chunks = FindFirstObjectByType<FloorChunkManager>();
+                if (chunks != null)
+                {
+                    chunks.unlockedSize = mapSize;
+                    chunks.RefreshAllActiveChunks();
+                }
+            }
+
+            viewedTier = Mathf.Clamp(completedTier, 0, Mathf.Max(0, tiers.Count - 1));
+            Refresh();
+            UnlocksChanged?.Invoke();
+        }
 
         private void Awake()
         {

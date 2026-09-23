@@ -1,12 +1,13 @@
 using System.Collections.Generic;
-using Choi.Research;
 using Factory.Building;
 using Factory.Buildings;
 using Factory.Simulation;
 using Seo.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Text = TMPro.TMP_Text;
 
 namespace Choi.Tutorial
 {
@@ -25,10 +26,7 @@ namespace Choi.Tutorial
             PlaceMiner,
             PickIronMiner,
             PlaceIronMiner,
-            GatherResearchResources,
-            SelectCoreForResearch,
-            OpenResearch,
-            UpgradeResearch,
+            GatherIronOre,
             PickSmelter,
             PlaceSmelter,
             InspectSmelter,
@@ -69,7 +67,6 @@ namespace Choi.Tutorial
         private Outline uiOutline;
         private Graphic uiGraphic;
         private int ironOreId = -1;
-        private int copperOreId = -1;
         private int copperIngotId = -1;
         private int copperRecipeId = -1;
         private int smelterIndex = -1;
@@ -85,7 +82,6 @@ namespace Choi.Tutorial
             switch (Instance.step)
             {
                 case Step.Core:
-                case Step.SelectCoreForResearch:
                     return kind == MachineInstanceKind.Processor
                         && Instance.driver != null && Instance.driver.World != null
                         && index == Instance.driver.World.CoreProcessorIndex;
@@ -173,7 +169,6 @@ namespace Choi.Tutorial
         {
             var db = driver.World.Database;
             if (!db.TryGetResourceId("IronOre", out ironOreId)
-                || !db.TryGetResourceId("CopperOre", out copperOreId)
                 || !db.TryGetResourceId("CopperIngot", out copperIngotId)
                 || !db.TryGetRecipeId("SmeltCopperIngot", out copperRecipeId))
             {
@@ -207,27 +202,13 @@ namespace Choi.Tutorial
                     break;
                 case Step.PlaceIronMiner:
                     if (TryGetOccupant(IronCell, CellOccupantType.Miner, out _))
-                        Enter(Step.GatherResearchResources);
+                        Enter(Step.GatherIronOre);
                     break;
-                case Step.GatherResearchResources:
-                    // 연구 납품 후 제련소 건설에 쓸 철광석 10개가 남아야 한다.
-                    if (CoreAmount(ironOreId) >= 110 && CoreAmount(copperOreId) >= 100)
+                case Step.GatherIronOre:
+                    if (CoreAmount(ironOreId) >= 10)
                     {
                         GameObject resourcePanel = GameObject.Find("SeoResourceCard");
                         if (resourcePanel != null) resourcePanel.SetActive(false);
-                        Enter(Step.SelectCoreForResearch);
-                    }
-                    break;
-                case Step.SelectCoreForResearch:
-                    if (IsSelected(MachineInstanceKind.Processor, world.CoreProcessorIndex)) Enter(Step.OpenResearch);
-                    break;
-                case Step.OpenResearch:
-                    if (GameObject.Find("ResearchPanel") != null) Enter(Step.UpgradeResearch);
-                    break;
-                case Step.UpgradeResearch:
-                    if (ResearchController.Instance != null && ResearchController.Instance.CompletedTier >= 1)
-                    {
-                        ResearchController.Instance.Close();
                         Enter(Step.PickSmelter);
                     }
                     break;
@@ -272,7 +253,7 @@ namespace Choi.Tutorial
             ClearHighlights();
             step = next;
             enteredAt = Time.unscaledTime;
-            progressText.text = $"튜토리얼  {Mathf.Min((int)next, 16)} / 16";
+            progressText.text = $"튜토리얼  {Mathf.Min((int)next, 13)} / 13";
 
             switch (next)
             {
@@ -291,7 +272,7 @@ namespace Choi.Tutorial
                     break;
                 case Step.PickIronMiner:
                     CancelPlacementMode();
-                    SetCopy("철 채굴 준비", "연구에는 철광석도 필요합니다. 채굴기 버튼을 다시 누르세요.");
+                    SetCopy("철 채굴 준비", "제련로 설치에는 철 원석 10개가 필요합니다. 채굴기 버튼을 다시 누르세요.");
                     hud.OpenProductionForTutorial();
                     HighlightUI("PaletteButton_Miner");
                     break;
@@ -299,23 +280,10 @@ namespace Choi.Tutorial
                     SetCopy("철 광맥에 배치", "빛나는 철 광맥 위에 두 번째 채굴기를 설치하세요.");
                     HighlightCell(IronCell, 1.25f);
                     break;
-                case Step.GatherResearchResources:
+                case Step.GatherIronOre:
                     CancelPlacementMode();
-                    SetCopy("연구 자원 채굴", "빛나는 자원 버튼을 눌러 수량을 확인하세요. 철광석 110개와 구리광석 100개가 모이면 자동으로 다음 단계로 넘어갑니다.");
+                    SetCopy("철 원석 확보", "제련로 설치에 필요한 철 원석 10개가 모일 때까지 기다리세요. 자원 버튼에서 수량을 확인할 수 있습니다.");
                     HighlightUI("SeoCoreResourceButton");
-                    break;
-                case Step.SelectCoreForResearch:
-                    CancelPlacementMode();
-                    SetCopy("연구 준비", "코어를 클릭해 기기 해금에 필요한 연구소를 여세요.");
-                    HighlightWorld(GameObject.Find("Core"), 2.8f);
-                    break;
-                case Step.OpenResearch:
-                    SetCopy("연구소 열기", "코어 정보창 아래의 ‘연구소’ 버튼을 누르세요.");
-                    HighlightUI("ResearchButton");
-                    break;
-                case Step.UpgradeResearch:
-                    SetCopy("1등급 연구", "‘선택 티어 해금’을 눌러 1등급을 완료하고 제련소를 해금하세요.");
-                    HighlightUI("SupplyButton");
                     break;
                 case Step.PickSmelter:
                     SetCopy("제련로 건설", "빛나는 제련로 버튼을 누르세요.");
@@ -352,7 +320,7 @@ namespace Choi.Tutorial
                 case Step.Complete:
                     SetCopy("생산 라인 완성!", "구리 채굴부터 제련, 코어 저장까지 자동 생산 라인이 완성되었습니다.");
                     progressText.text = "튜토리얼 완료";
-                    skipButton.GetComponentInChildren<Text>().text = "닫기";
+                    skipButton.GetComponentInChildren<TMP_Text>().text = "닫기";
                     skipButton.onClick.RemoveAllListeners();
                     skipButton.onClick.AddListener(FinishTutorial);
                     break;
@@ -367,23 +335,23 @@ namespace Choi.Tutorial
             panel.rectTransform.pivot = new Vector2(0.5f, 1f);
             panelRoot = panel.gameObject;
 
-            progressText = SeoUIFactory.CreateText(panel.transform, "Progress", "튜토리얼", 17,
+            progressText = SeoUIFactory.CreateTMPText(panel.transform, "Progress", "튜토리얼", 17,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             SeoUIFactory.SetRect(progressText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(24f, -12f), new Vector2(420f, 26f));
             progressText.color = SeoUITheme.Current.Primary;
 
-            titleText = SeoUIFactory.CreateText(panel.transform, "Title", string.Empty, 26,
+            titleText = SeoUIFactory.CreateTMPText(panel.transform, "Title", string.Empty, 26,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             SeoUIFactory.SetRect(titleText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(24f, -42f), new Vector2(550f, 38f));
 
-            bodyText = SeoUIFactory.CreateText(panel.transform, "Description", string.Empty, 19,
+            bodyText = SeoUIFactory.CreateTMPText(panel.transform, "Description", string.Empty, 19,
                 TextAnchor.UpperLeft);
             SeoUIFactory.SetRect(bodyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(24f, -84f), new Vector2(560f, 70f));
 
-            skipButton = SeoUIFactory.CreateButton(panel.transform, "Skip", "건너뛰기", SkipTutorial,
+            skipButton = SeoUIFactory.CreateTMPButton(panel.transform, "Skip", "건너뛰기", SkipTutorial,
                 SeoUITheme.Current.Danger);
             SeoUIFactory.SetRect(skipButton.GetComponent<RectTransform>(), Vector2.one, Vector2.one, Vector2.one,
                 new Vector2(-18f, -18f), new Vector2(112f, 50f));
@@ -429,10 +397,7 @@ namespace Choi.Tutorial
                 if (button == null || !button.gameObject.scene.IsValid()) continue;
                 if (!originalButtonStates.ContainsKey(button)) originalButtonStates[button] = button.interactable;
                 bool allowed = IsAllowedButton(button.gameObject.name);
-                bool unlockedDuringTutorial = button.gameObject.name == "PaletteButton_Smelter"
-                    && ResearchController.Instance != null
-                    && ResearchController.Instance.IsMachineUnlocked("Smelter");
-                button.interactable = allowed && (originalButtonStates[button] || unlockedDuringTutorial);
+                button.interactable = allowed && originalButtonStates[button];
             }
         }
 
@@ -446,10 +411,8 @@ namespace Choi.Tutorial
                 case Step.PlaceMiner:
                 case Step.PlaceIronMiner:
                 case Step.PlaceSmelter: return buttonName == "ConfirmButton";
-                case Step.GatherResearchResources:
+                case Step.GatherIronOre:
                     return buttonName == "SeoCoreResourceButton" || buttonName == "Close";
-                case Step.OpenResearch: return buttonName == "ResearchButton";
-                case Step.UpgradeResearch: return buttonName == "SupplyButton";
                 case Step.PickSmelter: return buttonName == "PaletteButton_Smelter";
                 case Step.PickRecipe:
                     return buttonName == "RecipeButton" || buttonName == "Recipe_SmeltCopperIngot";
@@ -587,12 +550,12 @@ namespace Choi.Tutorial
             material.color = new Color(0.15f, 0.95f, 1f, 0.28f);
             renderer.material = material;
 
-            var label = new GameObject("Label").AddComponent<TextMesh>();
+            var label = new GameObject("Label").AddComponent<TextMeshPro>();
             label.transform.SetParent(placementPreview.transform, false);
             label.transform.localPosition = new Vector3(0f, 1.2f, 0f);
             label.transform.localScale = Vector3.one * 0.12f;
-            label.anchor = TextAnchor.MiddleCenter;
-            label.alignment = TextAlignment.Center;
+            label.font = SeoUITheme.Current.FontAsset;
+            label.alignment = TextAlignmentOptions.Center;
             label.fontSize = 44;
             label.color = new Color(0.3f, 1f, 1f, 0.95f);
             label.text = "제련로\n배치 위치";
@@ -653,15 +616,15 @@ namespace Choi.Tutorial
 
         private static void CreateWorldLabel(Transform parent, Vector2Int cell, string value, Color color)
         {
-            var label = new GameObject("GuideLabel").AddComponent<TextMesh>();
+            var label = new GameObject("GuideLabel").AddComponent<TextMeshPro>();
             label.transform.SetParent(parent, false);
             label.transform.position = GridUtility.CellToWorldCenter(cell, 0.28f);
             label.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             label.transform.localScale = Vector3.one * 0.085f;
-            label.anchor = TextAnchor.LowerCenter;
-            label.alignment = TextAlignment.Center;
+            label.font = SeoUITheme.Current.FontAsset;
+            label.alignment = TextAlignmentOptions.Bottom;
             label.fontSize = 46;
-            label.fontStyle = FontStyle.Bold;
+            label.fontStyle = FontStyles.Bold;
             label.color = color;
             label.text = value;
         }
