@@ -193,6 +193,16 @@ namespace Factory.Building
             root.SetActive(false);
             pooledBeltVisuals.Push(root);
         }
+
+        // FactoryViewportCuller가 뷰포트 컬링 대상을 찾을 때 쓴다 — 풀에 반납되어(비활성)
+        // 있는 동안엔 beltVisualRoots에서 빠지므로(ReturnBeltVisual 참고) 컬링이 그 사이에
+        // 실수로 다시 켜는 일은 없다.
+        public bool TryGetBeltVisual(int segmentId, out GameObject go)
+        {
+            if (beltVisualRoots.TryGetValue(segmentId, out go) && go != null) return true;
+            go = null;
+            return false;
+        }
         // 여기부터
         // 세이브 로드도 최초 배치와 완전히 같은 프리팹/높이/아이템 렌더러 경로를 사용한다.
         // 주의: 세이브 데이터가 아직 크로스 벨트(2번 레이어) 여부를 안 들고 있어서, 재로드

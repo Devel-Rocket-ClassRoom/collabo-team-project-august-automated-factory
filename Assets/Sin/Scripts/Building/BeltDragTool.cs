@@ -82,7 +82,8 @@ namespace Factory.Building
         // 현재 살아있는 벨트 루트를 찾아 그 자리에서 다시 그리고(Geometry 자식만 교체),
         // 철거된 루트는 Destroy 대신 비활성화해서 풀에 보관했다가 다음 벨트 배치 때 재사용한다.
         // GameObject.Find는 비활성 오브젝트를 못 찾으므로(위 hiddenNeighborVisuals와 같은 이유)
-        // 풀 재사용엔 이 딕셔너리가 반드시 필요하다.
+        // 풀 재사용엔 이 딕셔너리가 반드시 필요하다. FactoryViewportCuller도 뷰포트 컬링 대상을
+        // 찾을 때 이 딕셔너리를 그대로 쓴다(BeltDragTool.Visuals.cs의 TryGetBeltVisual 참고).
         private readonly Dictionary<int, GameObject> beltVisualRoots = new Dictionary<int, GameObject>();
         private readonly Stack<GameObject> pooledBeltVisuals = new Stack<GameObject>();
 

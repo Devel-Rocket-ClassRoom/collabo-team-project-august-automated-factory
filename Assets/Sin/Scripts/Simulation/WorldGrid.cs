@@ -34,6 +34,12 @@ namespace Factory.Simulation
         private readonly Dictionary<Vector2Int, Chunk> chunks = new Dictionary<Vector2Int, Chunk>();
         private readonly Dictionary<Vector2Int, CellOccupant> occupants = new Dictionary<Vector2Int, CellOccupant>();
 
+        // 지금까지 뭔가 한 번이라도 등록된 적 있는 청크 전부(빈 청크 포함 안 함 — Register*가
+        // GetOrCreateChunk로 실제로 뭔가 넣을 때만 생긴다). FactoryViewportCuller가 켜지는
+        // 첫 순간, "카메라가 지금 안 보는 곳에 있던 기존 건물들"을 한 번에 찾아서 꺼야 하는데,
+        // GetVisibleChunks(RectInt)는 "보이는 범위"만 주지 "존재하는 전부"는 안 줘서 이게 필요하다.
+        public IEnumerable<Chunk> AllChunks => chunks.Values;
+
         // 크로스 벨트(교차로) 전용 2번째 벨트 레이어 — 한 칸에 서로 직각으로 지나가는 벨트
         // 두 개가 동시에 있을 수 있게 한다(합류가 아니라 그냥 지나침, BeltDragTool.Crossing.cs
         // 참고). IsOccupied/TryGetOccupant(1번 레이어)는 일부러 이 레이어를 안 본다 — 기계
