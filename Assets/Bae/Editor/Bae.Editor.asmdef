@@ -1,8 +1,8 @@
-{
+﻿{
     "name": "Bae.Editor",
     "rootNamespace": "",
     "references": [
-        "Bae"
+        "Bae", "FactoryPrototype"
     ],
     "includePlatforms": [
         "Editor"
@@ -16,3 +16,4 @@
     "versionDefines": [],
     "noEngineReferences": false
 }
+
