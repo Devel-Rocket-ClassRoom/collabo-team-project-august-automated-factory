@@ -91,13 +91,21 @@ namespace Factory.Building
             }
             else if (showCrosser && crosserVisualPrefab != null)
             {
-                // 이 모델은 이미 4방향을 다 보여주는 대칭(십자) 모양이라 방향별로 돌릴 필요가
-                // 없다 — 방향 스핀을 먹였더니, 배치 중 고스트(방향 따라 도는 임시 상자)에서
-                // 확정 모델로 바뀌는 순간 회전값이 서로 안 맞아 갑자기 홱 도는 것처럼 보였다
-                // (사용자 보고). 프리팹 자체의 기본 자세(이미 눕혀놓음) 그대로만 쓴다.
+                // 이 모델의 그림에는 입력/출력 화살표가 들어 있어서 방향(Facing)대로 돌려야 한다 —
+                // 안 돌리면 고스트에서 고른 방향과 상관없이 확정 순간 항상 기본 모양(왼→오, 아래→위)
+                // 으로 돌아간 것처럼 보인다(사용자 보고). 분류기/합류기는 MachineGhostTool이 확정
+                // 모델을 FacingToRotation(facing)으로 돌려서 정상인데, 크로스 벨트만 벨트 그리기
+                // 경로(이 함수)를 타면서 그 회전이 빠져 있었다. 고스트는 같은 프리팹을
+                // FacingToRotation(facing) 아래 자식으로 두므로, 확정 모델도 정확히 같은 식
+                // (LookRotation(facing) * 프리팹 자세)을 써야 안 어긋난다. 주축 방향은 이
+                // 세그먼트의 진입→이탈 방향(from→to) 그대로가 Facing이다.
                 Vector3 center = (from + to) * 0.5f;
+                Vector3 axisDir = to - from;
+                axisDir.y = 0f;
                 var crosser = Instantiate(crosserVisualPrefab, geometry);
                 crosser.transform.position = new Vector3(center.x, beltSurfaceY, center.z);
+                if (axisDir.sqrMagnitude > 0.0001f)
+                    crosser.transform.rotation = Quaternion.LookRotation(axisDir.normalized, Vector3.up) * crosserVisualPrefab.transform.rotation;
                 crosser.name = "CrosserVisual";
             }
             else if (bend.HasValue)

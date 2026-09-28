@@ -80,6 +80,18 @@ namespace Choi.SaveLoad
         public Int2Data facing;
         public Vector3Data start;
         public Vector3Data end;
+
+        // 크로스 벨트 타일(한 칸에 축 두 개) 복원용. 옛 세이브에는 없어서 JsonUtility가 기본값(false/0)을
+        // 채우므로 일반 벨트로 복원된다(하위 호환).
+        public bool isCrossable;
+        // 이 세그먼트가 뻗는 축 방향(BeltSegment.CrossAxis). 주축은 고스트에서 고른 Facing 그대로.
+        public Int2Data crossAxis;
+        // true면 WorldGrid 2번째 레이어(수직축)에 등록된 세그먼트 — false면 1번 레이어(주축).
+        public bool isCrossingLayer;
+        // 철거 환불 복원용(BeltSegment.ConcreteCost / RefundMachineKey).
+        public int concreteCost;
+        public string refundMachineKey;
+
         public List<BeltItemProgressData> items = new List<BeltItemProgressData>();
     }
 
