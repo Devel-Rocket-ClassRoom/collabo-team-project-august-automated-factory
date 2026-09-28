@@ -806,6 +806,13 @@ namespace Seo.UI
 
         private void HandleBackPressed()
         {
+            var research = Choi.Research.ResearchController.Instance;
+            if (research != null && research.IsOpen)
+            {
+                research.Close();
+                return;
+            }
+
             if (exitDialogRoot != null && exitDialogRoot.activeSelf)
             {
                 exitDialogRoot.SetActive(false);

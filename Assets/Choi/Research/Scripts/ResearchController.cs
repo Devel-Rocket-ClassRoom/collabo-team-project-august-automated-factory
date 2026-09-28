@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using Choi.SaveLoad;
+using Factory.Building;
 using Factory.Simulation;
 using Optimization;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Choi.Research
@@ -35,6 +37,12 @@ namespace Choi.Research
         private int viewedTier;
         private readonly List<Button> tierTabs = new List<Button>();
         private readonly List<GameObject> rewardCards = new List<GameObject>();
+        private GameObject inputBlocker;
+        private CanvasGroup backgroundHud;
+        private bool backgroundWasInteractable;
+        private GameObject previousSelection;
+        private readonly List<Behaviour> blockedInputs = new List<Behaviour>();
+        public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
         public int CompletedTier => completedTier;
         public event Action UnlocksChanged;
 
@@ -107,9 +115,85 @@ namespace Choi.Research
             BuildTierTabs();
         }
 
-        private void OnDestroy() { if (Instance == this) Instance = null; }
-        public void Open() { panelRoot?.SetActive(true); Refresh(); }
-        public void Close() { panelRoot?.SetActive(false); }
+        private void OnDisable() => Close();
+
+        private void OnDestroy()
+        {
+            Close();
+            if (inputBlocker != null) Destroy(inputBlocker);
+            if (Instance == this) Instance = null;
+        }
+
+        private void LateUpdate()
+        {
+            // Also release input if another system hides the research panel directly.
+            if (!IsOpen && inputBlocker != null && inputBlocker.activeSelf) Close();
+        }
+
+        public void Open()
+        {
+            if (panelRoot == null || IsOpen) return;
+            if (inputBlocker == null)
+            {
+                inputBlocker = new GameObject("ResearchInputBlocker", typeof(RectTransform), typeof(Image));
+                inputBlocker.transform.SetParent(panelRoot.transform.parent, false);
+                var rect = inputBlocker.GetComponent<RectTransform>();
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+                var image = inputBlocker.GetComponent<Image>();
+                image.color = new Color(0f, 0f, 0f, 0.45f);
+                image.raycastTarget = true;
+            }
+
+            inputBlocker.transform.SetAsLastSibling();
+            panelRoot.transform.SetAsLastSibling();
+            inputBlocker.SetActive(true);
+            panelRoot.SetActive(true);
+
+            var hud = GameObject.Find("HUDCanvas");
+            if (hud != null)
+            {
+                if (!hud.TryGetComponent<CanvasGroup>(out backgroundHud))
+                    backgroundHud = hud.AddComponent<CanvasGroup>();
+                backgroundWasInteractable = backgroundHud.interactable;
+                backgroundHud.interactable = false;
+            }
+            foreach (var router in FindObjectsByType<BuildInputRouter>(FindObjectsSortMode.None)) BlockInput(router);
+            foreach (var tap in FindObjectsByType<TapInputManager>(FindObjectsSortMode.None)) BlockInput(tap);
+
+            if (EventSystem.current != null)
+            {
+                previousSelection = EventSystem.current.currentSelectedGameObject;
+                EventSystem.current.SetSelectedGameObject(closeButton != null ? closeButton.gameObject : null);
+            }
+            Refresh();
+        }
+
+        private void BlockInput(Behaviour input)
+        {
+            if (!input.enabled) return;
+            blockedInputs.Add(input);
+            input.enabled = false;
+        }
+
+        public void Close()
+        {
+            panelRoot?.SetActive(false);
+            if (inputBlocker != null) inputBlocker.SetActive(false);
+            if (backgroundHud != null)
+            {
+                backgroundHud.interactable = backgroundWasInteractable;
+                backgroundHud = null;
+            }
+            foreach (var input in blockedInputs)
+                if (input != null) input.enabled = true;
+            blockedInputs.Clear();
+            if (previousSelection != null && previousSelection.activeInHierarchy && EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(previousSelection);
+            previousSelection = null;
+        }
 
         public bool IsMachineUnlocked(string id) => IsUnlocked(id, false);
         public bool IsRecipeUnlocked(string id) => IsUnlocked(id, true);
