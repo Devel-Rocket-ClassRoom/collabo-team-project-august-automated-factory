@@ -813,6 +813,8 @@ namespace Seo.UI
 
         private void HandleBackPressed()
         {
+            if (BgmSettingsPanel.TryHandleBack()) return;
+
             var research = Choi.Research.ResearchController.Instance;
             if (research != null && research.IsOpen)
             {
@@ -1094,6 +1096,7 @@ namespace Seo.UI
                 case "tower": prefab = SeoUITheme.Current.TowerPreviewPrefab; break;
                 case "save": directSprite = GetNavigationIconSprite("save"); break;
                 case "load": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/LoadGame")); break;
+                case "sound": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/SoundSettings")); break;
                 case "exit": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/ExitGame")); break;
             }
 
@@ -1397,8 +1400,8 @@ namespace Seo.UI
 
         private void BuildSystemButtons()
         {
-            string[] labels = { "저장", "불러오기", "게임 종료" };
-            string[] diagrams = { "save", "load", "exit" };
+            string[] labels = { "저장", "불러오기", "소리 설정", "게임 종료" };
+            string[] diagrams = { "save", "load", "sound", "exit" };
             for (int i = 0; i < labels.Length; i++)
             {
                 int captured = i;
@@ -1406,6 +1409,11 @@ namespace Seo.UI
                     () =>
                     {
                         if (captured == 2)
+                        {
+                            BgmSettingsPanel.Show();
+                            return;
+                        }
+                        if (captured == 3)
                         {
                             ShowExitDialog();
                             return;
