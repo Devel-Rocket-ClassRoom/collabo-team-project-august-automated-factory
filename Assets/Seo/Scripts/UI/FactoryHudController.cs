@@ -1542,7 +1542,7 @@ namespace Seo.UI
                 buildRouter.enabled = true;
                 buildRouter.SetMode(BuildInputRouter.Mode.Demolish);
             }
-            ShowToast("영역을 드래그한 뒤 철거 또는 이동을 누르세요 · 이동은 전력 시설 제외");
+            ShowToast("영역을 드래그한 뒤 철거 또는 이동을 누르세요 · 전력 시설 이동 시 전선은 해제됩니다");
         }
 
         private void ExitEditMode()

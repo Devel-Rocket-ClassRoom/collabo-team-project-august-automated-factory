@@ -4,6 +4,7 @@ using Factory.Building;
 using Factory.Buildings;
 using Factory.Data;
 using Factory.Simulation;
+using Seo.Building;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -72,6 +73,9 @@ namespace Choi.SaveLoad
             BeltDragTool.ExternalCellBlocked = IsPowerStructureCell;
             DemolishTool.ExternalConfirm = RemovePowerInArea;
             DemolishTool.ExternalHasTargets = HasPowerInArea;
+            GroupMoveTool.CaptureExternalPowerSelection = CapturePowerMoveSelection;
+            GroupMoveTool.ValidateExternalPowerMove = ValidatePowerMove;
+            GroupMoveTool.CommitExternalPowerMove = CommitPowerMove;
         }
 
         private void Start()
@@ -167,6 +171,96 @@ namespace Choi.SaveLoad
                 BeltDragTool.ExternalCellBlocked = null;
             if (DemolishTool.ExternalConfirm == RemovePowerInArea) DemolishTool.ExternalConfirm = null;
             if (DemolishTool.ExternalHasTargets == HasPowerInArea) DemolishTool.ExternalHasTargets = null;
+            if (GroupMoveTool.CaptureExternalPowerSelection == CapturePowerMoveSelection)
+                GroupMoveTool.CaptureExternalPowerSelection = null;
+            if (GroupMoveTool.ValidateExternalPowerMove == ValidatePowerMove)
+                GroupMoveTool.ValidateExternalPowerMove = null;
+            if (GroupMoveTool.CommitExternalPowerMove == CommitPowerMove)
+                GroupMoveTool.CommitExternalPowerMove = null;
+        }
+
+        private List<ExternalPowerMoveEntry> CapturePowerMoveSelection(RectInt bounds)
+        {
+            var result = new List<ExternalPowerMoveEntry>();
+            if (powerGrid == null) return result;
+            for (int i = 0; i < powerGrid.Nodes.Count; i++)
+            {
+                PowerNodeRuntime node = powerGrid.Nodes[i];
+                if (!bounds.Contains(node.Cell) || (node.Kind != PowerNodeKind.Generator
+                    && node.Kind != PowerNodeKind.TransmissionTower)) continue;
+                var visual = GameObject.Find($"PowerNode_{node.Id}_{node.Kind}");
+                result.Add(new ExternalPowerMoveEntry
+                {
+                    NodeId = node.Id,
+                    Cell = node.Cell,
+                    Facing = node.Facing,
+                    Visual = visual != null ? visual.transform : null,
+                });
+            }
+            return result;
+        }
+
+        private bool ValidatePowerMove(IReadOnlyList<ExternalPowerMoveEntry> entries,
+            Func<Vector2Int, Vector2Int> transformCell, Func<Vector2Int, bool> movingFactoryCell,
+            out string reason)
+        {
+            reason = null;
+            if (powerGrid == null || driver == null || driver.World == null)
+            { reason = "전력 시설 상태를 확인할 수 없습니다"; return false; }
+            var selectedIds = new HashSet<int>();
+            var targets = new HashSet<Vector2Int>();
+            for (int i = 0; i < entries.Count; i++) selectedIds.Add(entries[i].NodeId);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                ExternalPowerMoveEntry entry = entries[i];
+                if (!powerGrid.TryGetNode(entry.Cell, out PowerNodeRuntime node) || node.Id != entry.NodeId)
+                { reason = "선택한 전력 시설의 위치가 바뀌었습니다. 다시 선택하세요"; return false; }
+                Vector2Int target = transformCell(entry.Cell);
+                if (!targets.Add(target)) { reason = "전력 시설끼리 겹칩니다"; return false; }
+                if (powerGrid.TryGetNode(target, out PowerNodeRuntime other) && !selectedIds.Contains(other.Id))
+                { reason = "다른 전력 시설과 겹칩니다"; return false; }
+                if (driver.World.Grid.TryGetOccupant(target, out var gridOccupant) && !movingFactoryCell(target))
+                {
+                    bool ownGeneratorPort = false;
+                    foreach (int selectedId in selectedIds)
+                    {
+                        PowerNodeRuntime selectedNode = powerGrid.FindNodeById(selectedId);
+                        if (selectedNode != null && selectedNode.FuelProcessorIndex == gridOccupant.InstanceIndex
+                            && gridOccupant.Type == CellOccupantType.Processor)
+                        { ownGeneratorPort = true; break; }
+                    }
+                    if (!ownGeneratorPort)
+                    { reason = "다른 기계·벨트와 겹칩니다"; return false; }
+                }
+                PowerBuildMode mode = node.Kind == PowerNodeKind.Generator
+                    ? PowerBuildMode.Generator : PowerBuildMode.TransmissionTower;
+                if (PlacementPermission != null && !PlacementPermission(mode, target))
+                { reason = "현재 설치 제한으로 이동할 수 없는 위치입니다"; return false; }
+            }
+            return true;
+        }
+
+        private bool CommitPowerMove(IReadOnlyList<ExternalPowerMoveEntry> entries,
+            Func<Vector2Int, Vector2Int> transformCell)
+        {
+            var targets = new Dictionary<int, Vector2Int>();
+            var facings = new Dictionary<int, Vector2Int>();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                ExternalPowerMoveEntry entry = entries[i];
+                Vector2Int facingEnd = transformCell(entry.Cell + entry.Facing);
+                Vector2Int target = transformCell(entry.Cell);
+                targets[entry.NodeId] = target;
+                facings[entry.NodeId] = facingEnd - target;
+            }
+            if (!powerGrid.MoveNodes(targets, facings, out int refund)) return false;
+            RefundCopperWire(refund);
+            RebuildVisuals();
+            powerGrid.EvaluatePower();
+            LastMessage = refund > 0
+                ? $"전력 시설 이동 · 끊어진 전선 구리선 {refund}개 반환"
+                : "전력 시설 이동";
+            return true;
         }
 
         public void ToggleMode(PowerBuildMode mode)
@@ -798,11 +892,11 @@ namespace Choi.SaveLoad
             cableStartNode = null;
             if (installed)
             {
-                string completedMessage = $"전력 시설 연결: {cableStartCell} → {cell}";
                 RebuildVisuals();
                 powerGrid.EvaluatePower();
-                SetMode(PowerBuildMode.None);
-                LastMessage = completedMessage;
+                // 발전기/송전탑 연속 배치와 동일하게 전선 도구도 취소할 때까지 유지한다.
+                // 연결 제스처 상태는 위에서 이미 초기화했으므로 바로 다음 전선을 드래그할 수 있다.
+                LastMessage = $"전력 시설 연결: {cableStartCell} → {cell} · 계속 연결하거나 취소로 종료하세요";
             }
             else
             {
