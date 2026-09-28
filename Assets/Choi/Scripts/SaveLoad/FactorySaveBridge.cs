@@ -403,6 +403,10 @@ namespace Choi.SaveLoad
             {
                 if (views[i] != null && views[i].gameObject != preservedCoreVisual) Destroy(views[i].gameObject);
             }
+            // 방금 지운 것들을 가리키던 묵은 항목을 레지스트리에서 비운다(TryGet이 알아서
+            // 죽은 참조를 걸러주긴 하지만, 로드/저장을 반복할수록 딕셔너리가 계속 커지는 건
+            // 막는다) — FactoryViewportCuller가 이 레지스트리로 컬링 대상을 찾는다.
+            MachineVisualRegistry.Clear();
 
             world.Miners.Clear();
             world.Processors.Clear();
@@ -471,6 +475,10 @@ namespace Choi.SaveLoad
             }
 
             visual.name = isCore ? "Core" : $"{kind}_{index}";
+            // 코어는 뷰포트 컬링 대상이 아니라 레지스트리에 안 넣는다(항상 화면에 있어야 하는
+            // 특수 건물이라 굳이 껐다 켰다 할 이유가 없음) — Factory.Rendering.
+            // MachineVisualRegistry, FactoryViewportCuller 참고.
+            if (!isCore) MachineVisualRegistry.Register(kind, index, visual);
             if (!isCore && animatedVisual == null)
             {
                 Vector3 baseScale = visual.transform.localScale;

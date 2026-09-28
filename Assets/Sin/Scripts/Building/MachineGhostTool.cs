@@ -100,7 +100,6 @@ namespace Factory.Building
             CancelPlacement();
             selectedMachineId = machineId;
             selectedMachineRuntime = runtime;
-            currentFacing = new Vector2Int(1, 0);
 
             // 고스트는 실제로 놓일 기계와 같은 모양이어야 유효/무효 색이 자연스럽다 — 실제 배치
             // (SpawnMachineVisual)와 같은 우선순위: Addressables 키(있으면) > 라이브러리 프리팹 > 공용 박스.
@@ -607,6 +606,7 @@ namespace Factory.Building
                 go.transform.localScale = new Vector3(baseScale.x * footprint.x, baseScale.y, baseScale.z * footprint.y);
             }
             go.name = $"{kind}_{index}";
+            MachineVisualRegistry.Register(kind, index, go);
 
             var view = go.GetComponent<MachineView>() ?? go.AddComponent<MachineView>();
             view.Initialize(kind, index, driver);
