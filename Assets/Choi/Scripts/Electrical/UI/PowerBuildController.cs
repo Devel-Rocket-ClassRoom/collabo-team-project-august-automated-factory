@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Factory.Building;
 using Factory.Buildings;
@@ -21,6 +22,8 @@ namespace Choi.SaveLoad
     /// <summary>전력 배치 도구. 전선 제스처는 공용 라우터로 받아 카메라 조작을 함께 지원합니다.</summary>
     public sealed class PowerBuildController : MonoBehaviour, IBuildTool
     {
+        public static Func<PowerBuildMode, Vector2Int, bool> PlacementPermission { get; set; }
+
         private const float CableHeight = 1.65f;
         private const float CableWidth = 0.035f;
         private const int TowerRangeRadius = 7;
@@ -510,6 +513,7 @@ namespace Choi.SaveLoad
 
         private bool IsNodePlacementValid(Vector2Int cell)
         {
+            if (PlacementPermission != null && !PlacementPermission(Mode, cell)) return false;
             if (powerGrid != null && powerGrid.IsCoreCell(cell)) return false;
             if (powerGrid != null && powerGrid.TryGetNode(cell, out _)) return false;
             // 자원이 모자라면 칸 자체는 비어 있어도 배치 불가로 취급한다 — 일반 기계 고스트가

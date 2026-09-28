@@ -1684,6 +1684,11 @@ namespace Seo.UI
             if (built) SetCategory(Category.Logistics);
         }
 
+        public void OpenPowerForTutorial()
+        {
+            if (built) SetCategory(Category.Power);
+        }
+
         private void CollapseAfterToolSelection()
         {
             openCategory = null;
