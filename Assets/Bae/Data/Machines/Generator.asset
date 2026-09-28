@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -21,33 +21,34 @@ MonoBehaviour:
   gridHeight: 1
   prefabName: Prefab_Generator
   buildCostItems:
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - IronIngot
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
-  - CoalBundle
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - CopperIngot
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+  - Concrete
+
