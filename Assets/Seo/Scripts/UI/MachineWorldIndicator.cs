@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Choi.SaveLoad;
 using Factory.Buildings;
 using Factory.Simulation;
 using TMPro;
@@ -8,8 +7,7 @@ using UnityEngine.UI;
 
 namespace Seo.UI
 {
-    // 단순 색상 박스만으로는 기계 종류와 포트를 알아보기 어려워서, 배치된 기계 위에 이름과
-    // 실제 연결 셀 기준 IN/OUT 표식을 그린다. 게임 데이터에는 손대지 않는 월드 UI 전용 뷰다.
+    // 배치된 기계의 입력 상태등과 실제 연결 셀 기준 포트 표식을 그리는 월드 UI 전용 뷰다.
     public sealed class MachineWorldIndicator : MonoBehaviour
     {
         private readonly List<WorldBadge> portBadges = new List<WorldBadge>();
@@ -18,11 +16,11 @@ namespace Seo.UI
         private int instanceIndex;
         private SimulationDriver driver;
         private Camera targetCamera;
-        private WorldBadge nameBadge;
         private WorldBadge statusBadge;
-        private PowerGridSystem powerGrid;
         private string machineKey;
         private float nextStatusUpdate;
+        private int lastInputReceiptVersion;
+        private float lastInputReceiptTime = float.NegativeInfinity;
 
         private static readonly Vector2Int[] FourDirs =
         {
@@ -37,7 +35,6 @@ namespace Seo.UI
             instanceIndex = index;
             driver = simulationDriver;
             targetCamera = Camera.main;
-            powerGrid = FindFirstObjectByType<PowerGridSystem>();
             Rebuild();
         }
 
@@ -55,7 +52,6 @@ namespace Seo.UI
 
         private void OnDestroy()
         {
-            DestroyBadge(nameBadge);
             DestroyBadge(statusBadge);
             for (int i = 0; i < portBadges.Count; i++) DestroyBadge(portBadges[i]);
         }
@@ -64,7 +60,6 @@ namespace Seo.UI
         {
             for (int i = 0; i < portBadges.Count; i++) DestroyBadge(portBadges[i]);
             portBadges.Clear();
-            DestroyBadge(nameBadge);
             DestroyBadge(statusBadge);
 
             if (driver == null || driver.World == null) return;
@@ -81,10 +76,8 @@ namespace Seo.UI
                 machineId = driver.World.Processors[instanceIndex].MachineId;
             }
 
-            string title = MachineInfoPresenter.GetMachineDisplayName(driver.World, machineId);
             machineKey = driver.World.Database.Machines[machineId].Key;
-            nameBadge = CreateBadge(title, MachineInfoPresenter.GetMachineColor(machineKey), new Vector2(150f, 34f), 18);
-            statusBadge = CreateBadge("상태 확인 중", SeoUITheme.Current.Muted, new Vector2(130f, 28f), 14);
+            statusBadge = CreateStatusBadge();
             UpdateStatus();
 
             if (kind == MachineInstanceKind.Miner)
@@ -147,7 +140,7 @@ namespace Seo.UI
 
         private void UpdatePositions()
         {
-            if (nameBadge == null || driver == null || driver.World == null) return;
+            if (statusBadge == null || driver == null || driver.World == null) return;
 
             // 발전기 연료 표시는 전기 아크(LineRenderer)의 매 프레임 바운드 변화와 분리한다.
             // 기계 앵커만 기준으로 계산해 항상 기기 중앙에 고정한다.
@@ -159,7 +152,6 @@ namespace Seo.UI
                 {
                     Vector3 center = GridUtility.GetFootprintCenter(generatorPort.Anchor, generatorPort.Footprint, 0f);
                     SetBadgeTransform(statusBadge, center + Vector3.up * 0.62f, 0.0055f);
-                    SetBadgeTransform(nameBadge, center + Vector3.up * 1.0f, 0.0065f);
 
                     var generatorCenterInputs = GridUtility.GetPortCells(generatorPort.Anchor, generatorPort.Footprint,
                         generatorPort.Facing, false);
@@ -176,7 +168,6 @@ namespace Seo.UI
 
             var bounds = CalculateBounds();
             SetBadgeTransform(statusBadge, new Vector3(bounds.center.x, bounds.max.y + 0.6f, bounds.center.z), 0.0055f);
-            SetBadgeTransform(nameBadge, new Vector3(bounds.center.x, bounds.max.y + 0.3f, bounds.center.z), 0.0065f);
 
             if (kind == MachineInstanceKind.Miner)
             {
@@ -187,7 +178,6 @@ namespace Seo.UI
             if (instanceIndex < 0 || instanceIndex >= driver.World.Processors.Count) return;
             var processor = driver.World.Processors[instanceIndex];
             if (processor == null) return;
-
             if (processor.UniversalPorts)
             {
                 Vector3 center = new Vector3(bounds.center.x, bounds.max.y + 0.12f, bounds.center.z);
@@ -306,89 +296,75 @@ namespace Seo.UI
         private void UpdateStatus()
         {
             if (statusBadge == null || driver == null || driver.World == null) return;
-            if (powerGrid == null) powerGrid = FindFirstObjectByType<PowerGridSystem>();
 
             if (kind == MachineInstanceKind.Miner)
             {
-                if (instanceIndex < 0 || instanceIndex >= driver.World.Miners.Count) return;
-                var miner = driver.World.Miners[instanceIndex];
-                if (miner == null) return;
-
-                if (powerGrid != null && !powerGrid.IsMachinePowered(CellOccupantType.Miner, instanceIndex))
-                    statusBadge.SetContent("전력 부족", SeoUITheme.Current.Danger);
-                else if (miner.BufferedOutput > 0)
-                    statusBadge.SetContent("전송 대기", SeoUITheme.Current.Warning);
-                else
-                    statusBadge.SetContent("채굴 중", SeoUITheme.Current.Success);
+                // 채굴기는 벨트 입력 포트가 없으므로 이 물류 상태등의 대상이 아니다.
+                statusBadge.SetVisible(false);
                 return;
             }
 
             if (instanceIndex < 0 || instanceIndex >= driver.World.Processors.Count) return;
             var processor = driver.World.Processors[instanceIndex];
             if (processor == null) return;
+            if (processor.InputReceiptVersion != lastInputReceiptVersion)
+            {
+                lastInputReceiptVersion = processor.InputReceiptVersion;
+                lastInputReceiptTime = Time.time;
+            }
 
             if (processor.UniversalPorts)
             {
-                statusBadge.SetContent("중앙 저장소", SeoUITheme.Current.Primary);
+                statusBadge.SetVisible(false);
                 return;
             }
+            statusBadge.SetVisible(true);
 
-            // 분류기/합류기는 전력을 쓰지 않는 물류 설비이므로 전력 표시보다 먼저 판정한다.
-            if (processor.RoutingRole != RoutingRole.None)
+            // 전력 공급은 물류 연결이 아니다. 배선의 실제 Source/Target 참조만 센다.
+            bool connected = false;
+            var segments = driver.World.Segments;
+            for (int i = 0; i < segments.Count; i++)
             {
-                statusBadge.SetContent("물류 가동", SeoUITheme.Current.Success);
-                return;
+                var segment = segments[i];
+                if (segment == null) continue;
+                if (segment.SourceProcessorId != instanceIndex && segment.TargetProcessorId != instanceIndex) continue;
+                connected = true;
+                break;
             }
 
+            Color state = new Color(0.95f, 0.16f, 0.12f);
+            if (connected)
+                state = HasCompletedInput(processor)
+                    ? new Color(0.12f, 0.9f, 0.35f)
+                    : new Color(1f, 0.7f, 0.1f);
+            statusBadge.SetContent(string.Empty, state);
+        }
+
+        private bool HasCompletedInput(ProcessorInstance processor)
+        {
             if (processor.IsGeneratorFuelPort)
             {
-                bool active = powerGrid != null && powerGrid.IsGeneratorActive(processor.OwnerPowerNodeId);
-                statusBadge.SetContent(active ? "발전 중" : "연료 필요",
-                    active ? SeoUITheme.Current.Success : SeoUITheme.Current.Warning);
-                return;
+                int fuel = processor.SelectedFuelResourceId;
+                return fuel >= 0 && fuel < processor.InputBuffer.Length
+                    && (processor.InputBuffer[fuel] > 0 || Time.time - lastInputReceiptTime < 1f);
             }
 
-            if (powerGrid != null && !powerGrid.IsMachinePowered(CellOccupantType.Processor, instanceIndex))
+            if (processor.IsProcessing) return true; // 재료를 이미 소비한 가공 사이클.
+            var recipes = driver.World.Database.Recipes;
+            if (processor.RecipeId >= 0 && processor.RecipeId < recipes.Count)
             {
-                statusBadge.SetContent("전력 부족", SeoUITheme.Current.Danger);
-                return;
+                var inputs = recipes[processor.RecipeId].Inputs;
+                if (inputs.Length == 0) return false;
+                for (int i = 0; i < inputs.Length; i++)
+                    if (processor.InputBuffer[inputs[i].ResourceId] < inputs[i].Amount) return false;
+                return true;
             }
 
-            var db = driver.World.Database;
-            if (processor.RecipeId < 0 || processor.RecipeId >= db.Recipes.Count)
-            {
-                statusBadge.SetContent("레시피 없음", SeoUITheme.Current.Muted);
-                return;
-            }
-
-            var recipe = db.Recipes[processor.RecipeId];
-            if (processor.IsProcessing)
-            {
-                statusBadge.SetContent("가동 중", SeoUITheme.Current.Success);
-                return;
-            }
-
-            for (int i = 0; i < recipe.Outputs.Length; i++)
-            {
-                var output = recipe.Outputs[i];
-                if (processor.OutputBuffer[output.ResourceId] >= processor.Capacity)
-                {
-                    statusBadge.SetContent("출력 막힘", new Color(1f, 0.42f, 0.08f));
-                    return;
-                }
-            }
-
-            for (int i = 0; i < recipe.Inputs.Length; i++)
-            {
-                var input = recipe.Inputs[i];
-                if (processor.InputBuffer[input.ResourceId] < input.Amount)
-                {
-                    statusBadge.SetContent("입력 부족", SeoUITheme.Current.Warning);
-                    return;
-                }
-            }
-
-            statusBadge.SetContent("가동 준비", SeoUITheme.Current.Primary);
+            // 라우팅 노드는 레시피가 없으므로 버퍼에 자원이 도착하면 입력 완료다.
+            for (int i = 0; i < processor.InputBuffer.Length; i++)
+                if (processor.InputBuffer[i] > 0) return true;
+            return processor.RoutingRole != RoutingRole.None
+                && Time.time - lastInputReceiptTime < 1f;
         }
 
         private Bounds CalculateBounds()
@@ -413,6 +389,37 @@ namespace Seo.UI
             badge.Root.transform.position = position;
             if (targetCamera != null) badge.Root.transform.rotation = targetCamera.transform.rotation;
             badge.Root.transform.localScale = Vector3.one * scale;
+        }
+
+        private static WorldBadge CreateStatusBadge()
+        {
+            var root = new GameObject("MachineStatus", typeof(RectTransform), typeof(Canvas));
+            var canvas = root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 25;
+            root.GetComponent<RectTransform>().sizeDelta = new Vector2(112f, 44f);
+
+            var frame = new GameObject("MetalFrame", typeof(RectTransform), typeof(Image));
+            frame.transform.SetParent(root.transform, false);
+            var frameRect = frame.GetComponent<RectTransform>();
+            frameRect.anchorMin = Vector2.zero;
+            frameRect.anchorMax = Vector2.one;
+            frameRect.offsetMin = Vector2.zero;
+            frameRect.offsetMax = Vector2.zero;
+            frame.GetComponent<Image>().color = new Color(0.18f, 0.22f, 0.25f, 0.98f);
+            frame.GetComponent<Image>().raycastTarget = false;
+
+            var light = new GameObject("StatusLight", typeof(RectTransform), typeof(Image));
+            light.transform.SetParent(frame.transform, false);
+            var lightRect = light.GetComponent<RectTransform>();
+            lightRect.anchorMin = Vector2.zero;
+            lightRect.anchorMax = Vector2.one;
+            lightRect.offsetMin = new Vector2(9f, 9f);
+            lightRect.offsetMax = new Vector2(-9f, -9f);
+            var image = light.GetComponent<Image>();
+            image.color = new Color(0.95f, 0.16f, 0.12f);
+            image.raycastTarget = false;
+            return new WorldBadge(root, image, null);
         }
 
         private static WorldBadge CreateBadge(string label, Color color, Vector2 size, int fontSize,
@@ -490,7 +497,8 @@ namespace Seo.UI
             {
                 if (label != null) label.text = value;
                 if (background != null)
-                    background.color = new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.96f);
+                    background.color = label == null ? color
+                        : new Color(color.r * 0.45f, color.g * 0.45f, color.b * 0.45f, 0.96f);
             }
         }
     }

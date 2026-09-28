@@ -679,7 +679,6 @@ namespace Choi.SaveLoad
             {
                 if (!indicators.TryGetValue(key, out GameObject indicator) || indicator == null) continue;
                 indicator.name = key + "_OFF";
-                BuildVisuals.Colorize(indicator, new Color(1f, 0.12f, 0.08f));
             }
         }
 
@@ -849,15 +848,16 @@ namespace Choi.SaveLoad
             liveKeys.Add(key);
             if (!indicators.TryGetValue(key, out GameObject indicator) || indicator == null)
             {
-                indicator = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                Destroy(indicator.GetComponent<Collider>());
-                indicator.transform.localScale = Vector3.one * 0.18f;
+                // State marker for IsMachinePowered; the visible tri-color lamp is
+                // owned by MachineWorldIndicator so power alone cannot look "running".
+                indicator = new GameObject(key);
                 indicators[key] = indicator;
             }
 
             indicator.name = key + (powered ? "_ON" : "_OFF");
             indicator.transform.position = GridUtility.GetFootprintCenter(anchor, footprint, 1.2f);
-            BuildVisuals.Colorize(indicator, powered ? new Color(0.1f, 1f, 0.25f) : new Color(1f, 0.12f, 0.08f));
+            // Hide a sphere retained across a Unity script reload.
+            if (indicator.TryGetComponent<Renderer>(out var oldRenderer)) oldRenderer.enabled = false;
         }
 
         private void RemoveDeadIndicators(HashSet<string> liveKeys)
