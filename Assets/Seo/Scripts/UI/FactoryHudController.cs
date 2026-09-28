@@ -65,6 +65,8 @@ namespace Seo.UI
         private GameObject cancelButton;
         private RectTransform contextBarRect;
         private float contextButtonStep = 232f;
+        private const float ContextBottomMargin = 12f;
+        private const float ContextPanelGap = 8f;
         private GameObject placementCostPanel;
         private Transform placementCostContent;
         private Text placementCostTitle;
@@ -405,13 +407,15 @@ namespace Seo.UI
         private void LateUpdate()
         {
             if (!built || safeRoot == null || dockRoot == null) return;
-            LayoutBeltFeedback();
             var size = safeRoot.rect.size;
             float scale = Mathf.Max(0.01f, canvas.scaleFactor);
             int count = sideMenuRoot.transform.childCount;
             if (size.x <= 0f || size.y <= 0f) return;
             if (size == lastSafeSize && Mathf.Approximately(scale, lastCanvasScale) && count == lastNavigationCount)
+            {
+                LayoutContextPanels();
                 return;
+            }
             lastSafeSize = size;
             lastCanvasScale = scale;
             lastNavigationCount = count;
@@ -428,15 +432,24 @@ namespace Seo.UI
             dockRect.sizeDelta = new Vector2(Mathf.Min(760f, size.x - dockX - 16f),
                 Mathf.Min(760f, size.y - 32f));
             LayoutContextButtons(size, scale);
+            LayoutContextPanels();
         }
 
-        private void LayoutBeltFeedback()
+        private void LayoutContextPanels()
         {
             if (contextBarRect == null) return;
             bool beltMode = buildRouter != null && buildRouter.CurrentMode == BuildInputRouter.Mode.Belt;
             float buttonHeight = Mathf.Max(96f, 56f / Mathf.Max(0.01f, canvas.scaleFactor));
             float messageHeight = beltMode ? 88f : 0f;
+            // Keep touch actions at the safe area's bottom edge, with information stacked above.
+            contextBarRect.anchoredPosition = new Vector2(0f, ContextBottomMargin);
             contextBarRect.sizeDelta = new Vector2(contextBarRect.sizeDelta.x, buttonHeight + 20f + messageHeight);
+            if (placementCostPanel != null)
+            {
+                var costRect = placementCostPanel.GetComponent<RectTransform>();
+                costRect.anchoredPosition = new Vector2(0f,
+                    ContextBottomMargin + contextBarRect.sizeDelta.y + ContextPanelGap);
+            }
             if (cancelButton != null && beltMode)
                 cancelButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -messageHeight * 0.5f);
             var feedback = safeRoot.Find("SeoBeltFeedback") as RectTransform;
@@ -1401,7 +1414,7 @@ namespace Seo.UI
         private void BuildContextBar(Transform dock)
         {
             var bar = SeoUIFactory.CreatePanel(safeRoot, "SeoContextBar", new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0f, 214f), new Vector2(710f, 76f));
+                new Vector2(0.5f, 0f), new Vector2(0f, ContextBottomMargin), new Vector2(710f, 76f));
             bar.rectTransform.pivot = new Vector2(0.5f, 0f);
             contextBarRect = bar.rectTransform;
 
@@ -1449,7 +1462,7 @@ namespace Seo.UI
         private void BuildPlacementCostPanel()
         {
             var panel = SeoUIFactory.CreatePanel(safeRoot, "SeoPlacementCostPanel", new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0f, 108f), new Vector2(900f, 98f),
+                new Vector2(0.5f, 0f), Vector2.zero, new Vector2(900f, 98f),
                 new Color(0.015f, 0.055f, 0.075f, 0.97f));
             panel.rectTransform.pivot = new Vector2(0.5f, 0f);
             panel.raycastTarget = false;
