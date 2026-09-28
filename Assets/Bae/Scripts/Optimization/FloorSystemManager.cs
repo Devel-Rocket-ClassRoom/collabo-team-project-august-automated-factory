@@ -31,6 +31,7 @@ namespace Optimization
         private FloorObjectPool pool;
         private FloorChunkManager chunkManager;
         private FloorViewportCuller viewportCuller;
+        private LockedAreaFogRenderer lockedAreaFog;
 
         private void Awake()
         {
@@ -75,6 +76,11 @@ namespace Optimization
             // Start the system
             chunkManager.Initialize(pool);
             viewportCuller.SetCullingEnabled(true);
+
+            // The locked part of the map stays visible as moving fog until research expands it.
+            lockedAreaFog = GetComponent<LockedAreaFogRenderer>();
+            if (lockedAreaFog == null) lockedAreaFog = gameObject.AddComponent<LockedAreaFogRenderer>();
+            lockedAreaFog.Initialize(this);
         }
 
         public void SetUnlockedSize(int newSize)
