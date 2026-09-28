@@ -217,9 +217,9 @@
             "machineID": "Synthesizer",
             "timeToCraft": 6.0,
             "inputItems": [
-                "CopperWire",
-                "CopperWire",
-                "RefinedQuartz"
+                "IronPlate",
+                "IronPlate",
+                "CoalBundle"
             ],
             "outputItems": [
                 "IronBeam"
