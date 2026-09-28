@@ -145,6 +145,8 @@ namespace Choi.SaveLoad
         private static void CaptureBelts(SimulationWorld world, FactoryProgressData data,
             Dictionary<(CellOccupantType type, int index), Vector2Int> cells)
         {
+            // 벨트마다 씬 전체를 뒤지지 않게 한 번만 찾아둔다(GetBeltEndpoints 참고).
+            BeltDragTool beltTool = FindAnyObjectByType<BeltDragTool>();
             for (int i = 0; i < world.Segments.Count; i++)
             {
                 BeltSegment segment = world.Segments[i];
@@ -155,7 +157,7 @@ namespace Choi.SaveLoad
                 }
 
                 cells.TryGetValue((CellOccupantType.Belt, i), out Vector2Int cell);
-                GetBeltEndpoints(i, cell, out Vector3 start, out Vector3 end);
+                GetBeltEndpoints(beltTool, i, cell, out Vector3 start, out Vector3 end);
                 cell = GridUtility.WorldToCell((start + end) * 0.5f);
                 var saved = new BeltProgressData
                 {
@@ -391,11 +393,22 @@ namespace Choi.SaveLoad
         {
             for (int i = 0; i < world.Miners.Count; i++) world.Grid.UnregisterOccupant(CellOccupantType.Miner, i);
             for (int i = 0; i < world.Processors.Count; i++) world.Grid.UnregisterOccupant(CellOccupantType.Processor, i);
+            // 화면 밖 벨트는 뷰포트 컬링이 꺼둔(SetActive(false)) 상태라 GameObject.Find로는 못
+            // 찾는다 — 그대로 두면 불러온 뒤에도 옛 벨트가 남아 새로 복원된 벨트와 겹친다. 레지스트리
+            // 기반인 ReturnBeltVisual은 비활성 벨트도 처리하고, 파괴 대신 풀에 넣어 복원 때 재사용된다.
+            BeltDragTool beltTool = FindAnyObjectByType<BeltDragTool>();
             for (int i = 0; i < world.Segments.Count; i++)
             {
                 world.Grid.UnregisterOccupant(CellOccupantType.Belt, i);
-                GameObject belt = GameObject.Find($"Belt_{i}");
-                if (belt != null) Destroy(belt);
+                if (beltTool != null)
+                {
+                    beltTool.ReturnBeltVisual(i);
+                }
+                else
+                {
+                    GameObject belt = GameObject.Find($"Belt_{i}");
+                    if (belt != null) Destroy(belt);
+                }
             }
 
             MachineView[] views = FindObjectsByType<MachineView>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -417,10 +430,11 @@ namespace Choi.SaveLoad
         private static void RebindCoreVisual(GameObject coreVisual, Vector2Int anchor, Vector2Int footprint,
             Vector2Int facing, int index)
         {
+            // 회전은 건드리지 않는다 — 코어는 CoreSpawner가 Facing을 안 정해서 ProcessorInstance
+            // 기본값(동쪽 (1,0))이 그대로 저장되는데, 그걸 LookRotation으로 되돌리면 불러올 때마다
+            // 씬에 놓인 코어가 90도 돌아간다(사용자 보고). 코어는 플레이어가 회전시킬 수 없고 4면
+            // 전부 입출력이라(UniversalPorts) Facing이 의미도 없다.
             coreVisual.transform.position = GridUtility.GetFootprintCenter(anchor, footprint, 0.75f);
-            coreVisual.transform.rotation = facing == Vector2Int.zero
-                ? Quaternion.identity
-                : Quaternion.LookRotation(new Vector3(facing.x, 0f, facing.y), Vector3.up);
             coreVisual.name = "Core";
 
             MachineView view = coreVisual.GetComponent<MachineView>() ?? coreVisual.AddComponent<MachineView>();
@@ -435,7 +449,8 @@ namespace Choi.SaveLoad
                 ? world.Database.Machines[machineId].PrefabName
                 : string.Empty;
             Vector3 position = GridUtility.GetFootprintCenter(anchor, footprint, isCore ? 0.75f : 0.5f);
-            Quaternion rotation = facing == Vector2Int.zero
+            // 코어는 저장된 Facing(기본값이라 의미 없음)을 따르지 않고 항상 기본 자세로 만든다.
+            Quaternion rotation = isCore || facing == Vector2Int.zero
                 ? Quaternion.identity
                 : Quaternion.LookRotation(new Vector3(facing.x, 0f, facing.y), Vector3.up);
 
@@ -577,11 +592,25 @@ namespace Choi.SaveLoad
             return result;
         }
 
-        private static void GetBeltEndpoints(int index, Vector2Int cell, out Vector3 start, out Vector3 end)
+        private static void GetBeltEndpoints(BeltDragTool beltTool, int index, Vector2Int cell, out Vector3 start, out Vector3 end)
         {
-            GameObject root = GameObject.Find($"Belt_{index}");
-            Transform startTransform = root != null ? root.transform.Find("Start") : null;
-            Transform endTransform = root != null ? root.transform.Find("End") : null;
+            // 벨트 비주얼은 두 가지 이유로 예전 방식(GameObject.Find + 루트 바로 밑 Start/End)으로는
+            // 못 찾는다: (1) Start/End/Bend 앵커가 루트 바로 밑이 아니라 "Geometry" 자식 밑으로 들어갔고
+            // (BeltDragTool.SpawnCommittedVisual), (2) 화면 밖 벨트는 뷰포트 컬링이 SetActive(false)로
+            // 꺼두는데 GameObject.Find는 비활성 오브젝트를 못 찾는다. 못 찾으면 아래 폴백(전부 같은
+            // 방향의 직선)이 되어서, 저장한 뒤 불러오면 모든 벨트가 코너/방향이 사라진 똑같은
+            // 모양으로 복원됐다(사용자 보고). 그래서 BeltDragTool의 레지스트리로 먼저 찾는다.
+            GameObject root = null;
+            if (beltTool != null) beltTool.TryGetBeltVisual(index, out root);
+            if (root == null) root = GameObject.Find($"Belt_{index}");
+
+            Transform startTransform = null;
+            Transform endTransform = null;
+            if (root != null)
+            {
+                startTransform = root.transform.Find("Geometry/Start") ?? root.transform.Find("Start");
+                endTransform = root.transform.Find("Geometry/End") ?? root.transform.Find("End");
+            }
             if (startTransform != null && endTransform != null)
             {
                 start = startTransform.position;
