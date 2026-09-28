@@ -464,6 +464,55 @@ MonoBehaviour:
     m_VerticalOverflow: 1
     m_LineSpacing: 1
   m_Text: HudLine1
+--- !u!1 &92175970
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 92175972}
+  - component: {fileID: 92175971}
+  m_Layer: 0
+  m_Name: Viewport Culler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &92175971
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 92175970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 300be93ef8259414c9644440d9467e8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryPrototype::Factory.Rendering.FactoryViewportCuller
+  targetCamera: {fileID: 0}
+  driver: {fileID: 0}
+  beltTool: {fileID: 0}
+  viewPaddingCells: 8
+  updateInterval: 0.1
+--- !u!4 &92175972
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 92175970}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -18.48661, y: 0, z: 23.13272}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &215362988
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2981,7 +3030,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Simulation.CoreSpawner
   driver: {fileID: 38120341}
   corePrefab: {fileID: 3541852005448857136, guid: c64e1bdbb94738e47ae0cfacd1189c23, type: 3}
-  debugGiveAllResources: 0
+  debugGiveAllResources: 1
   debugResourceAmount: 500
 --- !u!4 &1107773575
 Transform:
@@ -5283,3 +5332,4 @@ SceneRoots:
   - {fileID: 40039864}
   - {fileID: 2949124798997051363}
   - {fileID: 215362988}
+  - {fileID: 92175972}
