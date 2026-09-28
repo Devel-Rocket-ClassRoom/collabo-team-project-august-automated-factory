@@ -115,6 +115,8 @@ namespace Factory.Simulation
         // 자원 id로 인덱싱되는 고정 크기 버퍼. GameDatabase.ResourceCount에 맞춰 1회 할당.
         public int[] InputBuffer;
         public int[] OutputBuffer;
+        // Runtime-only signal for a status lamp when routing consumes an item immediately.
+        public int InputReceiptVersion;
 
         public ProcessorInstance(int resourceCount)
         {
@@ -134,6 +136,7 @@ namespace Factory.Simulation
             }
             if (InputBuffer[resourceId] + amount > Capacity) return false;
             InputBuffer[resourceId] += amount;
+            InputReceiptVersion++;
             return true;
         }
     }
