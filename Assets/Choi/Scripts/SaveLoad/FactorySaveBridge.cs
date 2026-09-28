@@ -361,6 +361,33 @@ namespace Choi.SaveLoad
                 SpawnBeltVisual(driver: FindAnyObjectByType<SimulationDriver>(), segmentId: index,
                     cell: cell, start: ToVector(saved.start), end: ToVector(saved.end));
             }
+
+            RepairLegacyStraightBelts(world, savedBelts);
+        }
+
+        // 옛 코드로 저장한 세이브 보정. 그때는 저장 시점에 벨트 비주얼의 Start/End를 못 찾으면
+        // "칸 중심 기준 세로 직선"을 대신 저장했다(GetBeltEndpoints 폴백) — 그래서 그런 세이브는
+        // 코드를 고친 뒤에 불러와도 모든 벨트가 세로로 복원된다. 그래도 칸 위치(cell)와 연결
+        // (nextId/소스·타깃 기계)은 멀쩡히 저장돼 있으니, 세로 직선으로 저장된 벨트만 골라서
+        // 게임 중 재배선 때 쓰는 RerenderSegmentStrip으로 이웃 연결에 맞게 방향/코너를 다시
+        // 계산해 그린다. 진짜 세로 벨트도 같은 결과로 다시 그려지므로 구분할 필요가 없고, 이미
+        // 코너/가로로 정상 저장된 벨트는 건드리지 않는다. 다른 벨트/기계가 다 복원된 뒤에 해야
+        // 이웃을 찾을 수 있어서 RestoreBelts 맨 끝에서 부른다. 이웃이 하나도 없는 외톨이 1칸
+        // 벨트는 방향을 알 방법이 없어 그대로 둔다(RerenderSegmentStrip이 알아서 건너뜀).
+        private static void RepairLegacyStraightBelts(SimulationWorld world, List<BeltProgressData> savedBelts)
+        {
+            BeltDragTool beltTool = FindAnyObjectByType<BeltDragTool>();
+            if (beltTool == null) return;
+
+            for (int i = 0; i < savedBelts.Count; i++)
+            {
+                BeltProgressData saved = savedBelts[i];
+                if (saved == null || !saved.exists || i >= world.Segments.Count || world.Segments[i] == null) continue;
+
+                bool alongZ = Mathf.Abs(saved.start.x - saved.end.x) < 0.01f
+                    && Mathf.Abs(saved.start.z - saved.end.z) > 0.01f;
+                if (alongZ) beltTool.RerenderSegmentStrip(i);
+            }
         }
 
         private static List<ResourceStackData> CaptureStacks(int[] buffer, SimulationWorld world)
