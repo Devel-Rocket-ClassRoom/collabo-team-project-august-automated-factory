@@ -178,6 +178,11 @@ namespace Factory.Simulation
             var items = Segments[id].Items;
             for (int j = 0; j < items.Count; j++) RefundToCore(items[j].ResourceId, 1);
             RefundBeltCost(Segments[id].ConcreteCost);
+            var refundKey = Segments[id].RefundMachineKey;
+            if (!string.IsNullOrEmpty(refundKey) && Database.TryGetMachineId(refundKey, out int refundMachineId))
+            {
+                RefundBuildCost(refundMachineId);
+            }
             Segments[id] = null;
             // 리스트 슬롯 자체를 비우는 건(세그먼트 객체의 프로퍼티 대입이 아니라) 세터의 자동
             // Bump에 안 걸리니 명시적으로 올린다 — AddBeltSegment의 주석과 같은 이유.

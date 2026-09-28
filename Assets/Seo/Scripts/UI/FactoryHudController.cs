@@ -1827,6 +1827,15 @@ namespace Seo.UI
                     MachineInfoPresenter.GetMachineDisplayName(machineId) + " 설치", out title, out cost);
             }
 
+            // 벨트도 다른 기계처럼 Bae님 데이터(Machines.json의 "Belt")의 건설비를 우선 보여준다 —
+            // 실제 차감액(BeltDragTool.ConcreteCostPerTile)도 같은 데이터에서 나온다. 데이터에 없을
+            // 때만 아래 예전 방식(BeltDragTool의 Inspector 값)으로 폴백한다.
+            if (buildRouter.CurrentMode == BuildInputRouter.Mode.Belt
+                && TryGetMachineBuildCost(world, "Belt", "벨트 설치\n1칸 기준", out title, out cost))
+            {
+                return true;
+            }
+
             if (buildRouter.CurrentMode == BuildInputRouter.Mode.Belt
                 && world.Database.TryGetResourceId("Concrete", out int concreteId))
             {

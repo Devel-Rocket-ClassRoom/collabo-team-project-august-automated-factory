@@ -45,6 +45,8 @@ namespace Seo.UI
                 case "Merger": return "합류기";
                 case "Core": return "코어";
                 case "Generator": return "발전기";
+                case "Belt": return "벨트";
+                case "CrossBelt": return "크로스벨트";
                 default: return string.IsNullOrEmpty(machineKey) ? "기계" : machineKey;
             }
         }

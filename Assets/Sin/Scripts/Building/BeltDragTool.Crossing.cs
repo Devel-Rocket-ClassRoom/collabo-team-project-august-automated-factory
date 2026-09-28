@@ -28,7 +28,11 @@ namespace Factory.Building
         {
             Vector2Int perpendicular = new Vector2Int(-facing.y, facing.x);
 
-            var primary = CreateCrossAxisSegment(cell, facing, concreteCostPerTile);
+            // 건설비는 MachineGhostTool.Confirm이 크로스 벨트 데이터("CrossBelt")대로 이미 냈다 —
+            // 세그먼트 자체는 콘크리트를 안 들고(ConcreteCost 0), 주축 하나만 철거 시 그 기계 건설비를
+            // 돌려받도록 표시한다(BeltSegment.RefundMachineKey).
+            var primary = CreateCrossAxisSegment(cell, facing, 0);
+            primary.RefundMachineKey = "CrossBelt";
             driver.World.Grid.RegisterSegment(cell, primary.Id);
             SpawnAxisVisual(cell, facing, primary.Id, isCrossing: false, showCrosser: true);
 

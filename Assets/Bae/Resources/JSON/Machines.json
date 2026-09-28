@@ -12,6 +12,28 @@
             "buildCostItems": []
         },
         {
+            "machineID": "CrossBelt",
+            "machineName": "크로스벨트",
+            "powerConsumption": 0,
+            "inputSlots": 2,
+            "outputSlots": 2,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": "Prefab_Crosser",
+            "buildCostItems": [
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot",
+                "IronIngot"
+            ]
+        },
+        {
             "machineID": "Former",
             "machineName": "성형기",
             "powerConsumption": 15,
@@ -429,6 +451,21 @@
                 "CoalBundle",
                 "CoalBundle",
                 "CoalBundle"
+            ]
+        },
+        {
+            "machineID": "Belt",
+            "machineName": "벨트",
+            "powerConsumption": 0,
+            "inputSlots": 1,
+            "outputSlots": 1,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "prefabName": "",
+            "buildCostItems": [
+                "Concrete",
+                "Concrete",
+                "Concrete"
             ]
         }
     ]
