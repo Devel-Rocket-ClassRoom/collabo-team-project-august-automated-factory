@@ -32,7 +32,6 @@ namespace Factory.Rendering
         [SerializeField] private float viewPaddingCells = 8f;
         [SerializeField] private float updateInterval = 0.1f;
 
-        private readonly Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         private readonly Dictionary<Vector2Int, Chunk> visibleChunks = new Dictionary<Vector2Int, Chunk>();
         private readonly Dictionary<Vector2Int, Chunk> scratchChunks = new Dictionary<Vector2Int, Chunk>();
         // 아직 한 번도 첫 스윕을 안 돌았는지. 이게 필요한 이유: 이미 지어져 있던 벨트/기계는
@@ -69,39 +68,7 @@ namespace Factory.Rendering
             if (timer < updateInterval) return;
             timer = 0f;
 
-            if (TryComputeVisibleCellBounds(out var bounds)) UpdateVisibility(bounds);
-        }
-
-        // 카메라 화면 네 모서리를 바닥(y=0)에 레이캐스트해서, 지금 보이는 영역을 감싸는 셀
-        // 사각형을 구한다. 하늘을 보는 등 하나도 안 맞으면 false.
-        private bool TryComputeVisibleCellBounds(out RectInt bounds)
-        {
-            bounds = default;
-            float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
-            bool hitAny = false;
-
-            // 4모서리: (0,0)(1,0)(0,1)(1,1). 초당 최대 몇 번(updateInterval)만 도는 코드라
-            // 작은 배열 하나 할당하는 정도는 GC 압박에 무의미하다.
-            var corners = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
-
-            for (int i = 0; i < 4; i++)
-            {
-                Ray ray = targetCamera.ViewportPointToRay(corners[i]);
-                if (!groundPlane.Raycast(ray, out float distance)) continue;
-                Vector3 p = ray.GetPoint(distance);
-                hitAny = true;
-                if (p.x < minX) minX = p.x;
-                if (p.x > maxX) maxX = p.x;
-                if (p.z < minZ) minZ = p.z;
-                if (p.z > maxZ) maxZ = p.z;
-            }
-            if (!hitAny) return false;
-
-            float pad = viewPaddingCells * GridUtility.CellSize;
-            Vector2Int min = GridUtility.WorldToCell(new Vector3(minX - pad, 0f, minZ - pad));
-            Vector2Int max = GridUtility.WorldToCell(new Vector3(maxX + pad, 0f, maxZ + pad));
-            bounds = new RectInt(min.x, min.y, Mathf.Max(0, max.x - min.x), Mathf.Max(0, max.y - min.y));
-            return true;
+            if (CameraViewBounds.TryCompute(targetCamera, viewPaddingCells, out var bounds)) UpdateVisibility(bounds);
         }
 
         private void UpdateVisibility(RectInt cellBounds)
