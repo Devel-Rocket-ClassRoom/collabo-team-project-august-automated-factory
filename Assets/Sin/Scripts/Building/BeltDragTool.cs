@@ -57,6 +57,43 @@ namespace Factory.Building
         // 벨트 한 칸 놓는 데 드는 콘크리트(건설 비용). 기계 건설 비용(MachineGhostTool)과
         // 같은 원리로 코어 창고에서 차감한다.
         [SerializeField] private int concreteCostPerTile = 3;
+
+        private bool warnedNonConcreteBeltCost;
+
+        // 벨트 한 칸 건설비. 기본은 Bae님 데이터(Machines.json의 "Belt" — SO Assets/Bae/Data/
+        // Machines/Belt.asset)의 콘크리트 개수를 쓴다 — 그래야 설치 UI(HUD "설치 필요 자원")와
+        // 실제 차감액이 같은 데이터에서 나온다. 데이터에 "Belt"가 없으면(테스트 DB 등) 위
+        // concreteCostPerTile(Inspector 값)로 폴백한다. 철거 환불(SimulationWorld.RefundBeltCost)이
+        // 콘크리트 한 종류만 다루는 구조라, Belt 건설비에 콘크리트 말고 다른 자원을 적어도 여기선
+        // 무시한다(경고 로그).
+        private int ConcreteCostPerTile
+        {
+            get
+            {
+                if (driver == null || driver.World == null) return concreteCostPerTile;
+                var db = driver.World.Database;
+                if (!db.TryGetMachineId("Belt", out int machineId)
+                    || !db.TryGetResourceId("Concrete", out int concreteId))
+                {
+                    return concreteCostPerTile;
+                }
+
+                int concrete = 0;
+                bool hasOther = false;
+                var cost = db.Machines[machineId].BuildCost;
+                for (int i = 0; i < cost.Length; i++)
+                {
+                    if (cost[i].ResourceId == concreteId) concrete += cost[i].Amount;
+                    else hasOther = true;
+                }
+                if (hasOther && !warnedNonConcreteBeltCost)
+                {
+                    warnedNonConcreteBeltCost = true;
+                    Debug.LogWarning("[BeltDragTool] Belt 건설비에 콘크리트 외 자원이 있지만 벨트는 콘크리트만 지원합니다(환불 구조). 콘크리트 개수만 적용합니다.");
+                }
+                return concrete;
+            }
+        }
         // 크로스 벨트(교차로)가 그 칸의 원래 벨트보다 얼마나 낮게 그려질지(BeltDragTool.Crossing.cs
         // 참고) — 순수 시각용, 배선/시뮬레이션엔 영향 없다.
         [SerializeField] private float crossingLoweredOffset = 0.03f;

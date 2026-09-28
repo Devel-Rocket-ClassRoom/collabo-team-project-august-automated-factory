@@ -19,7 +19,7 @@ namespace Factory.Building
             if (ExternalCellBlocked?.Invoke(cell) ?? false) return;
             if (!TryDeductBeltCost(1)) return;
 
-            var segment = new BeltSegment { Id = driver.World.Segments.Count, Length = 1f, ConcreteCost = concreteCostPerTile };
+            var segment = new BeltSegment { Id = driver.World.Segments.Count, Length = 1f, ConcreteCost = ConcreteCostPerTile };
 
             if (startOccupant.Type == CellOccupantType.Processor) segment.SourceProcessorId = startOccupant.InstanceIndex;
             else if (startOccupant.Type == CellOccupantType.Belt) driver.World.Segments[startOccupant.InstanceIndex].NextSegmentId = segment.Id;
@@ -169,7 +169,7 @@ namespace Factory.Building
             var createdSegments = new List<BeltSegment>(beltCells.Count);
             for (int i = 0; i < beltCells.Count; i++)
             {
-                createdSegments.Add(new BeltSegment { Id = driver.World.Segments.Count + i, Length = 1f, ConcreteCost = concreteCostPerTile });
+                createdSegments.Add(new BeltSegment { Id = driver.World.Segments.Count + i, Length = 1f, ConcreteCost = ConcreteCostPerTile });
             }
 
             if (startRole == EndpointRole.Source)
@@ -244,7 +244,8 @@ namespace Factory.Building
         {
             cost = null;
             core = null;
-            if (concreteCostPerTile <= 0 || cellCount <= 0) return false;
+            int perTile = ConcreteCostPerTile;
+            if (perTile <= 0 || cellCount <= 0) return false;
             if (driver == null || driver.World == null) return false;
 
             int coreIndex = driver.World.CoreProcessorIndex;
@@ -253,7 +254,7 @@ namespace Factory.Building
             if (core == null) return false;
 
             if (!driver.World.Database.TryGetResourceId("Concrete", out int concreteId)) return false;
-            cost = new[] { new ResourceAmount(concreteId, cellCount * concreteCostPerTile) };
+            cost = new[] { new ResourceAmount(concreteId, cellCount * perTile) };
             return true;
         }
 

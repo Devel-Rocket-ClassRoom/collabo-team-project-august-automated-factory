@@ -27,6 +27,12 @@ namespace Factory.Simulation
         // 벨트는 자기가 실제로 낸 값을 기억하고 있어야 하므로 상수 참조가 아니라 값으로 저장.
         public int ConcreteCost;
 
+        // 철거 시 이 세그먼트가 "기계 한 대분" 건설비(Machines.json의 해당 machineID)를 돌려줘야 하면
+        // 그 machineID. 크로스 벨트는 일반 벨트와 달리 콘크리트가 아니라 자기 건설비(철 주괴 등)를
+        // 내므로, 한 칸에 있는 두 세그먼트 중 주축 하나만 이걸 들고 있다가 철거될 때 한 번만 환불한다
+        // (SimulationWorld.RemoveSegment). 비어있으면(일반 벨트) 위 ConcreteCost만 환불한다.
+        public string RefundMachineKey;
+
         // "크로스" 팔레트 버튼(MachineGhostTool.CrossBeltMachineId)으로 놓은 세그먼트만 true.
         // 크로스 타일은 한 칸에 이런 세그먼트가 항상 "쌍"으로(주축 1개 + 그 수직축 1개) 있고,
         // 둘 다 IsCrossable=true다 — BeltDragTool.Crossing.cs의 PlaceCrossableTile 참고.

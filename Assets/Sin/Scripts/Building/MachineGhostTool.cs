@@ -80,10 +80,15 @@ namespace Factory.Building
             MachineRuntime runtime;
             if (machineId == CrossBeltMachineId)
             {
-                // Bae님 데이터에 없는 가짜 기계라 DB 조회 없이 직접 구성 — 1칸, 전용 모델 없음
-                // (폴백 박스), 건설비는 벨트 한 칸과 동일(콘크리트, BeltDragTool과 별개로 여기서만
-                // 관리 — 임시 기능이라 공유 상수로 안 뺐다).
-                runtime = new MachineRuntime(CrossBeltMachineId, Vector2Int.one, null, CrossBeltBuildCost());
+                // 크로스 벨트는 진짜 Processor/Miner가 아니라 BeltDragTool의 세그먼트 한 쌍이지만,
+                // 건설비/이름은 다른 기계처럼 Bae님 데이터(Machines.json의 "CrossBelt" — SO
+                // Assets/Bae/Data/Machines/Crosser.asset)에서 가져온다 — 그래야 설치 UI(HUD의
+                // "설치 필요 자원")가 다른 기계와 똑같이 건설비를 보여주고 밸런스도 데이터로 조절된다.
+                // 데이터가 없을 때(테스트 DB 등)만 아래 폴백으로 직접 구성한다.
+                var crossDb = driver.World.Database;
+                runtime = crossDb.TryGetMachineId(CrossBeltMachineId, out int crossId)
+                    ? crossDb.Machines[crossId]
+                    : new MachineRuntime(CrossBeltMachineId, Vector2Int.one, null, CrossBeltBuildCost());
             }
             else
             {
@@ -104,7 +109,10 @@ namespace Factory.Building
             // 고스트는 실제로 놓일 기계와 같은 모양이어야 유효/무효 색이 자연스럽다 — 실제 배치
             // (SpawnMachineVisual)와 같은 우선순위: Addressables 키(있으면) > 라이브러리 프리팹 > 공용 박스.
             var footprint = selectedMachineRuntime.Footprint;
-            string addressableKey = selectedMachineRuntime.PrefabName;
+            // 크로스 벨트는 전용 고스트(crossBeltGhostPrefab)나 기본 박스로 보여준다 — 데이터에 적힌
+            // prefabName(Prefab_Crosser)은 Addressables에 없어서, 그걸 따라가면 로드 실패로 고스트가
+            // 아예 안 보이게 된다.
+            string addressableKey = machineId == CrossBeltMachineId ? null : selectedMachineRuntime.PrefabName;
             GameObject shapePrefab = visualLibrary != null && visualLibrary.TryGetPrefab(machineId, out var found) ? found : null;
 
             if (machineId == CrossBeltMachineId && crossBeltGhostPrefab != null)
