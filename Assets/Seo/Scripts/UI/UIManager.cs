@@ -217,7 +217,15 @@ namespace Seo.UI
             machineInfoPanel = MachineInfoPanel.CreateRuntime(panelParent);
             machineInfoPanel.CloseRequested += CloseMachineInfo;
             machineInfoPanel.RecipeRequested += OpenRecipeSelection;
+            machineInfoPanel.CoreResourcesRequested += OpenCoreResources;
             machineInfoPanel.DemolishRequested += DemolishSelected;
+        }
+
+        private void OpenCoreResources()
+        {
+            if (driver == null || driver.World == null || selectedKind != MachineInstanceKind.Processor
+                || selectedIndex != driver.World.CoreProcessorIndex) return;
+            FindFirstObjectByType<FactoryHudController>()?.OpenCoreResourcePanel();
         }
 
         private bool CanDemolishSelected()

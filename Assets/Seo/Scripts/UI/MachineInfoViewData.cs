@@ -15,6 +15,7 @@ namespace Seo.UI
         public readonly string Ports;
         public readonly float Progress01;
         public readonly bool CanSelectRecipe;
+        public readonly bool CanViewCoreResources;
         public readonly Color AccentColor;
 
         public MachineInfoViewData(
@@ -28,7 +29,8 @@ namespace Seo.UI
             string ports,
             float progress01,
             bool canSelectRecipe,
-            Color accentColor)
+            Color accentColor,
+            bool canViewCoreResources = false)
         {
             Title = title;
             Status = status;
@@ -40,6 +42,7 @@ namespace Seo.UI
             Ports = ports;
             Progress01 = Mathf.Clamp01(progress01);
             CanSelectRecipe = canSelectRecipe;
+            CanViewCoreResources = canViewCoreResources;
             AccentColor = accentColor;
         }
     }
