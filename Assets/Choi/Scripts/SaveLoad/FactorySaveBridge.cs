@@ -182,7 +182,20 @@ namespace Choi.SaveLoad
                     cell = ToData(cell),
                     start = ToData(start),
                     end = ToData(end),
+                    concreteCost = segment.ConcreteCost,
+                    refundMachineKey = segment.RefundMachineKey ?? string.Empty,
                 };
+
+                // 크로스 벨트: 한 칸에 주축(1번 레이어)/수직축(2번 레이어) 세그먼트가 쌍으로 있다.
+                // 어느 축인지(crossAxis)와 어느 레이어인지를 저장해야 불러올 때 같은 칸에 둘 다
+                // 복원하고, 크로스 아이콘을 주축에만 올릴 수 있다.
+                if (segment.IsCrossable)
+                {
+                    saved.isCrossable = true;
+                    saved.crossAxis = ToData(segment.CrossAxis);
+                    saved.isCrossingLayer = world.Grid.TryGetCrossingOccupant(cell, out var crossingHere)
+                        && crossingHere.Type == CellOccupantType.Belt && crossingHere.InstanceIndex == i;
+                }
 
                 for (int j = 0; j < segment.Items.Count; j++)
                 {
@@ -344,6 +357,10 @@ namespace Choi.SaveLoad
                     SourceProcessorId = saved.hasSourceProcessor ? saved.sourceProcessorIndex : (int?)null,
                     TargetProcessorId = saved.hasTargetProcessor ? saved.targetProcessorIndex : (int?)null,
                     LockedForRecipeId = ResolveRecipe(world, saved.lockedRecipeKey),
+                    ConcreteCost = saved.concreteCost,
+                    RefundMachineKey = string.IsNullOrEmpty(saved.refundMachineKey) ? null : saved.refundMachineKey,
+                    IsCrossable = saved.isCrossable,
+                    CrossAxis = saved.isCrossable ? ToVector(saved.crossAxis) : Vector2Int.zero,
                 };
                 if (saved.hasLockedResource && world.Database.TryGetResourceId(saved.lockedResourceKey, out int lockedId))
                     segment.LockedSourceResourceId = lockedId;
@@ -359,7 +376,27 @@ namespace Choi.SaveLoad
 
                 int index = world.AddBeltSegment(segment);
                 Vector2Int cell = ToVector(saved.cell);
-                world.Grid.RegisterSegment(cell, index);
+
+                // 크로스 벨트는 저장된 레이어대로 등록하고(수직축은 2번 레이어), 전용 그리기 경로로
+                // 복원한다 — 일반 벨트 경로(SpawnBeltVisual)로 그리면 크로스 아이콘/아이템 숨김/
+                // 수직축 무메쉬 처리가 전부 빠져서 벨트 두 개가 겹쳐 보인다.
+                if (saved.isCrossable)
+                {
+                    if (saved.isCrossingLayer) world.Grid.RegisterCrossingSegment(cell, index);
+                    else world.Grid.RegisterSegment(cell, index);
+
+                    BeltDragTool crossTool = FindAnyObjectByType<BeltDragTool>();
+                    if (crossTool != null)
+                    {
+                        crossTool.SpawnRestoredCrossVisual(cell, segment.CrossAxis, index, !saved.isCrossingLayer);
+                        continue;
+                    }
+                }
+                else
+                {
+                    world.Grid.RegisterSegment(cell, index);
+                }
+
                 SpawnBeltVisual(driver: FindAnyObjectByType<SimulationDriver>(), segmentId: index,
                     cell: cell, start: ToVector(saved.start), end: ToVector(saved.end));
             }
@@ -385,6 +422,8 @@ namespace Choi.SaveLoad
             {
                 BeltProgressData saved = savedBelts[i];
                 if (saved == null || !saved.exists || i >= world.Segments.Count || world.Segments[i] == null) continue;
+                // 크로스 벨트는 축을 직접 저장하므로 이웃 연결로 다시 계산하면 안 된다.
+                if (saved.isCrossable) continue;
 
                 bool alongZ = Mathf.Abs(saved.start.x - saved.end.x) < 0.01f
                     && Mathf.Abs(saved.start.z - saved.end.z) > 0.01f;

@@ -90,6 +90,13 @@ namespace Factory.Building
             return segment;
         }
 
+        // 세이브 복원용 — 세그먼트/그리드 등록은 세이브 코드가 이미 했고, 화면만 배치 때와 똑같이
+        // 다시 그린다(주축이면 크로스 아이콘 + 방향 회전, 수직축이면 낮춰서 아무것도 안 그림).
+        public void SpawnRestoredCrossVisual(Vector2Int cell, Vector2Int axis, int segmentId, bool isPrimaryAxis)
+        {
+            SpawnAxisVisual(cell, axis, segmentId, isCrossing: !isPrimaryAxis, showCrosser: isPrimaryAxis);
+        }
+
         private void SpawnAxisVisual(Vector2Int cell, Vector2Int axis, int segmentId, bool isCrossing, bool showCrosser)
         {
             var renderPath = new List<Vector2Int> { cell - axis, cell, cell + axis };
