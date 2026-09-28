@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Choi.SaveLoad;
 using Factory.Building;
 using Factory.Buildings;
 using Factory.Simulation;
@@ -24,22 +25,34 @@ namespace Choi.Tutorial
             Core,
             PickMiner,
             PlaceMiner,
-            PickIronMiner,
-            PlaceIronMiner,
-            GatherIronOre,
+            PickCoalMiner,
+            PlaceCoalMiner,
+            GatherStarterResources,
             PickSmelter,
             PlaceSmelter,
             InspectSmelter,
             PickRecipe,
             ConnectInput,
             ConnectOutput,
+            PickGenerator,
+            PlaceGenerator,
+            InspectGenerator,
+            PickCoalFuel,
+            ConnectGeneratorFuel,
+            PickTower,
+            PlaceTower,
+            PickCable,
+            ConnectPower,
             Complete,
         }
 
-        private static readonly Vector2Int CopperCell = new Vector2Int(-4, -3);
-        private static readonly Vector2Int IronCell = new Vector2Int(4, 3);
+        // 현재 Main 맵의 시작 지점: 왼쪽 검은 광맥은 석탄, 오른쪽 붉은 광맥은 구리다.
+        private static readonly Vector2Int CoalCell = new Vector2Int(-6, 4);
+        private static readonly Vector2Int CopperCell = new Vector2Int(5, 4);
         // 코어 바로 아래. 기본 방향(+X)을 유지하면 입력/출력 벨트를 좌우로 분리할 수 있다.
         private static readonly Vector2Int SmelterCell = new Vector2Int(-1, -3);
+        private static readonly Vector2Int GeneratorCell = new Vector2Int(3, 1);
+        private static readonly Vector2Int TowerCell = new Vector2Int(3, 4);
         private static readonly Vector2Int[] InputBeltGuide =
         {
             new Vector2Int(-1, -1), new Vector2Int(-2, -1), new Vector2Int(-2, -2),
@@ -50,11 +63,18 @@ namespace Choi.Tutorial
             SmelterCell, new Vector2Int(0, -3), new Vector2Int(0, -2),
             new Vector2Int(0, -1),
         };
+        private static readonly Vector2Int[] GeneratorFuelBeltGuide =
+        {
+            new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0),
+            new Vector2Int(2, 1), GeneratorCell,
+        };
 
         private SimulationDriver driver;
         private MachineGhostTool machineTool;
         private BuildInputRouter buildRouter;
         private FactoryHudController hud;
+        private PowerBuildController powerBuild;
+        private PowerGridSystem powerGrid;
         private Step step = Step.Waiting;
         private Text titleText;
         private Text bodyText;
@@ -66,10 +86,15 @@ namespace Choi.Tutorial
         private GameObject beltGuide;
         private Outline uiOutline;
         private Graphic uiGraphic;
-        private int ironOreId = -1;
+        private int copperOreId = -1;
         private int copperIngotId = -1;
+        private int copperWireId = -1;
+        private int coalId = -1;
         private int copperRecipeId = -1;
         private int smelterIndex = -1;
+        private int generatorNodeId = -1;
+        private int generatorFuelProcessorIndex = -1;
+        private int towerNodeId = -1;
         private int initialCopperIngot;
         private float enteredAt;
         private TapInputManager legacyTapInput;
@@ -87,6 +112,9 @@ namespace Choi.Tutorial
                         && index == Instance.driver.World.CoreProcessorIndex;
                 case Step.InspectSmelter:
                     return kind == MachineInstanceKind.Processor && index == Instance.smelterIndex;
+                case Step.InspectGenerator:
+                case Step.PickCoalFuel:
+                    return kind == MachineInstanceKind.Processor && index == Instance.generatorFuelProcessorIndex;
                 default:
                     return false;
             }
@@ -154,6 +182,8 @@ namespace Choi.Tutorial
                 }
             }
             if (hud == null) hud = FindFirstObjectByType<FactoryHudController>();
+            if (powerBuild == null) powerBuild = FindFirstObjectByType<PowerBuildController>();
+            if (powerGrid == null) powerGrid = FindFirstObjectByType<PowerGridSystem>();
             if (driver == null || driver.World == null || machineTool == null || hud == null) return false;
 
             if (panelRoot == null)
@@ -168,8 +198,10 @@ namespace Choi.Tutorial
         private void Begin()
         {
             var db = driver.World.Database;
-            if (!db.TryGetResourceId("IronOre", out ironOreId)
+            if (!db.TryGetResourceId("CopperOre", out copperOreId)
                 || !db.TryGetResourceId("CopperIngot", out copperIngotId)
+                || !db.TryGetResourceId("CopperWire", out copperWireId)
+                || !db.TryGetResourceId("Coal", out coalId)
                 || !db.TryGetRecipeId("SmeltCopperIngot", out copperRecipeId))
             {
                 Debug.LogWarning("[Tutorial] 구리 자원 또는 제련 레시피가 없어 튜토리얼을 시작하지 않습니다.");
@@ -179,6 +211,7 @@ namespace Choi.Tutorial
             }
             MachineGhostTool.PlacementPermission = AllowsPlacement;
             BeltDragTool.PathPermission = AllowsBeltPath;
+            PowerBuildController.PlacementPermission = AllowsPowerPlacement;
             Enter(Step.Core);
         }
 
@@ -195,17 +228,17 @@ namespace Choi.Tutorial
                     break;
                 case Step.PlaceMiner:
                     if (TryGetOccupant(CopperCell, CellOccupantType.Miner, out _))
-                        Enter(Step.PickIronMiner);
+                        Enter(Step.PickCoalMiner);
                     break;
-                case Step.PickIronMiner:
-                    if (machineTool.SelectedMachineId == "Miner") Enter(Step.PlaceIronMiner);
+                case Step.PickCoalMiner:
+                    if (machineTool.SelectedMachineId == "Miner") Enter(Step.PlaceCoalMiner);
                     break;
-                case Step.PlaceIronMiner:
-                    if (TryGetOccupant(IronCell, CellOccupantType.Miner, out _))
-                        Enter(Step.GatherIronOre);
+                case Step.PlaceCoalMiner:
+                    if (TryGetOccupant(CoalCell, CellOccupantType.Miner, out _))
+                        Enter(Step.GatherStarterResources);
                     break;
-                case Step.GatherIronOre:
-                    if (CoreAmount(ironOreId) >= 10)
+                case Step.GatherStarterResources:
+                    if (CoreAmount(copperOreId) >= 10 && CoreAmount(coalId) >= 1)
                     {
                         GameObject resourcePanel = GameObject.Find("SeoResourceCard");
                         if (resourcePanel != null) resourcePanel.SetActive(false);
@@ -243,7 +276,59 @@ namespace Choi.Tutorial
                 case Step.ConnectOutput:
                     if (HasBeltPath(smelterIndex, world.CoreProcessorIndex)
                         && CoreAmount(copperIngotId) > initialCopperIngot)
-                        Enter(Step.Complete);
+                        Enter(Step.PickGenerator);
+                    break;
+                case Step.PickGenerator:
+                    if (powerBuild != null && powerBuild.Mode == PowerBuildMode.Generator)
+                        Enter(Step.PlaceGenerator);
+                    break;
+                case Step.PlaceGenerator:
+                    if (powerGrid != null && powerGrid.TryGetNode(GeneratorCell, out PowerNodeRuntime generator)
+                        && generator.Kind == PowerNodeKind.Generator)
+                    {
+                        generatorNodeId = generator.Id;
+                        generatorFuelProcessorIndex = generator.FuelProcessorIndex;
+                        Enter(Step.InspectGenerator);
+                    }
+                    break;
+                case Step.InspectGenerator:
+                    if (IsSelected(MachineInstanceKind.Processor, generatorFuelProcessorIndex))
+                        Enter(Step.PickCoalFuel);
+                    break;
+                case Step.PickCoalFuel:
+                    if (GameObject.Find("Fuel_석탄") != null
+                        && (uiOutline == null || uiOutline.gameObject.name != "Fuel_석탄"))
+                    {
+                        ClearHighlights();
+                        HighlightUI("Fuel_석탄");
+                    }
+                    if (ValidProcessor(generatorFuelProcessorIndex)
+                        && world.Processors[generatorFuelProcessorIndex].SelectedFuelResourceId == coalId)
+                        Enter(Step.ConnectGeneratorFuel);
+                    break;
+                case Step.ConnectGeneratorFuel:
+                    if (HasBeltPath(world.CoreProcessorIndex, generatorFuelProcessorIndex)
+                        && powerGrid != null && powerGrid.IsGeneratorActive(generatorNodeId))
+                        Enter(Step.PickTower);
+                    break;
+                case Step.PickTower:
+                    if (powerBuild != null && powerBuild.Mode == PowerBuildMode.TransmissionTower)
+                        Enter(Step.PlaceTower);
+                    break;
+                case Step.PlaceTower:
+                    if (powerGrid != null && powerGrid.TryGetNode(TowerCell, out PowerNodeRuntime tower)
+                        && tower.Kind == PowerNodeKind.TransmissionTower)
+                    {
+                        towerNodeId = tower.Id;
+                        Enter(Step.PickCable);
+                    }
+                    break;
+                case Step.PickCable:
+                    if (powerBuild != null && powerBuild.Mode == PowerBuildMode.Cable)
+                        Enter(Step.ConnectPower);
+                    break;
+                case Step.ConnectPower:
+                    if (HasPowerConnection(generatorNodeId, towerNodeId)) Enter(Step.Complete);
                     break;
             }
         }
@@ -253,7 +338,7 @@ namespace Choi.Tutorial
             ClearHighlights();
             step = next;
             enteredAt = Time.unscaledTime;
-            progressText.text = $"튜토리얼  {Mathf.Min((int)next, 13)} / 13";
+            progressText.text = $"튜토리얼  {Mathf.Min((int)next, 21)} / 21";
 
             switch (next)
             {
@@ -270,19 +355,20 @@ namespace Choi.Tutorial
                     SetCopy("구리 광맥에 배치", "빛나는 구리 광맥 위로 채굴기를 옮긴 뒤 배치 확정을 누르세요.");
                     HighlightCell(CopperCell, 1.25f);
                     break;
-                case Step.PickIronMiner:
+                case Step.PickCoalMiner:
                     CancelPlacementMode();
-                    SetCopy("철 채굴 준비", "제련로 설치에는 철 원석 10개가 필요합니다. 채굴기 버튼을 다시 누르세요.");
+                    GrantTutorialMachineCost("Miner");
+                    SetCopy("석탄 채굴 준비 · 건설 재료 지원", "발전기를 가동할 석탄도 필요합니다. 지원된 재료로 채굴기 버튼을 다시 누르세요.");
                     hud.OpenProductionForTutorial();
                     HighlightUI("PaletteButton_Miner");
                     break;
-                case Step.PlaceIronMiner:
-                    SetCopy("철 광맥에 배치", "빛나는 철 광맥 위에 두 번째 채굴기를 설치하세요.");
-                    HighlightCell(IronCell, 1.25f);
+                case Step.PlaceCoalMiner:
+                    SetCopy("석탄 광맥에 배치", "왼쪽의 빛나는 검은 석탄 광맥 위에 두 번째 채굴기를 설치하세요.");
+                    HighlightCell(CoalCell, 1.25f);
                     break;
-                case Step.GatherIronOre:
+                case Step.GatherStarterResources:
                     CancelPlacementMode();
-                    SetCopy("철 원석 확보", "제련로 설치에 필요한 철 원석 10개가 모일 때까지 기다리세요. 자원 버튼에서 수량을 확인할 수 있습니다.");
+                    SetCopy("구리와 석탄 확보", "제련로용 구리 원석 10개와 발전기용 석탄이 모일 때까지 기다리세요. 자원 버튼에서 수량을 확인할 수 있습니다.");
                     HighlightUI("SeoCoreResourceButton");
                     break;
                 case Step.PickSmelter:
@@ -317,8 +403,52 @@ namespace Choi.Tutorial
                     HighlightUI("PaletteButton_Belt");
                     CreateBeltGuide(OutputBeltGuide, "시작\n제련로 출력", "도착\n코어");
                     break;
+                case Step.PickGenerator:
+                    GrantPowerTutorialSupport();
+                    SetCopy("전력망 건설 · 지원품 도착", "발전기·송전탑 건설 재료와 전선용 구리선 5개가 도착했습니다. 먼저 빛나는 ‘발전기’를 선택하세요.");
+                    hud.OpenPowerForTutorial();
+                    HighlightUI("PowerAction_발전기");
+                    break;
+                case Step.PlaceGenerator:
+                    SetCopy("발전기 설치", "빛나는 위치로 발전기를 옮긴 뒤 배치 확정을 누르세요. 파란 화살표 쪽이 연료 입력 방향입니다.");
+                    HighlightCell(GeneratorCell, 1.2f);
+                    break;
+                case Step.InspectGenerator:
+                    powerBuild?.SetMode(PowerBuildMode.None);
+                    SetCopy("발전기 연료 설정", "방금 설치한 발전기를 클릭하세요. 발전기는 선택한 연료를 입력받아 전력을 생산합니다.");
+                    HighlightWorld(GameObject.Find($"PowerNode_{generatorNodeId}_Generator"), 1.5f);
+                    break;
+                case Step.PickCoalFuel:
+                    SetCopy("석탄을 연료로 선택", "레시피 설정을 누른 뒤 빛나는 ‘석탄’을 선택하세요.");
+                    HighlightNamedChild("MachineInfoPanel", "RecipeButton");
+                    break;
+                case Step.ConnectGeneratorFuel:
+                    SetCopy("발전기에 석탄 투입", "벨트를 선택하고 코어에서 발전기 파란 입력 방향까지 드래그하세요. 석탄이 도착해 발전기가 켜지면 다음 단계로 진행합니다.");
+                    hud.OpenLogisticsForTutorial();
+                    HighlightUI("PaletteButton_Belt");
+                    CreateBeltGuide(GeneratorFuelBeltGuide, "시작\n코어", "도착\n발전기 연료");
+                    break;
+                case Step.PickTower:
+                    SetCopy("송전탑 건설", "발전기에서 만든 전력을 기계로 보내려면 송전탑이 필요합니다. 빛나는 ‘송전탑’을 선택하세요.");
+                    hud.OpenPowerForTutorial();
+                    HighlightUI("PowerAction_송전탑");
+                    break;
+                case Step.PlaceTower:
+                    SetCopy("송전탑 설치", "빛나는 위치로 송전탑을 옮긴 뒤 배치 확정을 누르세요. 표시되는 범위 안의 기계에 전력이 공급됩니다.");
+                    HighlightCell(TowerCell, 1.2f);
+                    break;
+                case Step.PickCable:
+                    powerBuild?.SetMode(PowerBuildMode.None);
+                    SetCopy("전선 연결 준비", "전력 설비에서 빛나는 ‘전선’을 선택하세요. 연결 한 번에 구리선 1개를 사용합니다.");
+                    hud.OpenPowerForTutorial();
+                    HighlightUI("PowerAction_전선");
+                    break;
+                case Step.ConnectPower:
+                    SetCopy("발전기 → 송전탑 연결", "발전기를 누른 채 송전탑까지 드래그해 전선으로 연결하세요.");
+                    CreateBeltGuide(new[] { GeneratorCell, TowerCell }, "시작\n발전기", "도착\n송전탑");
+                    break;
                 case Step.Complete:
-                    SetCopy("생산 라인 완성!", "구리 채굴부터 제련, 코어 저장까지 자동 생산 라인이 완성되었습니다.");
+                    SetCopy("공장과 전력망 완성!", "발전기에 석탄이 공급되고 송전탑까지 전선으로 연결되었습니다. 송전탑 범위 안의 기계가 발전 전력을 사용할 수 있습니다.");
                     progressText.text = "튜토리얼 완료";
                     skipButton.GetComponentInChildren<TMP_Text>().text = "닫기";
                     skipButton.onClick.RemoveAllListeners();
@@ -407,18 +537,57 @@ namespace Choi.Tutorial
             switch (step)
             {
                 case Step.PickMiner: return buttonName == "PaletteButton_Miner";
-                case Step.PickIronMiner: return buttonName == "PaletteButton_Miner";
+                case Step.PickCoalMiner: return buttonName == "PaletteButton_Miner";
                 case Step.PlaceMiner:
-                case Step.PlaceIronMiner:
-                case Step.PlaceSmelter: return buttonName == "ConfirmButton";
-                case Step.GatherIronOre:
+                case Step.PlaceCoalMiner:
+                case Step.PlaceSmelter:
+                case Step.PlaceGenerator:
+                case Step.PlaceTower: return buttonName == "ConfirmButton";
+                case Step.GatherStarterResources:
                     return buttonName == "SeoCoreResourceButton" || buttonName == "Close";
                 case Step.PickSmelter: return buttonName == "PaletteButton_Smelter";
                 case Step.PickRecipe:
-                    return buttonName == "RecipeButton" || buttonName == "Recipe_SmeltCopperIngot";
+                case Step.PickCoalFuel:
+                    return buttonName == "RecipeButton" || buttonName == "Recipe_SmeltCopperIngot"
+                        || buttonName == "Fuel_석탄";
                 case Step.ConnectInput:
-                case Step.ConnectOutput: return buttonName == "PaletteButton_Belt";
+                case Step.ConnectOutput:
+                case Step.ConnectGeneratorFuel: return buttonName == "PaletteButton_Belt";
+                case Step.PickGenerator: return buttonName == "PowerAction_발전기";
+                case Step.PickTower: return buttonName == "PowerAction_송전탑";
+                case Step.PickCable: return buttonName == "PowerAction_전선";
                 default: return false;
+            }
+        }
+
+        private void GrantPowerTutorialSupport()
+        {
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (!ValidProcessor(coreIndex)) return;
+            var core = driver.World.Processors[coreIndex];
+            GrantMachineBuildCost(core, "Generator");
+            GrantMachineBuildCost(core, "TransmissionTower");
+            if (copperWireId >= 0)
+                core.InputBuffer[copperWireId] = System.Math.Min(core.InputBuffer[copperWireId] + 5, core.Capacity);
+        }
+
+        private void GrantTutorialMachineCost(string machineKey)
+        {
+            int coreIndex = driver.World.CoreProcessorIndex;
+            if (!ValidProcessor(coreIndex)) return;
+            GrantMachineBuildCost(driver.World.Processors[coreIndex], machineKey);
+        }
+
+        private void GrantMachineBuildCost(ProcessorInstance core, string machineKey)
+        {
+            if (!driver.World.Database.TryGetMachineId(machineKey, out int machineId)) return;
+            var costs = driver.World.Database.Machines[machineId].BuildCost;
+            if (costs == null) return;
+            for (int i = 0; i < costs.Length; i++)
+            {
+                int resourceId = costs[i].ResourceId;
+                core.InputBuffer[resourceId] = System.Math.Min(
+                    core.InputBuffer[resourceId] + costs[i].Amount, core.Capacity);
             }
         }
 
@@ -438,22 +607,45 @@ namespace Choi.Tutorial
                 MachineGhostTool.PlacementPermission = null;
             if (BeltDragTool.PathPermission == AllowsBeltPath)
                 BeltDragTool.PathPermission = null;
+            if (PowerBuildController.PlacementPermission == AllowsPowerPlacement)
+                PowerBuildController.PlacementPermission = null;
         }
 
         private bool AllowsPlacement(string machineId, Vector2Int cell)
         {
             if (step == Step.PlaceMiner) return machineId == "Miner" && cell == CopperCell;
-            if (step == Step.PlaceIronMiner) return machineId == "Miner" && cell == IronCell;
+            if (step == Step.PlaceCoalMiner) return machineId == "Miner" && cell == CoalCell;
             if (step == Step.PlaceSmelter) return machineId == "Smelter" && cell == SmelterCell;
             return false;
         }
 
         private bool AllowsBeltPath(IReadOnlyList<Vector2Int> path)
         {
-            if ((step != Step.ConnectInput && step != Step.ConnectOutput) || path == null || path.Count < 2)
+            if ((step != Step.ConnectInput && step != Step.ConnectOutput && step != Step.ConnectGeneratorFuel)
+                || path == null || path.Count < 2)
                 return false;
-            var required = step == Step.ConnectInput ? InputBeltGuide : OutputBeltGuide;
+            var required = step == Step.ConnectInput ? InputBeltGuide
+                : step == Step.ConnectOutput ? OutputBeltGuide : GeneratorFuelBeltGuide;
             return MatchesPath(path, required, false) || MatchesPath(path, required, true);
+        }
+
+        private bool AllowsPowerPlacement(PowerBuildMode mode, Vector2Int cell)
+        {
+            if (step == Step.PlaceGenerator) return mode == PowerBuildMode.Generator && cell == GeneratorCell;
+            if (step == Step.PlaceTower) return mode == PowerBuildMode.TransmissionTower && cell == TowerCell;
+            return false;
+        }
+
+        private bool HasPowerConnection(int firstNodeId, int secondNodeId)
+        {
+            if (powerGrid == null || firstNodeId < 0 || secondNodeId < 0) return false;
+            for (int i = 0; i < powerGrid.Connections.Count; i++)
+            {
+                PowerConnectionRuntime connection = powerGrid.Connections[i];
+                if ((connection.FromNodeId == firstNodeId && connection.ToNodeId == secondNodeId)
+                    || (connection.FromNodeId == secondNodeId && connection.ToNodeId == firstNodeId)) return true;
+            }
+            return false;
         }
 
         private static bool MatchesPath(IReadOnlyList<Vector2Int> actual, IReadOnlyList<Vector2Int> expected, bool reverse)

@@ -4021,7 +4021,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FactoryPrototype::Factory.Simulation.CoreSpawner
   driver: {fileID: 38120341}
   corePrefab: {fileID: 3541852005448857136, guid: c64e1bdbb94738e47ae0cfacd1189c23, type: 3}
-  debugGiveAllResources: 1
+  debugGiveAllResources: 0
   debugResourceAmount: 999999
 --- !u!4 &1107773575
 Transform:
@@ -5948,8 +5948,8 @@ MonoBehaviour:
   depositId: ConcreteDeposit
   size: {x: 1, y: 1}
   paintedOffsets:
-  - {x: 5, y: 5}
-  - {x: 5, y: 4}
+  - {x: 6, y: 5}
+  - {x: 6, y: 4}
 --- !u!4 &1716315671
 Transform:
   m_ObjectHideFlags: 0
@@ -7247,8 +7247,8 @@ MonoBehaviour:
   depositId: CopperOreDeposit
   size: {x: 1, y: 1}
   paintedOffsets:
-  - {x: -6, y: 5}
-  - {x: -6, y: 4}
+  - {x: 5, y: 5}
+  - {x: 5, y: 4}
 --- !u!4 &2090724573
 Transform:
   m_ObjectHideFlags: 0
