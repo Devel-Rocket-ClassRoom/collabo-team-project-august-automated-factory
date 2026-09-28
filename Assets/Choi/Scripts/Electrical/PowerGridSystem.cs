@@ -671,10 +671,14 @@ namespace Choi.SaveLoad
 
                 string machineKey = driver.World.Database.Machines[miner.MachineId].Key;
                 int demand = GetPowerConsumption(machineKey);
+                // 그리드에서 위치를 읽는다 — GameObject.Find는 화면 밖이라 꺼진 채굴기를 못 찾고(그러면
+                // 위치가 (0,0)이 돼 코어 근처로 잘못 전력 판정됨), 매번 씬 전체를 뒤지는 비용도 컸다.
                 Vector2Int anchor;
-                GameObject minerVisual = GameObject.Find($"Miner_{i}");
-                if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
-                else cells.TryGetValue((CellOccupantType.Miner, i), out anchor);
+                if (!cells.TryGetValue((CellOccupantType.Miner, i), out anchor))
+                {
+                    GameObject minerVisual = GameObject.Find($"Miner_{i}");
+                    if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
+                }
                 int component = FindSupplyingPowerComponent(anchor, Vector2Int.one,
                     coreComponent, componentByNodeId, remainingByComponent);
                 bool powered = component >= 0;
@@ -964,18 +968,9 @@ namespace Choi.SaveLoad
 
         private static Dictionary<(CellOccupantType type, int index), Vector2Int> ScanOccupants(SimulationWorld world)
         {
+            // 원점 ±64칸 스캔(범위 밖 기계는 (0,0)으로 평가됨) 대신 그리드 점유 정보를 그대로 읽는다.
             var result = new Dictionary<(CellOccupantType, int), Vector2Int>();
-            const int range = 64;
-            for (int x = -range; x <= range; x++)
-            {
-                for (int y = -range; y <= range; y++)
-                {
-                    var cell = new Vector2Int(x, y);
-                    if (!world.Grid.TryGetOccupant(cell, out CellOccupant occupant)) continue;
-                    var key = (occupant.Type, occupant.InstanceIndex);
-                    if (!result.ContainsKey(key)) result[key] = cell;
-                }
-            }
+            world.Grid.CollectAnchorCells(result);
             return result;
         }
     }
