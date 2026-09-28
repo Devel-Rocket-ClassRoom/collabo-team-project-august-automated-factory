@@ -78,6 +78,9 @@ namespace Choi.SaveLoad
 
         private void Update()
         {
+            if (Choi.Research.ResearchController.Instance != null && Choi.Research.ResearchController.Instance.IsOpen)
+                return;
+
             // 전선 입력은 라우터에서만 처리한다. 두 손가락 카메라 조작을 연결로 오인하지 않는다.
             if (Mode == PowerBuildMode.Cable) return;
 
