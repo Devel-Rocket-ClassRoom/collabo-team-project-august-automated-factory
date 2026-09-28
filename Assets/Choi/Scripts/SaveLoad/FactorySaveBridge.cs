@@ -11,8 +11,6 @@ namespace Choi.SaveLoad
     /// <summary>SimulationWorld 전체와 전력 배치를 PowerSaveManager의 JSON 항목 하나로 저장합니다.</summary>
     public sealed class FactorySaveBridge : MonoBehaviour, IPowerSaveParticipant
     {
-        private const int ScanRange = 64;
-
         private SimulationDriver driver;
         private PowerGridSystem powerGrid;
         private PowerBuildController powerBuild;
@@ -82,10 +80,14 @@ namespace Choi.SaveLoad
                     continue;
                 }
 
+                // 위치는 그리드(진짜 기준)에서 먼저 읽는다 — GameObject.Find는 화면 밖이라 꺼진
+                // (뷰포트 컬링) 채굴기를 못 찾아서, 멀리 있는 채굴기가 (0,0)으로 저장되는 원인이었다.
                 Vector2Int anchor;
-                GameObject minerVisual = GameObject.Find($"Miner_{i}");
-                if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
-                else cells.TryGetValue((CellOccupantType.Miner, i), out anchor);
+                if (!cells.TryGetValue((CellOccupantType.Miner, i), out anchor))
+                {
+                    GameObject minerVisual = GameObject.Find($"Miner_{i}");
+                    if (minerVisual != null) anchor = GridUtility.WorldToCell(minerVisual.transform.position);
+                }
                 data.miners.Add(new MinerProgressData
                 {
                     exists = true,
@@ -605,17 +607,10 @@ namespace Choi.SaveLoad
 
         private static Dictionary<(CellOccupantType type, int index), Vector2Int> ScanOccupants(SimulationWorld world)
         {
+            // 예전엔 원점 ±64칸만 훑어서, 그 밖에 지은 기계는 위치가 (0,0)으로 저장됐다.
+            // 그리드가 들고 있는 점유 정보를 그대로 읽으므로 거리 제한이 없다.
             var result = new Dictionary<(CellOccupantType, int), Vector2Int>();
-            for (int x = -ScanRange; x <= ScanRange; x++)
-            {
-                for (int y = -ScanRange; y <= ScanRange; y++)
-                {
-                    var cell = new Vector2Int(x, y);
-                    if (!world.Grid.TryGetOccupant(cell, out CellOccupant occupant)) continue;
-                    var key = (occupant.Type, occupant.InstanceIndex);
-                    if (!result.ContainsKey(key)) result[key] = cell;
-                }
-            }
+            world.Grid.CollectAnchorCells(result);
             return result;
         }
 

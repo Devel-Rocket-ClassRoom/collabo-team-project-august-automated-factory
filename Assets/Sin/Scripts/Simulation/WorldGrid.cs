@@ -78,6 +78,24 @@ namespace Factory.Simulation
             return false;
         }
 
+        // Collects the anchor cell (min x, then min y) of every occupant. No distance limit.
+        public void CollectAnchorCells(Dictionary<(CellOccupantType type, int index), Vector2Int> result)
+        {
+            foreach (var kvp in occupants) IncludeAnchorCell(result, kvp.Value, kvp.Key);
+            foreach (var kvp in crossingOccupants)
+            {
+                var key = (kvp.Value.Type, kvp.Value.InstanceIndex);
+                if (!result.ContainsKey(key)) result[key] = kvp.Key;
+            }
+        }
+
+        private static void IncludeAnchorCell(Dictionary<(CellOccupantType type, int index), Vector2Int> result, CellOccupant occupant, Vector2Int cell)
+        {
+            var key = (occupant.Type, occupant.InstanceIndex);
+            if (!result.TryGetValue(key, out var best) || cell.x < best.x || (cell.x == best.x && cell.y < best.y))
+                result[key] = cell;
+        }
+
         public void RegisterOreDeposit(Vector2Int cell, int oreDepositRuntimeId) => oreDepositRuntimeIdByCell[cell] = oreDepositRuntimeId;
         public bool TryGetOreDeposit(Vector2Int cell, out int oreDepositRuntimeId) => oreDepositRuntimeIdByCell.TryGetValue(cell, out oreDepositRuntimeId);
 
