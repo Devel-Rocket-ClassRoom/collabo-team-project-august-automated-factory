@@ -20,11 +20,13 @@ namespace Seo.UI
         private Image accentBar;
         private Image progressFill;
         private Button recipeButton;
+        private Button coreResourceButton;
         private Button demolishButton;
         private GameObject demolitionConfirmation;
 
         public event Action CloseRequested;
         public event Action RecipeRequested;
+        public event Action CoreResourcesRequested;
         public event Action DemolishRequested;
 
         public void Render(in MachineInfoViewData data)
@@ -34,6 +36,10 @@ namespace Seo.UI
             recipeText.text = "레시피 · " + data.Recipe;
             powerText.text = data.Power;
             inputText.text = data.Input;
+            inputText.rectTransform.anchoredPosition = data.CanViewCoreResources
+                ? new Vector2(16f, -8f) : new Vector2(16f, -14f);
+            inputText.rectTransform.sizeDelta = data.CanViewCoreResources
+                ? new Vector2(190f, 50f) : new Vector2(190f, 112f);
             outputText.text = data.Output;
             progressText.text = data.Progress;
             portsText.text = data.Ports;
@@ -41,6 +47,8 @@ namespace Seo.UI
             progressFill.color = data.AccentColor;
             progressFill.fillAmount = data.Progress01;
             recipeButton.gameObject.SetActive(data.CanSelectRecipe);
+            recipeText.gameObject.SetActive(!data.CanViewCoreResources);
+            coreResourceButton.gameObject.SetActive(data.CanViewCoreResources);
         }
 
         public void SetDemolitionAllowed(bool allowed)
@@ -90,6 +98,12 @@ namespace Seo.UI
             var inputCard = CreateImage(root.transform, "InputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -152f), new Vector2(222f, 142f));
             inputCard.color = new Color(0.02f, 0.16f, 0.24f, 0.94f);
             panel.inputText = CreateText(inputCard.transform, "Input", new Vector2(16f, -14f), new Vector2(190f, 112f), 19);
+            panel.coreResourceButton = CreateButton(inputCard.transform, "CoreResourcesButton", "자원 보기",
+                new Vector2(8f, 8f), new Vector2(206f, 68f), false,
+                new Color(0.08f, 0.43f, 0.53f, 1f));
+            panel.coreResourceButton.GetComponentInChildren<Text>(true).fontSize = 24f;
+            panel.coreResourceButton.onClick.AddListener(() => panel.CoreResourcesRequested?.Invoke());
+            panel.coreResourceButton.gameObject.SetActive(false);
 
             var outputCard = CreateImage(root.transform, "OutputCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(268f, -152f), new Vector2(226f, 142f));
             outputCard.color = new Color(0.2f, 0.1f, 0.03f, 0.94f);

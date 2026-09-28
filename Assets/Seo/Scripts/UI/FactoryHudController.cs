@@ -591,14 +591,21 @@ namespace Seo.UI
         private void ToggleCoreResourcePanel()
         {
             if (coreResourcePanel == null) return;
-            bool show = !coreResourcePanel.activeSelf;
-            coreResourcePanel.SetActive(show);
-            if (powerDetailPanel != null) powerDetailPanel.SetActive(false);
-            if (show)
+            if (coreResourcePanel.activeSelf)
             {
-                coreResourcePanel.transform.SetAsLastSibling();
-                RefreshCoreResourcePanel();
+                coreResourcePanel.SetActive(false);
+                return;
             }
+            OpenCoreResourcePanel();
+        }
+
+        public void OpenCoreResourcePanel()
+        {
+            if (coreResourcePanel == null) return;
+            coreResourcePanel.SetActive(true);
+            if (powerDetailPanel != null) powerDetailPanel.SetActive(false);
+            coreResourcePanel.transform.SetAsLastSibling();
+            RefreshCoreResourcePanel();
         }
 
         private void TogglePowerDetailPanel()

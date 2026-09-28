@@ -133,19 +133,23 @@ namespace Seo.UI
 
             if (processor.UniversalPorts)
             {
-                string stored = FormatNonZeroBuffer(db, processor.InputBuffer);
+                int resourceTypes = 0;
+                for (int i = 0; i < processor.InputBuffer.Length; i++)
+                    if (processor.InputBuffer[i] > 0) resourceTypes++;
+                int stored = Sum(processor.InputBuffer);
                 data = new MachineInfoViewData(
                     title,
                     "중앙 저장소",
                     "레시피 없음",
                     MachinePowerDisplay.Format(machine.Key),
-                    "보유 자원\n" + stored,
+                    $"보유 자원 {resourceTypes}종\n총 {stored:N0}개",
                     "출력\n연결된 기계가 요청한 자원을 자동 공급",
-                    "저장 용량 " + Sum(processor.InputBuffer) + " / " + processor.Capacity,
+                    $"저장 용량 {stored:N0} / {processor.Capacity:N0}",
                     "상·하·좌·우 4방향 공용 입출력 포트",
-                    (float)Sum(processor.InputBuffer) / Mathf.Max(1, processor.Capacity),
+                    (float)stored / Mathf.Max(1, processor.Capacity),
                     false,
-                    accent);
+                    accent,
+                    true);
                 return true;
             }
 
