@@ -39,6 +39,8 @@ namespace Factory.Building
         public Camera TargetCamera => targetCamera;
         public SimulationDriver Driver => driver;
         public IEnumerable<(CellOccupantType type, int index)> Selected => selected;
+        public bool HasSelectionArea => hasSelectionArea;
+        public RectInt SelectionBounds => selectionBounds;
 
         public void Initialize(Camera targetCamera, SimulationDriver driver)
         {

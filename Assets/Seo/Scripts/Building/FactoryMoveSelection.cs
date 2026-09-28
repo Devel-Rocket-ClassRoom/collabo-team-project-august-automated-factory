@@ -27,6 +27,7 @@ namespace Seo.Building
         public IReadOnlyList<Entry> Entries => entries;
         public SimulationWorld World => world;
         public RectInt Bounds { get; private set; }
+        public bool HasEntries => entries.Count > 0;
 
         public FactoryMoveSelection(SimulationWorld world, IEnumerable<(CellOccupantType type, int index)> selection)
         {
@@ -51,6 +52,29 @@ namespace Seo.Building
                 max = Vector2Int.Max(max, entry.Anchor + entry.Footprint);
             }
             Bounds = new RectInt(min, max - min);
+        }
+
+        public void IncludeBounds(RectInt bounds)
+        {
+            if (bounds.width <= 0 || bounds.height <= 0) return;
+            if (entries.Count == 0 || Bounds.width <= 0 || Bounds.height <= 0)
+            {
+                Bounds = bounds;
+                return;
+            }
+            int xMin = Mathf.Min(Bounds.xMin, bounds.xMin);
+            int yMin = Mathf.Min(Bounds.yMin, bounds.yMin);
+            int xMax = Mathf.Max(Bounds.xMax, bounds.xMax);
+            int yMax = Mathf.Max(Bounds.yMax, bounds.yMax);
+            Bounds = new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
+        }
+
+        public bool ContainsSourceCell(Vector2Int cell)
+        {
+            foreach (var entry in entries)
+                foreach (var source in GridUtility.GetFootprintCells(entry.Anchor, entry.Footprint))
+                    if (source == cell) return true;
+            return false;
         }
 
         private object GetInstance(CellOccupantType type, int index)

@@ -5,14 +5,31 @@ using UnityEngine;
 
 namespace Seo.Building
 {
+    public sealed class ExternalPowerMoveEntry
+    {
+        public int NodeId;
+        public Vector2Int Cell;
+        public Vector2Int Facing;
+        public Transform Visual;
+    }
+
+    public delegate bool ExternalPowerMoveValidator(IReadOnlyList<ExternalPowerMoveEntry> entries,
+        System.Func<Vector2Int, Vector2Int> transformCell, System.Func<Vector2Int, bool> movingFactoryCell,
+        out string reason);
+
     public sealed class GroupMoveTool : MonoBehaviour, IBuildTool
     {
+        public static System.Func<RectInt, List<ExternalPowerMoveEntry>> CaptureExternalPowerSelection { get; set; }
+        public static ExternalPowerMoveValidator ValidateExternalPowerMove { get; set; }
+        public static System.Func<IReadOnlyList<ExternalPowerMoveEntry>, System.Func<Vector2Int, Vector2Int>, bool>
+            CommitExternalPowerMove { get; set; }
         private static readonly Plane Ground = new Plane(Vector3.up, Vector3.zero);
         private static readonly Color ValidTint = new Color(0.3f, 1f, 0.65f, 1f);
         private static readonly Color InvalidTint = new Color(1f, 0.3f, 0.25f, 1f);
         private readonly List<Transform> originals = new List<Transform>();
         private readonly List<Renderer> previews = new List<Renderer>();
         private readonly List<Renderer> markers = new List<Renderer>();
+        private readonly List<ExternalPowerMoveEntry> powerEntries = new List<ExternalPowerMoveEntry>();
         private MaterialPropertyBlock tint;
         private Camera targetCamera;
         private BuildInputRouter router;
@@ -26,6 +43,7 @@ namespace Seo.Building
         private bool? lastTintValid;
         private float nextValidation;
         private string summary;
+        private int factoryOriginalCount;
         public bool CanConfirm { get; private set; }
         public string Status { get; private set; } = "이동할 기계·벨트를 선택하세요";
 
@@ -68,9 +86,25 @@ namespace Seo.Building
             targetCamera = source.TargetCamera;
             driver = source.Driver;
             selection = new FactoryMoveSelection(driver.World, source.Selected);
-            if (selection.Entries.Count == 0)
+            if (source.HasSelectionArea && CaptureExternalPowerSelection != null)
             {
-                Status = "이동할 기계·벨트가 없습니다 · 코어와 전력 시설은 제외됩니다";
+                var captured = CaptureExternalPowerSelection(source.SelectionBounds);
+                if (captured != null) powerEntries.AddRange(captured);
+            }
+            if (powerEntries.Count > 0)
+            {
+                Vector2Int min = powerEntries[0].Cell;
+                Vector2Int max = min + Vector2Int.one;
+                foreach (var entry in powerEntries)
+                {
+                    min = Vector2Int.Min(min, entry.Cell);
+                    max = Vector2Int.Max(max, entry.Cell + Vector2Int.one);
+                }
+                selection.IncludeBounds(new RectInt(min, max - min));
+            }
+            if (!selection.HasEntries && powerEntries.Count == 0)
+            {
+                Status = "이동할 기계·벨트·전력 시설이 없습니다";
                 selection = null;
                 return false;
             }
@@ -89,7 +123,12 @@ namespace Seo.Building
                 if (entry.Type == CellOccupantType.Belt) beltCells.Add(entry.Anchor);
                 else machines++;
             }
-            summary = $"기계 {machines}개 · 벨트 {beltCells.Count}칸";
+            factoryOriginalCount = originals.Count;
+            foreach (var entry in powerEntries)
+            {
+                if (entry.Visual != null) originals.Add(entry.Visual);
+            }
+            summary = $"기계 {machines}개 · 벨트 {beltCells.Count}칸 · 전력 시설 {powerEntries.Count}개";
             CreatePreview();
             RefreshValidity();
             return true;
@@ -124,6 +163,12 @@ namespace Seo.Building
                 var marker = BuildVisuals.CreateBox(GridUtility.GetFootprintCenter(entry.Anchor, entry.Footprint, 0.04f),
                     new Vector3(entry.Footprint.x, 0.08f, entry.Footprint.y), new Color(1f, 1f, 1f, 0.3f),
                     previewRoot.transform, withCollider: false);
+                markers.Add(marker.GetComponent<Renderer>());
+            }
+            foreach (var entry in powerEntries)
+            {
+                var marker = BuildVisuals.CreateBox(GridUtility.GetFootprintCenter(entry.Cell, Vector2Int.one, 0.04f),
+                    new Vector3(1f, 0.08f, 1f), new Color(1f, 1f, 1f, 0.3f), previewRoot.transform, false);
                 markers.Add(marker.GetComponent<Renderer>());
             }
         }
@@ -200,7 +245,24 @@ namespace Seo.Building
             CanConfirm = false;
             string reason = "공장 상태가 변경됐습니다. 다시 선택하세요";
             if (selection != null && driver != null && ReferenceEquals(driver.World, selection.World))
-                CanConfirm = selection.Validate(offset, out reason, BeltDragTool.ExternalCellBlocked, MachineGhostTool.PlacementPermission, quarterTurns);
+            {
+                if (offset == Vector2Int.zero && FactoryMoveSelection.NormalizeTurns(quarterTurns) == 0)
+                    reason = "선택한 묶음을 드래그하거나 회전하세요";
+                else
+                {
+                    bool PowerBlocked(Vector2Int cell)
+                    {
+                        if (!(BeltDragTool.ExternalCellBlocked?.Invoke(cell) ?? false)) return false;
+                        for (int i = 0; i < powerEntries.Count; i++) if (powerEntries[i].Cell == cell) return false;
+                        return true;
+                    }
+                    CanConfirm = !selection.HasEntries || selection.Validate(offset, out reason, PowerBlocked,
+                        MachineGhostTool.PlacementPermission, quarterTurns);
+                    if (CanConfirm && powerEntries.Count > 0 && ValidateExternalPowerMove != null)
+                        CanConfirm = ValidateExternalPowerMove(powerEntries,
+                            cell => selection.TransformCell(cell, offset, quarterTurns), selection.ContainsSourceCell, out reason);
+                }
+            }
             Status = summary + $" · 회전 {quarterTurns * 90}°\n" + (CanConfirm ? "이동 확정 · 묶음 내부 연결 유지 / 바깥 연결 해제" : reason);
             if (lastTintValid == CanConfirm && tint != null) return;
             // Unity 네이티브 객체는 MonoBehaviour 필드 초기화가 아닌 실행 시점에 생성한다.
@@ -220,16 +282,29 @@ namespace Seo.Building
         {
             RefreshValidity();
             if (!CanConfirm) return false;
-            foreach (var visual in originals)
-                if (visual == null) { Status = "설치물 표시가 바뀌었습니다. 다시 선택하세요"; CanConfirm = false; return false; }
-            if (!selection.TryCommit(offset, out string reason, BeltDragTool.ExternalCellBlocked, MachineGhostTool.PlacementPermission, quarterTurns))
+            for (int i = 0; i < factoryOriginalCount; i++)
+                if (originals[i] == null) { Status = "설치물 표시가 바뀌었습니다. 다시 선택하세요"; CanConfirm = false; return false; }
+            bool PowerBlocked(Vector2Int cell)
+            {
+                if (!(BeltDragTool.ExternalCellBlocked?.Invoke(cell) ?? false)) return false;
+                for (int i = 0; i < powerEntries.Count; i++) if (powerEntries[i].Cell == cell) return false;
+                return true;
+            }
+            if (selection.HasEntries && !selection.TryCommit(offset, out string reason, PowerBlocked,
+                    MachineGhostTool.PlacementPermission, quarterTurns))
             { Status = reason; return false; }
             var rotation = Quaternion.Euler(0f, -quarterTurns * 90f, 0f);
             // 미리보기와 동일한 변환으로 Start/End/Bend, 아이템 표시, 기계 방향을 함께 돌린다.
-            foreach (var visual in originals)
+            for (int i = 0; i < factoryOriginalCount; i++)
+            {
+                Transform visual = originals[i];
                 visual.SetPositionAndRotation(selection.TransformPosition(visual.position, offset, quarterTurns),
                     rotation * visual.rotation);
-            string completed = summary + " 이동 완료 · 바깥쪽 벨트는 다시 연결하세요";
+            }
+            if (powerEntries.Count > 0 && (CommitExternalPowerMove == null
+                || !CommitExternalPowerMove(powerEntries, cell => selection.TransformCell(cell, offset, quarterTurns))))
+            { Status = "전력 시설 이동 중 상태가 변경됐습니다. 다시 선택하세요"; return false; }
+            string completed = summary + " 이동 완료 · 연결이 끊긴 전선 재료는 인벤토리로 반환했습니다";
             CancelMove();
             Status = completed;
             return true;
@@ -243,9 +318,11 @@ namespace Seo.Building
             offset = Vector2Int.zero;
             quarterTurns = 0;
             lastTintValid = null;
+            factoryOriginalCount = 0;
             originals.Clear();
             previews.Clear();
             markers.Clear();
+            powerEntries.Clear();
             if (previewRoot != null)
             {
                 previewRoot.SetActive(false);

@@ -243,6 +243,75 @@ namespace Choi.SaveLoad
             return true;
         }
 
+        /// <summary>
+        /// 발전기/송전탑을 재배치하고 해당 노드에 연결된 전선을 모두 끊는다.
+        /// 건물 자체는 유지하므로 건설 비용은 환불하지 않고, 끊어진 전선 비용만 반환한다.
+        /// </summary>
+        public bool MoveNode(int nodeId, Vector2Int targetCell, Vector2Int facing, out int refundedCopperWire)
+        {
+            return MoveNodes(new Dictionary<int, Vector2Int> { [nodeId] = targetCell },
+                new Dictionary<int, Vector2Int> { [nodeId] = facing }, out refundedCopperWire);
+        }
+
+        public bool MoveNodes(IReadOnlyDictionary<int, Vector2Int> targets,
+            IReadOnlyDictionary<int, Vector2Int> facings, out int refundedCopperWire)
+        {
+            refundedCopperWire = 0;
+            if (targets == null || targets.Count == 0) return false;
+            var moving = new Dictionary<int, PowerNodeRuntime>();
+            var occupiedTargets = new HashSet<Vector2Int>();
+            foreach (var pair in targets)
+            {
+                PowerNodeRuntime node = FindNodeById(pair.Key);
+                if (node == null || (node.Kind != PowerNodeKind.Generator
+                    && node.Kind != PowerNodeKind.TransmissionTower) || !occupiedTargets.Add(pair.Value)) return false;
+                moving[pair.Key] = node;
+            }
+            foreach (var pair in targets)
+                if (nodeByCell.TryGetValue(pair.Value, out PowerNodeRuntime occupant) && !moving.ContainsKey(occupant.Id))
+                    return false;
+
+            if (driver == null) driver = FindAnyObjectByType<SimulationDriver>();
+            foreach (PowerNodeRuntime node in moving.Values)
+            {
+                nodeByCell.Remove(node.Cell);
+                if (node.Kind == PowerNodeKind.Generator && node.FuelProcessorIndex >= 0
+                    && driver != null && driver.World != null)
+                    driver.World.Grid.UnregisterOccupant(CellOccupantType.Processor, node.FuelProcessorIndex);
+            }
+            foreach (var pair in targets)
+            {
+                PowerNodeRuntime node = moving[pair.Key];
+                node.Cell = pair.Value;
+                if (node.Kind == PowerNodeKind.Generator && facings != null
+                    && facings.TryGetValue(pair.Key, out Vector2Int facing) && facing != Vector2Int.zero)
+                    node.Facing = facing;
+                nodeByCell[node.Cell] = node;
+                if (node.Kind == PowerNodeKind.Generator && node.FuelProcessorIndex >= 0
+                    && driver != null && driver.World != null
+                    && node.FuelProcessorIndex < driver.World.Processors.Count)
+                {
+                    ProcessorInstance port = driver.World.Processors[node.FuelProcessorIndex];
+                    if (port != null)
+                    {
+                        port.Anchor = node.Cell;
+                        port.Facing = node.Facing;
+                        driver.World.Grid.RegisterBuilding(node.Cell, CellOccupantType.Processor, node.FuelProcessorIndex);
+                    }
+                }
+            }
+
+            for (int i = connections.Count - 1; i >= 0; i--)
+            {
+                if (!moving.ContainsKey(connections[i].FromNodeId) && !moving.ContainsKey(connections[i].ToNodeId)) continue;
+                refundedCopperWire += connections[i].CopperWireCost;
+                connections.RemoveAt(i);
+            }
+            RemoveUnusedJunctions();
+            evaluationTimer = 0f;
+            return true;
+        }
+
         public bool RemoveConnectionAt(Vector2Int cell, out int refundedCopperWire)
         {
             refundedCopperWire = 0;
