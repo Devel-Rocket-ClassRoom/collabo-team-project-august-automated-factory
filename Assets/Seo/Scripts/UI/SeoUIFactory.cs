@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Seo.UI
 {
-    // Keep the title artwork and its menu in one fitted composition on foldable screens.
+    // Fill the display while keeping the authored logo and menu together.
     internal sealed class TitleCompositionFitter : MonoBehaviour
     {
         private RectTransform composition;
@@ -51,20 +51,55 @@ namespace Seo.UI
                 if (!(child is RectTransform rect)) continue;
                 rect.anchoredPosition -= new Vector2((rect.anchorMin.x - 0.5f) * 232.366f + 55.452f, 0f);
             }
-            var backdrop = new GameObject("SeoTitleBackdrop", typeof(RectTransform), typeof(Image));
-            backdrop.transform.SetParent(transform, false);
-            backdrop.transform.SetAsFirstSibling();
-            SeoUIFactory.SetRect(backdrop.GetComponent<RectTransform>(), Vector2.zero, Vector2.one,
-                Vector2.one * 0.5f, Vector2.zero, Vector2.zero);
-            backdrop.GetComponent<Image>().color = new Color(0.035f, 0.055f, 0.07f, 1f);
-            backdrop.GetComponent<Image>().raycastTarget = false;
+            var background = composition.Find("Background")?.GetComponent<Image>();
+            if (background != null && background.sprite != null)
+            {
+                // The scene's authored rectangle stretches the artwork vertically.
+                // Use the sprite ratio and preserve the menu's relative vertical positions.
+                float height = composition.sizeDelta.x * background.sprite.rect.height / background.sprite.rect.width;
+                foreach (var child in children)
+                {
+                    if (child is RectTransform rect)
+                        rect.anchoredPosition = new Vector2(rect.anchoredPosition.x,
+                            rect.anchoredPosition.y * height / composition.sizeDelta.y);
+                }
+                composition.sizeDelta = new Vector2(composition.sizeDelta.x, height);
+                SeoUIFactory.SetRect(background.rectTransform, Vector2.zero, Vector2.one,
+                    Vector2.one * 0.5f, Vector2.zero, Vector2.zero);
+            }
         }
 
         private void LateUpdate()
         {
-            float fit = Mathf.Min(canvasRect.rect.width / composition.sizeDelta.x,
+            if (Screen.width <= 0 || Screen.height <= 0) return;
+            float fit = Mathf.Max(canvasRect.rect.width / composition.sizeDelta.x,
                 canvasRect.rect.height / composition.sizeDelta.y);
             composition.localScale = Vector3.one * fit;
+
+            Vector2 size = composition.sizeDelta * fit;
+            Rect safe = Screen.safeArea;
+            Vector2 viewport = canvasRect.rect.size;
+            Vector2 safeMin = new Vector2(safe.xMin / Screen.width * viewport.x,
+                safe.yMin / Screen.height * viewport.y) - viewport * 0.5f;
+            Vector2 safeMax = new Vector2(safe.xMax / Screen.width * viewport.x,
+                safe.yMax / Screen.height * viewport.y) - viewport * 0.5f;
+
+            // Normalized bounds of the baked-in logo and the three menu buttons,
+            // including their decorative indicators and a small surrounding margin.
+            composition.anchoredPosition = new Vector2(
+                FitOffset(size.x, viewport.x, safeMin.x, safeMax.x, 0.04f, 0.47f),
+                FitOffset(size.y, viewport.y, safeMin.y, safeMax.y, 0.29f, 0.84f));
+        }
+
+        private static float FitOffset(float size, float viewport, float safeMin, float safeMax,
+            float contentMin, float contentMax)
+        {
+            float overflow = Mathf.Max(0f, (size - viewport) * 0.5f);
+            float min = Mathf.Max(-overflow, safeMin - (contentMin - 0.5f) * size);
+            float max = Mathf.Min(overflow, safeMax - (contentMax - 0.5f) * size);
+            // Prefer the centered composition; only pan when essential content would be clipped.
+            return min <= max ? Mathf.Clamp(0f, min, max)
+                : Mathf.Clamp((min + max) * 0.5f, -overflow, overflow);
         }
     }
 

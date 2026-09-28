@@ -52,16 +52,22 @@ namespace Seo.UI
                 return;
             }
 
-            if (selection.MachineId == "Splitter" || selection.MachineId == "Merger")
+            if (selection.MachineId == "Splitter" || selection.MachineId == "Merger"
+                || selection.MachineId == "CrossBelt")
             {
                 SetPortVisibility(false);
                 autoBadge.SetActive(false);
                 SetRoutingVisibility(true);
                 bool splitter = selection.MachineId == "Splitter";
+                bool crossBelt = selection.MachineId == "CrossBelt";
+                // Match the two independent axes created by BeltDragTool.PlaceCrossableTile.
+                Vector2Int crossAxis = new Vector2Int(-selection.Facing.y, selection.Facing.x);
                 for (int i = 0; i < FourDirs.Length; i++)
                 {
                     Vector2Int dir = FourDirs[i];
-                    bool input = splitter ? dir == -selection.Facing : dir != selection.Facing;
+                    bool input = crossBelt
+                        ? dir == -selection.Facing || dir == -crossAxis
+                        : splitter ? dir == -selection.Facing : dir != selection.Facing;
                     Vector2Int flowDirection = input ? -dir : dir;
                     SetBadgeLabel(routingBadges[i], DirectionArrow(flowDirection), input);
                     float offset = dir.x != 0 ? bounds.extents.x + 0.22f : bounds.extents.z + 0.22f;
