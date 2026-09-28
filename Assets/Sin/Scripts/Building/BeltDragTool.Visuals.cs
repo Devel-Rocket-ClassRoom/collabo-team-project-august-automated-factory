@@ -179,15 +179,26 @@ namespace Factory.Building
             }
 
             beltVisualRoots.Remove(segmentId);
+            // 여기서 Destroy는 프레임 끝에 처리되는데, 세이브 로드는 ClearCurrentFactory(반납)와
+            // RestoreBelts(복원)를 같은 프레임에 연달아 돌린다 — 그러면 복원 쪽 SpawnCommittedVisual의
+            // GetComponent<BeltItemRenderer>()가 "곧 파괴될 옛 컴포넌트"를 그대로 집어서 재사용하고,
+            // 프레임 끝에 그 컴포넌트가 사라지면서 복원된 벨트에 아이템 렌더러가 없는 상태가 된다
+            // (그래서 불러오기 한 번으론 벨트 위 자원이 안 보이고, 한 번 더 불러와야 보였다 — 사용자 보고).
+            // 컴포넌트는 부모에서 뗄 수도 없으니 DestroyImmediate로 즉시 없앤다.
             var itemRenderer = root.GetComponent<BeltItemRenderer>();
-            if (itemRenderer != null) Destroy(itemRenderer);
+            if (itemRenderer != null) DestroyImmediate(itemRenderer);
             // Geometry뿐 아니라 BeltItemRenderer가 만들어둔 아이템 풀 슬롯(BeltItem, root 바로
             // 밑의 형제)도 여기서 같이 치운다 — 컴포넌트만 Destroy하면 그 풀이 만든 자식
             // 오브젝트들은 안 지워지고 고아로 남아 계속 쌓인다(재사용 때마다 새 BeltItemRenderer가
-            // 빈 풀로 다시 시작하므로 옛 자식들을 다시 쓸 일도 없다).
+            // 빈 풀로 다시 시작하므로 옛 자식들을 다시 쓸 일도 없다). 자식은 먼저 부모에서 떼고
+            // 끈 다음 Destroy한다 — 같은 프레임 안에 재사용되면 root.transform.Find("Geometry")가
+            // 파괴 예정인 옛 Geometry를 다시 집을 수 있어서, 눈에 안 띄게 root에서 완전히 분리한다.
             for (int i = root.transform.childCount - 1; i >= 0; i--)
             {
-                Destroy(root.transform.GetChild(i).gameObject);
+                Transform child = root.transform.GetChild(i);
+                child.gameObject.SetActive(false);
+                child.SetParent(null);
+                Destroy(child.gameObject);
             }
             root.name = "Belt_Pooled";
             root.SetActive(false);
