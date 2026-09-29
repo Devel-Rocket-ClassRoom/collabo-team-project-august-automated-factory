@@ -27,6 +27,8 @@ public static class ResearchSetupEditor
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
         if (prefab == null || prefab.transform.Find("ResearchCanvas/ResearchPanel/TierTabs") == null)
             prefab = CreatePrefab(tiers);
+        else
+            EnsureTierReferences(prefab, tiers);
         Scene scene = SceneManager.GetSceneByPath(ScenePath);
         bool temporary = !scene.IsValid() || !scene.isLoaded;
         if (temporary) scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
@@ -54,17 +56,22 @@ public static class ResearchSetupEditor
             Tier("ResearchTier_03", 3, "첨단 산업", 700,
                 new[] { Goal("Gear", 100), Goal("EnergyCell", 100) },
                 new[] { "ProcessingMachine" }, new[] { "ProcessCircuit", "ProcessPlasmaCore", "SynthesizHighCapacityBattery" }),
+            Tier("ResearchTier_04", 4, "자동화의 완성", 400,
+                new[] { Goal("Circuit", 10000), Goal("CarbonNanotube", 10000), Goal("PlasmaCore", 10000) },
+                new string[0], new string[0], true),
         };
     }
 
     private static ResearchTierAsset Tier(string file, int tier, string name, int mapSize,
-        ResearchResourceGoal[] goals, string[] machines, string[] recipes)
+        ResearchResourceGoal[] goals, string[] machines, string[] recipes, bool unlocksEnding = false)
     {
         string path = $"{Root}/Tiers/{file}.asset";
         var asset = AssetDatabase.LoadAssetAtPath<ResearchTierAsset>(path);
-        if (asset != null && asset.machineRewards.Count > 0) return asset;
+        if (asset != null) return asset;
         if (asset == null) { asset = ScriptableObject.CreateInstance<ResearchTierAsset>(); AssetDatabase.CreateAsset(asset, path); }
         asset.tier = tier; asset.displayName = name; asset.description = "코어의 자원을 연구소에 누적 납품하세요."; asset.unlockedMapSize = mapSize;
+        asset.unlocksEnding = unlocksEnding;
+        if (unlocksEnding) asset.description = "가공기 생산품 3종을 각각 10,000개씩 누적 납품하면 엔딩이 해금됩니다.";
         asset.resourceGoals = new List<ResearchResourceGoal>(goals);
         asset.machineRewards = new List<ResearchMachineReward>();
         foreach (string id in machines) asset.machineRewards.Add(new ResearchMachineReward { machine = AssetDatabase.LoadAssetAtPath<MachineSO>($"Assets/Bae/Data/Machines/{id}.asset") });
@@ -74,6 +81,29 @@ public static class ResearchSetupEditor
     }
 
     private static ResearchResourceGoal Goal(string id, int amount) => new ResearchResourceGoal { resourceId = id, amount = amount };
+
+    private static void EnsureTierReferences(GameObject prefab, List<ResearchTierAsset> tiers)
+    {
+        var controller = prefab.GetComponent<ResearchController>();
+        if (controller == null) return;
+        var serialized = new SerializedObject(controller);
+        var references = serialized.FindProperty("tiers");
+        bool changed = false;
+        foreach (var tier in tiers)
+        {
+            bool exists = false;
+            for (int i = 0; i < references.arraySize; i++)
+                exists |= references.GetArrayElementAtIndex(i).objectReferenceValue == tier;
+            if (exists) continue;
+            references.arraySize++;
+            references.GetArrayElementAtIndex(references.arraySize - 1).objectReferenceValue = tier;
+            changed = true;
+        }
+        if (!changed) return;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+        PrefabUtility.SavePrefabAsset(prefab);
+        AssetDatabase.SaveAssets();
+    }
 
     private static GameObject CreatePrefab(List<ResearchTierAsset> tiers)
     {

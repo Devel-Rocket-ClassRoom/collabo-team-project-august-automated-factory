@@ -28,6 +28,8 @@ namespace Choi.Research
         public string displayName;
         [TextArea] public string description;
         [Min(1)] public int unlockedMapSize = 100;
+        [Tooltip("이 티어의 납품을 완료하면 엔딩을 표시합니다.")]
+        public bool unlocksEnding;
         public List<ResearchResourceGoal> resourceGoals = new List<ResearchResourceGoal>();
         public List<ResearchMachineReward> machineRewards = new List<ResearchMachineReward>();
         [Tooltip("Assets/Bae/Data/Recipes의 RecipeSO")]

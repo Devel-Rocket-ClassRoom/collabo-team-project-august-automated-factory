@@ -4,6 +4,7 @@ using Choi.SaveLoad;
 using Factory.Building;
 using Factory.Simulation;
 using Optimization;
+using Seo.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -38,11 +39,14 @@ namespace Choi.Research
         private readonly List<Button> tierTabs = new List<Button>();
         private readonly List<GameObject> rewardCards = new List<GameObject>();
         private GameObject inputBlocker;
+        private GameObject endingRoot;
+        private Button continueButton;
         private CanvasGroup backgroundHud;
         private bool backgroundWasInteractable;
         private GameObject previousSelection;
         private readonly List<Behaviour> blockedInputs = new List<Behaviour>();
-        public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
+        public bool IsOpen => (panelRoot != null && panelRoot.activeInHierarchy)
+            || (endingRoot != null && endingRoot.activeInHierarchy);
         public int CompletedTier => completedTier;
         public event Action UnlocksChanged;
 
@@ -79,6 +83,8 @@ namespace Choi.Research
             ResearchProgressData data = JsonUtility.FromJson<ResearchProgressData>(json);
             if (data == null) throw new InvalidOperationException("Research save data is invalid.");
 
+            // 불러온 진행도 위에 이전 엔딩이 남지 않도록 닫는다. 완료 여부는 completedTier로 저장된다.
+            if (endingRoot != null && endingRoot.activeSelf) Close();
             completedTier = Mathf.Clamp(data.completedTier, 0, tiers.Count);
             suppliedAmounts = data.suppliedAmounts ?? new List<int>();
             EnsureProgressSize(completedTier < tiers.Count ? tiers[completedTier].resourceGoals.Count : 0);
@@ -121,6 +127,7 @@ namespace Choi.Research
         {
             Close();
             if (inputBlocker != null) Destroy(inputBlocker);
+            if (endingRoot != null) Destroy(endingRoot);
             if (Instance == this) Instance = null;
         }
 
@@ -133,6 +140,12 @@ namespace Choi.Research
         public void Open()
         {
             if (panelRoot == null || IsOpen) return;
+            OpenModal(panelRoot, closeButton);
+            Refresh();
+        }
+
+        private void OpenModal(GameObject root, Button initialSelection)
+        {
             if (inputBlocker == null)
             {
                 inputBlocker = new GameObject("ResearchInputBlocker", typeof(RectTransform), typeof(Image));
@@ -148,9 +161,9 @@ namespace Choi.Research
             }
 
             inputBlocker.transform.SetAsLastSibling();
-            panelRoot.transform.SetAsLastSibling();
+            root.transform.SetAsLastSibling();
             inputBlocker.SetActive(true);
-            panelRoot.SetActive(true);
+            root.SetActive(true);
 
             var hud = GameObject.Find("HUDCanvas");
             if (hud != null)
@@ -166,9 +179,8 @@ namespace Choi.Research
             if (EventSystem.current != null)
             {
                 previousSelection = EventSystem.current.currentSelectedGameObject;
-                EventSystem.current.SetSelectedGameObject(closeButton != null ? closeButton.gameObject : null);
+                EventSystem.current.SetSelectedGameObject(initialSelection != null ? initialSelection.gameObject : null);
             }
-            Refresh();
         }
 
         private void BlockInput(Behaviour input)
@@ -181,6 +193,7 @@ namespace Choi.Research
         public void Close()
         {
             panelRoot?.SetActive(false);
+            endingRoot?.SetActive(false);
             if (inputBlocker != null) inputBlocker.SetActive(false);
             if (backgroundHud != null)
             {
@@ -251,6 +264,44 @@ namespace Choi.Research
                 viewedTier = Mathf.Min(completedTier, tiers.Count - 1);
             }
             Refresh();
+            if (complete && tier.unlocksEnding) ShowEnding();
+        }
+
+        private void ShowEnding()
+        {
+            if (panelRoot == null) return;
+            Close();
+            if (endingRoot == null)
+            {
+                endingRoot = SeoUIFactory.CreatePanel(panelRoot.transform.parent, "ResearchEnding",
+                    Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                    new Color(.025f, .045f, .065f, 1f)).gameObject;
+
+                CreateEndingText("Chapter", "TIER 4 · 최종 연구 완료", 24, .73f, .83f,
+                    new Color(.35f, .9f, .95f));
+                CreateEndingText("Title", "자동화의 완성", 52, .55f, .72f, Color.white);
+                CreateEndingText("Message",
+                    "회로 · 탄소 나노 튜브 · 플라즈마 코어\n각각 10,000개 납품 완료\n\n당신의 공장은 마침내 모든 연구를 완성했습니다.\n플레이해 주셔서 감사합니다.",
+                    26, .27f, .54f, new Color(.8f, .86f, .92f));
+                continueButton = SeoUIFactory.CreateTMPButton(endingRoot.transform, "ContinueButton",
+                    "계속 플레이", Close, new Color(.08f, .45f, .52f));
+                SeoUIFactory.SetRect((RectTransform)continueButton.transform,
+                    new Vector2(.35f, .12f), new Vector2(.65f, .21f),
+                    Vector2.one * .5f, Vector2.zero, Vector2.zero);
+            }
+            OpenModal(endingRoot, continueButton);
+        }
+
+        private void CreateEndingText(string name, string value, int fontSize, float bottom, float top, Color color)
+        {
+            TMP_Text text = SeoUIFactory.CreateTMPText(endingRoot.transform, name, value,
+                fontSize, TextAnchor.MiddleCenter);
+            SeoUIFactory.SetRect(text.rectTransform, new Vector2(.08f, bottom), new Vector2(.92f, top),
+                Vector2.one * .5f, Vector2.zero, Vector2.zero);
+            text.color = color;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 12;
+            text.fontSizeMax = fontSize;
         }
 
         private void Refresh()
@@ -258,15 +309,6 @@ namespace Choi.Research
             Resolve();
             if (tiers.Count == 0) return;
             viewedTier = Mathf.Clamp(viewedTier, 0, tiers.Count - 1);
-            if (completedTier >= tiers.Count && viewedTier >= tiers.Count)
-            {
-                if (titleText != null) titleText.text = "연구 완료";
-                if (descriptionText != null) descriptionText.text = "모든 티어가 개방되었습니다.";
-                if (goalsText != null) goalsText.text = string.Empty;
-                if (unlocksText != null) unlocksText.text = string.Empty;
-                if (supplyButton != null) supplyButton.gameObject.SetActive(false);
-                return;
-            }
             var tier = tiers[viewedTier];
             if (viewedTier == completedTier) EnsureProgressSize(tier.resourceGoals.Count);
             if (titleText != null) titleText.text = $"TIER {tier.tier}  {tier.displayName}";
@@ -275,7 +317,10 @@ namespace Choi.Research
             for (int i = 0; i < tier.resourceGoals.Count; i++)
                 lines.Add($"{DisplayName(tier.resourceGoals[i].resourceId)}   {(viewedTier < completedTier ? tier.resourceGoals[i].amount : viewedTier == completedTier ? suppliedAmounts[i] : 0)} / {tier.resourceGoals[i].amount}");
             if (goalsText != null) goalsText.text = string.Join("\n", lines);
-            if (unlocksText != null) unlocksText.text = viewedTier < completedTier ? "해금 완료" : viewedTier > completedTier ? "선행 티어를 먼저 해금하세요" : "요구 자원을 납품해 해금하세요";
+            if (unlocksText != null) unlocksText.text = viewedTier < completedTier
+                ? (tier.unlocksEnding ? "최종 연구 완료 · 엔딩 해금" : "해금 완료")
+                : viewedTier > completedTier ? "선행 티어를 먼저 해금하세요"
+                : tier.unlocksEnding ? "납품 완료 보상 · 엔딩" : "요구 자원을 납품해 해금하세요";
             if (supplyButton != null) supplyButton.gameObject.SetActive(viewedTier == completedTier);
             RefreshRewards(tier);
         }
@@ -289,7 +334,8 @@ namespace Choi.Research
                 int index = i;
                 Button tab = Instantiate(tierTabPrefab, tierTabRoot);
                 tab.gameObject.SetActive(true);
-                tab.GetComponentInChildren<TMP_Text>().text = $"TIER {tiers[i].tier}";
+                // Awake에서는 연구 패널이 닫혀 있어 비활성 자식의 라벨도 찾는다.
+                tab.GetComponentInChildren<TMP_Text>(true).text = $"TIER {tiers[i].tier}";
                 tab.onClick.AddListener(() => { viewedTier = index; Refresh(); });
                 tierTabs.Add(tab);
             }

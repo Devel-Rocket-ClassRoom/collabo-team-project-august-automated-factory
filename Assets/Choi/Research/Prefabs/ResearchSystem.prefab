@@ -61,6 +61,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d5968ab703d76c142bf071099601ea2c, type: 2}
   - {fileID: 11400000, guid: 7a25332e60cb08749bc821e7a5a8e6c1, type: 2}
   - {fileID: 11400000, guid: 976e18b8622f633428c3bcc4944cb98b, type: 2}
+  - {fileID: 11400000, guid: a57c49de92864c81b697e21458f9d104, type: 2}
   completedTier: 0
   suppliedAmounts: 
 --- !u!114 &1551381763058924391
