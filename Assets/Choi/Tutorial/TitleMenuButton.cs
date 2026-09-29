@@ -14,7 +14,8 @@ public sealed class TitleMenuButton : MonoBehaviour,
     {
         None,
         StartGame,
-        QuitGame
+        QuitGame,
+        Settings
     }
 
     [SerializeField] private Image indicator;
@@ -97,6 +98,11 @@ public sealed class TitleMenuButton : MonoBehaviour,
 
         switch (action)
         {
+            case MenuAction.Settings:
+                confirming = false;
+                Seo.UI.BgmSettingsPanel.Show();
+                RefreshIndicator();
+                break;
             case MenuAction.StartGame:
                 SceneManager.LoadScene(sceneName);
                 break;

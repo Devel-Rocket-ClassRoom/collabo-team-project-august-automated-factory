@@ -677,7 +677,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   indicator: {fileID: 48979062}
   underline: {fileID: 1263390142}
-  action: 0
+  action: 3
   sceneName: Main
   confirmGlowDuration: 0.5
 --- !u!1 &48979060
