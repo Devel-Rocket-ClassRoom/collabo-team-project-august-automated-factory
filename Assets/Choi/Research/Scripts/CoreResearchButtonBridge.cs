@@ -61,6 +61,24 @@ namespace Choi.Research
                     SeoUIFactory.SetResearchLocked(button, !unlocked);
                 }
             }
+            // FactoryHudController.EnsureRuntimeMachineButton으로 늦게 추가된 팔레트 버튼(가공기,
+            // 크로스벨트 등)은 BuildPaletteButton 컴포넌트가 없어서 위 스캔에 안 잡힌다 — 그래서
+            // 연구를 하나도 안 깨도 처음부터 항상 눌리는 상태로 남았다(사용자 보고: 가공기가
+            // 티어 3을 해금해야 열려야 하는데 처음부터 열려있음). 이런 버튼도 이름
+            // ("PaletteButton_<machineId>", EnsureRuntimeMachineButton이 그 규칙으로 짓는다)에서
+            // machineId를 바로 뽑아 같은 방식으로 잠근다. GameObject.Find는 카테고리 창이 닫혀
+            // 비활성화된 버튼을 못 찾으므로(BuildPaletteButton 스캔과 같은 이유) 여기서도
+            // Resources.FindObjectsOfTypeAll을 쓴다.
+            const string palettePrefix = "PaletteButton_";
+            foreach (Button button in Resources.FindObjectsOfTypeAll<Button>())
+            {
+                if (button == null || !button.gameObject.scene.IsValid()) continue;
+                if (button.GetComponent<BuildPaletteButton>() != null) continue; // 위에서 이미 처리함.
+                if (!button.name.StartsWith(palettePrefix)) continue;
+                string id = button.name.Substring(palettePrefix.Length);
+                SeoUIFactory.SetResearchLocked(button, !research.IsMachineUnlocked(id));
+            }
+
             var recipePanel = RecipeSelectionPanel.Instance;
             if (recipePanel == null) return;
             foreach (Button button in recipePanel.GetComponentsInChildren<Button>(true))
