@@ -215,6 +215,20 @@ namespace Choi.Research
             previousSelection = null;
         }
 
+        // 튜토리얼 마지막 단계에서는 연구소 화면을 보여 준 채 배경과 완료 버튼도 조작할 수 있게 한다.
+        public void ReleaseModalInputForTutorial()
+        {
+            if (inputBlocker != null) inputBlocker.SetActive(false);
+            if (backgroundHud != null)
+            {
+                backgroundHud.interactable = true;
+                backgroundHud = null;
+            }
+            foreach (var input in blockedInputs)
+                if (input != null) input.enabled = true;
+            blockedInputs.Clear();
+        }
+
         public bool IsMachineUnlocked(string id) => IsUnlocked(id, false);
         public bool IsRecipeUnlocked(string id) => IsUnlocked(id, true);
 
