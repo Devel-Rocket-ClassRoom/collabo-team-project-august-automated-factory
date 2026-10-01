@@ -43,6 +43,8 @@ namespace Choi.Tutorial
             PlaceTower,
             PickCable,
             ConnectPower,
+            ReturnToCore,
+            OpenResearch,
             Complete,
         }
 
@@ -84,6 +86,14 @@ namespace Choi.Tutorial
         private GameObject worldHighlight;
         private GameObject placementPreview;
         private GameObject beltGuide;
+        private GameObject fingerGuide;
+        private RectTransform fingerCanvas;
+        private RectTransform fingerUiTarget;
+        private Vector3 fingerWorldTarget;
+        private float fingerWorldRadius;
+        private bool fingerTracksWorld;
+        private Texture2D arrowTexture;
+        private Sprite arrowSprite;
         private Outline uiOutline;
         private Graphic uiGraphic;
         private int copperOreId = -1;
@@ -107,6 +117,7 @@ namespace Choi.Tutorial
             switch (Instance.step)
             {
                 case Step.Core:
+                case Step.ReturnToCore:
                     return kind == MachineInstanceKind.Processor
                         && Instance.driver != null && Instance.driver.World != null
                         && index == Instance.driver.World.CoreProcessorIndex;
@@ -143,6 +154,8 @@ namespace Choi.Tutorial
         private void OnDestroy()
         {
             RestoreInput();
+            if (arrowSprite != null) Destroy(arrowSprite);
+            if (arrowTexture != null) Destroy(arrowTexture);
             if (Instance == this) Instance = null;
         }
 
@@ -164,7 +177,7 @@ namespace Choi.Tutorial
 
         private void LateUpdate()
         {
-            ApplyInputLocks();
+            if (step != Step.Complete) ApplyInputLocks();
         }
 
         private bool Discover()
@@ -328,7 +341,25 @@ namespace Choi.Tutorial
                         Enter(Step.ConnectPower);
                     break;
                 case Step.ConnectPower:
-                    if (HasPowerConnection(generatorNodeId, towerNodeId)) Enter(Step.Complete);
+                    if (HasPowerConnection(generatorNodeId, towerNodeId)) Enter(Step.ReturnToCore);
+                    break;
+                case Step.ReturnToCore:
+                    if (IsSelected(MachineInstanceKind.Processor, world.CoreProcessorIndex))
+                        Enter(Step.OpenResearch);
+                    break;
+                case Step.OpenResearch:
+                    if (GameObject.Find("ResearchButton") != null
+                        && (uiOutline == null || uiOutline.gameObject.name != "ResearchButton"))
+                    {
+                        ClearHighlights();
+                        HighlightUI("ResearchButton");
+                    }
+                    if (Choi.Research.ResearchController.Instance != null
+                        && Choi.Research.ResearchController.Instance.IsOpen)
+                    {
+                        Choi.Research.ResearchController.Instance.ReleaseModalInputForTutorial();
+                        Enter(Step.Complete);
+                    }
                     break;
             }
         }
@@ -338,7 +369,7 @@ namespace Choi.Tutorial
             ClearHighlights();
             step = next;
             enteredAt = Time.unscaledTime;
-            progressText.text = $"튜토리얼  {Mathf.Min((int)next, 21)} / 21";
+            progressText.text = $"튜토리얼  {Mathf.Min((int)next, 23)} / 23";
 
             switch (next)
             {
@@ -447,12 +478,22 @@ namespace Choi.Tutorial
                     SetCopy("발전기 → 송전탑 연결", "발전기를 누른 채 송전탑까지 드래그해 전선으로 연결하세요.");
                     CreateBeltGuide(new[] { GeneratorCell, TowerCell }, "시작\n발전기", "도착\n송전탑");
                     break;
+                case Step.ReturnToCore:
+                    powerBuild?.SetMode(PowerBuildMode.None);
+                    SetCopy("연구소 확인", "빛나는 코어를 한 번 누르세요.");
+                    HighlightWorld(GameObject.Find("Core"), 2.8f);
+                    break;
+                case Step.OpenResearch:
+                    SetCopy("연구소 열기", "화살표가 가리키는 ‘연구소’ 버튼을 누르세요.");
+                    HighlightUI("ResearchButton");
+                    break;
                 case Step.Complete:
-                    SetCopy("공장과 전력망 완성!", "발전기에 석탄이 공급되고 송전탑까지 전선으로 연결되었습니다. 송전탑 범위 안의 기계가 발전 전력을 사용할 수 있습니다.");
+                    SetCopy("공장과 전력망 완성!", "발전기에 석탄이 공급되고 송전탑까지 전선으로 연결되었습니다. 송전탑 범위 안의 기계가 발전 전력을 사용할 수 있습니다.\n연구소로 티어를 올리며 공장을 늘려보세요.");
                     progressText.text = "튜토리얼 완료";
                     skipButton.GetComponentInChildren<TMP_Text>().text = "닫기";
                     skipButton.onClick.RemoveAllListeners();
                     skipButton.onClick.AddListener(FinishTutorial);
+                    RestoreInput();
                     break;
             }
         }
@@ -460,7 +501,7 @@ namespace Choi.Tutorial
         private void BuildPanel(Transform parent)
         {
             var panel = SeoUIFactory.CreatePanel(parent, "FactoryTutorialPanel", new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -186f), new Vector2(720f, 170f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -48f), new Vector2(720f, 170f),
                 new Color(0.015f, 0.08f, 0.12f, 0.97f));
             panel.rectTransform.pivot = new Vector2(0.5f, 1f);
             panelRoot = panel.gameObject;
@@ -556,6 +597,8 @@ namespace Choi.Tutorial
                 case Step.PickGenerator: return buttonName == "PowerAction_발전기";
                 case Step.PickTower: return buttonName == "PowerAction_송전탑";
                 case Step.PickCable: return buttonName == "PowerAction_전선";
+                case Step.OpenResearch: return buttonName == "ResearchButton";
+                case Step.Complete: return buttonName == "Close";
                 default: return false;
             }
         }
@@ -676,6 +719,7 @@ namespace Choi.Tutorial
             uiOutline = uiGraphic.gameObject.AddComponent<Outline>();
             uiOutline.effectDistance = new Vector2(6f, -6f);
             uiOutline.useGraphicAlpha = false;
+            CreateFingerGuide(uiGraphic.rectTransform);
         }
 
         private void HighlightNamedChild(string rootName, string childName)
@@ -703,12 +747,147 @@ namespace Choi.Tutorial
             if (target == null) return;
             worldHighlight = CreateRing(target.transform.position, radius);
             worldHighlight.transform.SetParent(target.transform, true);
+            CreateFingerGuide(target.transform.position, radius);
         }
 
         private void HighlightCell(Vector2Int cell, float radius)
         {
             Vector3 position = GridUtility.CellToWorldCenter(cell, 0.06f);
             worldHighlight = CreateRing(position, radius);
+            CreateFingerGuide(position, radius);
+        }
+
+        // 글을 읽지 않아도 목표를 찾을 수 있도록 UI 도형만으로 만든 큰 화살표를 표시한다.
+        private void CreateFingerGuide(RectTransform target)
+        {
+            fingerUiTarget = target;
+            fingerTracksWorld = false;
+            CreateFingerVisual();
+        }
+
+        private void CreateFingerGuide(Vector3 worldPosition, float worldRadius)
+        {
+            fingerWorldTarget = worldPosition;
+            fingerWorldRadius = worldRadius;
+            fingerTracksWorld = true;
+            CreateFingerVisual();
+        }
+
+        private void CreateFingerVisual()
+        {
+            if (fingerGuide != null) Destroy(fingerGuide);
+            Canvas canvas = panelRoot != null ? panelRoot.GetComponentInParent<Canvas>() : null;
+            if (canvas == null) return;
+            fingerCanvas = canvas.transform as RectTransform;
+            fingerGuide = new GameObject("TutorialArrowGuide", typeof(RectTransform), typeof(CanvasGroup),
+                typeof(Image));
+            RectTransform root = fingerGuide.GetComponent<RectTransform>();
+            root.SetParent(canvas.transform, false);
+            root.sizeDelta = new Vector2(92f, 120f);
+            root.localRotation = Quaternion.Euler(0f, 0f, -135f);
+            fingerGuide.GetComponent<CanvasGroup>().blocksRaycasts = false;
+            var arrow = fingerGuide.GetComponent<Image>();
+            arrow.sprite = GetArrowSprite();
+            arrow.color = new Color(0.22f, 0.4f, 1f, 1f);
+            arrow.preserveAspect = true;
+            arrow.raycastTarget = false;
+            var outline = fingerGuide.AddComponent<Outline>();
+            outline.effectColor = new Color(0.03f, 0.08f, 0.2f, 0.95f);
+            outline.effectDistance = new Vector2(3f, -3f);
+            outline.useGraphicAlpha = false;
+            root.SetAsLastSibling();
+            UpdateFingerPosition();
+        }
+
+        private void HideArrowGuide()
+        {
+            if (fingerGuide != null) Destroy(fingerGuide);
+            fingerGuide = null;
+            fingerCanvas = null;
+            fingerUiTarget = null;
+        }
+
+        private Sprite GetArrowSprite()
+        {
+            if (arrowSprite != null) return arrowSprite;
+            const int width = 64;
+            const int height = 96;
+            arrowTexture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                name = "TutorialChevronTexture",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            var pixels = new Color32[width * height];
+            var clear = new Color32(255, 255, 255, 0);
+            var solid = new Color32(255, 255, 255, 255);
+            Vector2[] polygon =
+            {
+                new Vector2(22f, 92f), new Vector2(42f, 92f), new Vector2(42f, 53f),
+                new Vector2(60f, 53f), new Vector2(32f, 4f), new Vector2(4f, 53f),
+                new Vector2(22f, 53f),
+            };
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                pixels[y * width + x] = IsPointInsidePolygon(new Vector2(x + .5f, y + .5f), polygon)
+                    ? solid : clear;
+            arrowTexture.SetPixels32(pixels);
+            arrowTexture.Apply(false, true);
+            arrowSprite = Sprite.Create(arrowTexture, new Rect(0f, 0f, width, height), new Vector2(.5f, .5f), 100f);
+            arrowSprite.name = "TutorialChevronSprite";
+            return arrowSprite;
+        }
+
+        private static bool IsPointInsidePolygon(Vector2 point, IReadOnlyList<Vector2> polygon)
+        {
+            bool inside = false;
+            for (int i = 0, previous = polygon.Count - 1; i < polygon.Count; previous = i++)
+            {
+                Vector2 a = polygon[i];
+                Vector2 b = polygon[previous];
+                if ((a.y > point.y) != (b.y > point.y)
+                    && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x)
+                    inside = !inside;
+            }
+            return inside;
+        }
+
+        private void UpdateFingerPosition()
+        {
+            if (fingerGuide == null || fingerCanvas == null) return;
+            Canvas canvas = fingerCanvas.GetComponent<Canvas>();
+            Camera canvasCamera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? canvas.worldCamera : null;
+            Vector2 screenPoint;
+            float ringRadius = 0f;
+            if (fingerTracksWorld)
+            {
+                Camera worldCamera = Camera.main;
+                if (worldCamera == null) return;
+                screenPoint = worldCamera.WorldToScreenPoint(fingerWorldTarget);
+                Vector2 radiusPoint = worldCamera.WorldToScreenPoint(
+                    fingerWorldTarget + worldCamera.transform.right * fingerWorldRadius);
+                ringRadius = Vector2.Distance(screenPoint, radiusPoint);
+            }
+            else
+            {
+                if (fingerUiTarget == null || !fingerUiTarget.gameObject.activeInHierarchy)
+                {
+                    HideArrowGuide();
+                    return;
+                }
+                screenPoint = RectTransformUtility.WorldToScreenPoint(canvasCamera, fingerUiTarget.TransformPoint(fingerUiTarget.rect.center));
+            }
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(fingerCanvas, screenPoint, canvasCamera, out Vector2 local))
+            {
+                float canvasScale = fingerCanvas.lossyScale.x;
+                if (canvasScale > 0.001f) ringRadius /= canvasScale;
+                Vector2 diagonal = new Vector2(0.7071f, -0.7071f);
+                // 화살표는 오른쪽 아래에 머물며 대각선 왼쪽 위로 원 테두리(또는 UI 중심)를 가리킨다.
+                float bob = (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f)) * 14f;
+                float distance = (fingerTracksWorld ? ringRadius : 0f) + 52f + bob;
+                fingerGuide.GetComponent<RectTransform>().anchoredPosition = local + diagonal * distance;
+            }
         }
 
         private static GameObject CreateRing(Vector3 position, float radius)
@@ -823,6 +1002,7 @@ namespace Choi.Tutorial
 
         private void AnimateHighlights()
         {
+            UpdateFingerPosition();
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
             if (uiOutline != null)
             {
@@ -849,11 +1029,15 @@ namespace Choi.Tutorial
             if (worldHighlight != null) Destroy(worldHighlight);
             if (placementPreview != null) Destroy(placementPreview);
             if (beltGuide != null) Destroy(beltGuide);
+            if (fingerGuide != null) Destroy(fingerGuide);
             uiOutline = null;
             uiGraphic = null;
             worldHighlight = null;
             placementPreview = null;
             beltGuide = null;
+            fingerGuide = null;
+            fingerCanvas = null;
+            fingerUiTarget = null;
         }
 
         private bool IsSelected(MachineInstanceKind kind, int index)
