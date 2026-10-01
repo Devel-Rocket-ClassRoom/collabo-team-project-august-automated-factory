@@ -25,7 +25,7 @@ namespace Seo.UI
         private static readonly string[] Copy =
         {
             "<size=56>CREDITS</size>\n\n[NEOFORGE]\nTEAM [백 투게더]",
-            "<size=36>TEAM</size>\n\nProject Manager / Main Programmer | [신재윤]\nGame Designer / Writer | [배창현]\nLead Programmer | [최태희]\nUI & System Programmer | [서동연]",
+            "<size=36>TEAM</size>\n\nProject Manager / System Programmer | [배창현]\nLead Programmer | [신재윤]\nSub Programmer | [최태희]\nUI Programmer | [서동연]",
             "<size=36>에셋 정보</size>\n\n[SCI-FI UI Pack Pro]\n[OZEA_STUDIO_ULTIMATE]",
             "<size=36>SPECIAL THANKS</size>\n\n[링크즈] [이부현 대표님]\n[디벨로켓] [메타프로그래밍13기]\n[김인성] 강사님\n테스트에 참여해 준 모든 분들",
             "COPYRIGHT 2026.\nTEAM [백 투게더]\nALL RIGHTS RESERVED."
