@@ -84,11 +84,11 @@ namespace Seo.UI
             Vector2 safeMax = new Vector2(safe.xMax / Screen.width * viewport.x,
                 safe.yMax / Screen.height * viewport.y) - viewport * 0.5f;
 
-            // Normalized bounds of the baked-in logo and the three menu buttons,
+            // Normalized bounds of the baked-in logo and the four menu buttons,
             // including their decorative indicators and a small surrounding margin.
             composition.anchoredPosition = new Vector2(
                 FitOffset(size.x, viewport.x, safeMin.x, safeMax.x, 0.04f, 0.47f),
-                FitOffset(size.y, viewport.y, safeMin.y, safeMax.y, 0.29f, 0.84f));
+                FitOffset(size.y, viewport.y, safeMin.y, safeMax.y, 0.20f, 0.84f));
         }
 
         private static float FitOffset(float size, float viewport, float safeMin, float safeMax,

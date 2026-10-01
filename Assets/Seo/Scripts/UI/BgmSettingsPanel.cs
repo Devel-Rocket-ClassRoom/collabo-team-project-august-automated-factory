@@ -51,6 +51,8 @@ namespace Seo.UI
 
         public static bool TryHandleBack()
         {
+            // Close the topmost credits screen without also dismissing settings.
+            if (CreditsPanel.TryHandleBack()) return true;
             // Both this panel and the in-game HUD listen for Escape. Consume the
             // closing frame as well, regardless of which Update runs first.
             if (instance != null && instance.gameObject.activeSelf)
@@ -84,20 +86,21 @@ namespace Seo.UI
             title.color = SeoUITheme.Current.Primary;
 
             var label = SeoUIFactory.CreateTMPText(panel.transform, "BgmLabel", "배경음악", 25);
-            Place(label.rectTransform, -225f, 46f, 210f, 44f);
+            Place(label.rectTransform, -155f, 75f, 210f, 36f);
             volumeLabel = SeoUIFactory.CreateTMPText(panel.transform, "Volume", "", 25,
                 TextAnchor.MiddleRight, FontStyle.Bold);
-            Place(volumeLabel.rectTransform, 260f, 46f, 140f, 44f);
+            Place(volumeLabel.rectTransform, 190f, 75f, 140f, 36f);
 
             BuildSlider(panel.transform);
 
             var hint = SeoUIFactory.CreateTMPText(panel.transform, "Hint",
                 "변경한 볼륨은 자동으로 저장됩니다", 18, TextAnchor.MiddleCenter);
-            Place(hint.rectTransform, 0f, -72f, 660f, 36f);
+            Place(hint.rectTransform, 0f, -15f, 560f, 36f);
             hint.color = SeoUITheme.Current.Muted;
 
             var close = SeoUIFactory.CreateTMPButton(panel.transform, "Close", "닫기", Close);
-            Place(close.GetComponent<RectTransform>(), 0f, -135f, 180f, 56f);
+            Place(close.GetComponent<RectTransform>(), 0f, -110f, 440f, 88f);
+            close.GetComponentInChildren<TMP_Text>().fontSize = 32f;
 
             // Keep keyboard/controller focus inside the modal while it is open.
             volumeSlider.navigation = new Navigation
@@ -112,17 +115,18 @@ namespace Seo.UI
                 selectOnUp = volumeSlider,
                 selectOnDown = volumeSlider
             };
+
         }
 
         private void BuildSlider(Transform parent)
         {
             var root = new GameObject("BgmVolumeSlider", typeof(RectTransform), typeof(Image), typeof(Slider));
             root.transform.SetParent(parent, false);
-            Place(root.GetComponent<RectTransform>(), 0f, -14f, 640f, 56f);
+            Place(root.GetComponent<RectTransform>(), 0f, 30f, 520f, 44f);
             root.GetComponent<Image>().color = Color.clear;
 
             var track = SeoUIFactory.CreatePanel(root.transform, "Track", Vector2.one * 0.5f,
-                Vector2.one * 0.5f, Vector2.zero, new Vector2(612f, 10f), SeoUITheme.Current.Secondary);
+                Vector2.one * 0.5f, Vector2.zero, new Vector2(500f, 6f), SeoUITheme.Current.Secondary);
             track.sprite = null;
             track.raycastTarget = false;
 
@@ -133,9 +137,11 @@ namespace Seo.UI
 
             var handleArea = new GameObject("HandleArea", typeof(RectTransform)).GetComponent<RectTransform>();
             handleArea.SetParent(root.transform, false);
-            Place(handleArea, 0f, 0f, 612f, 56f);
+            // Slider stretches the handle vertically across this area; keep its height
+            // zero so the visible handle stays 24 high while the root retains a 44-high hit area.
+            Place(handleArea, 0f, 0f, 500f, 0f);
             var handle = SeoUIFactory.CreatePanel(handleArea, "Handle", new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), Vector2.zero, new Vector2(28f, 42f), Color.white);
+                new Vector2(0f, 0.5f), Vector2.zero, new Vector2(16f, 24f), SeoUITheme.Current.Primary);
             handle.rectTransform.pivot = Vector2.one * 0.5f;
             handle.sprite = null;
 
