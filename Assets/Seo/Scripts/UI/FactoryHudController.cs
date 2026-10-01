@@ -813,6 +813,7 @@ namespace Seo.UI
 
         private void HandleBackPressed()
         {
+            if (CreditsPanel.TryHandleBack()) return;
             if (BgmSettingsPanel.TryHandleBack()) return;
 
             var research = Choi.Research.ResearchController.Instance;

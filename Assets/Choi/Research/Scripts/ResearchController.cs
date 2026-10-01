@@ -41,6 +41,8 @@ namespace Choi.Research
         private GameObject inputBlocker;
         private GameObject endingRoot;
         private Button continueButton;
+        private CreditsPanel endingCredits;
+        private Coroutine endingTransition;
         private CanvasGroup backgroundHud;
         private bool backgroundWasInteractable;
         private GameObject previousSelection;
@@ -192,6 +194,11 @@ namespace Choi.Research
 
         public void Close()
         {
+            if (endingTransition != null) StopCoroutine(endingTransition);
+            endingTransition = null;
+            var credits = endingCredits;
+            endingCredits = null;
+            if (credits != null) credits.Close();
             panelRoot?.SetActive(false);
             endingRoot?.SetActive(false);
             if (inputBlocker != null) inputBlocker.SetActive(false);
@@ -284,12 +291,29 @@ namespace Choi.Research
                     "회로 · 탄소 나노 튜브 · 플라즈마 코어\n각각 10,000개 납품 완료\n\n당신의 공장은 마침내 모든 연구를 완성했습니다.\n플레이해 주셔서 감사합니다.",
                     26, .27f, .54f, new Color(.8f, .86f, .92f));
                 continueButton = SeoUIFactory.CreateTMPButton(endingRoot.transform, "ContinueButton",
-                    "계속 플레이", Close, new Color(.08f, .45f, .52f));
+                    "크레딧 보기", BeginCredits, new Color(.08f, .45f, .52f));
                 SeoUIFactory.SetRect((RectTransform)continueButton.transform,
                     new Vector2(.35f, .12f), new Vector2(.65f, .21f),
                     Vector2.one * .5f, Vector2.zero, Vector2.zero);
             }
             OpenModal(endingRoot, continueButton);
+            endingTransition = StartCoroutine(ShowCreditsAfterEnding());
+        }
+
+        private System.Collections.IEnumerator ShowCreditsAfterEnding()
+        {
+            yield return new WaitForSecondsRealtime(6f);
+            endingTransition = null;
+            BeginCredits();
+        }
+
+        private void BeginCredits()
+        {
+            if (endingCredits != null) return;
+            if (endingTransition != null) StopCoroutine(endingTransition);
+            endingTransition = null;
+            // Keep the ending modal's gameplay input lock until credits have finished.
+            endingCredits = CreditsPanel.Show(() => { endingCredits = null; Close(); });
         }
 
         private void CreateEndingText(string name, string value, int fontSize, float bottom, float top, Color color)
