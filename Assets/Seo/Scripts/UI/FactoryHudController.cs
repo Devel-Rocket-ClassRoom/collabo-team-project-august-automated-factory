@@ -77,6 +77,9 @@ namespace Seo.UI
         private GameObject coreResourcePanel;
         private GameObject powerDetailPanel;
         private GameObject exitDialogRoot;
+        private Text exitDialogTitle;
+        private Text exitDialogConfirmLabel;
+        private bool returnToTitle;
         private Transform coreResourceContent;
         private RectTransform coreResourceViewport;
         private ScrollRect coreResourceScroll;
@@ -774,32 +777,58 @@ namespace Seo.UI
         private void BuildExitDialog()
         {
             var panel = SeoUIFactory.CreatePanel(safeRoot, "SeoExitDialog", new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 240f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 300f),
                 new Color(0.015f, 0.04f, 0.06f, 0.99f));
             exitDialogRoot = panel.gameObject;
             var title = SeoUIFactory.CreateTMPText(panel.transform, "Title", "게임을 종료하시겠습니까?", 28,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
+            exitDialogTitle = title;
             SeoUIFactory.SetRect(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -34f), new Vector2(-40f, 70f));
+                new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(-40f, 110f));
 
             var cancel = SeoUIFactory.CreateTMPButton(panel.transform, "Cancel", "계속하기",
                 () => exitDialogRoot.SetActive(false));
             SeoUIFactory.SetRect(cancel.GetComponent<RectTransform>(), new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-126f, 34f),
-                new Vector2(220f, 64f));
-            var exit = SeoUIFactory.CreateTMPButton(panel.transform, "Exit", "게임 종료", QuitGame,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-140f, 34f),
+                new Vector2(250f, 88f));
+            var exit = SeoUIFactory.CreateTMPButton(panel.transform, "Exit", "게임 종료", ConfirmLeaveGame,
                 SeoUITheme.Current.Danger);
+            exitDialogConfirmLabel = exit.GetComponentInChildren<Text>();
+            exitDialogConfirmLabel.fontSize = 26f;
+            cancel.GetComponentInChildren<Text>().fontSize = 26f;
             SeoUIFactory.SetRect(exit.GetComponent<RectTransform>(), new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(126f, 34f),
-                new Vector2(220f, 64f));
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(140f, 34f),
+                new Vector2(250f, 88f));
             exitDialogRoot.SetActive(false);
         }
 
         private void ShowExitDialog()
         {
+            ShowLeaveDialog(false);
+        }
+
+        private void ShowLeaveDialog(bool toTitle)
+        {
             if (exitDialogRoot == null) return;
+            returnToTitle = toTitle;
+            exitDialogTitle.text = toTitle
+                ? "타이틀로 이동하시겠습니까?\n<size=20>저장하지 않은 진행 내용은 사라집니다.</size>"
+                : "게임을 종료하시겠습니까?";
+            exitDialogConfirmLabel.text = toTitle ? "타이틀로 이동" : "게임 종료";
             exitDialogRoot.SetActive(true);
             exitDialogRoot.transform.SetAsLastSibling();
+        }
+
+        private void ConfirmLeaveGame()
+        {
+            if (!returnToTitle)
+            {
+                QuitGame();
+                return;
+            }
+            CancelCurrentInteraction();
+            Time.timeScale = 1f;
+            SceneManager.LoadScene("Title");
         }
 
         private static void QuitGame()
@@ -1098,6 +1127,7 @@ namespace Seo.UI
                 case "save": directSprite = GetNavigationIconSprite("save"); break;
                 case "load": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/LoadGame")); break;
                 case "sound": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/SoundSettings")); break;
+                case "title":
                 case "exit": directSprite = GetToolTextureSprite(Resources.Load<Texture2D>("NavigationIcons/ExitGame")); break;
             }
 
@@ -1116,6 +1146,8 @@ namespace Seo.UI
             {
                 icon.sprite = directSprite;
                 icon.color = Color.white;
+                // Reuse the system menu artwork with a left-facing return arrow.
+                if (kind == "title") icon.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
             }
             else if (prefab != null) TopViewIconCache.Assign(icon, prefab, kind);
             else TopViewIconCache.Assign(icon, prefabKey);
@@ -1401,8 +1433,8 @@ namespace Seo.UI
 
         private void BuildSystemButtons()
         {
-            string[] labels = { "저장", "불러오기", "소리 설정", "게임 종료" };
-            string[] diagrams = { "save", "load", "sound", "exit" };
+            string[] labels = { "저장", "불러오기", "소리 설정", "게임 종료", "타이틀로 이동" };
+            string[] diagrams = { "save", "load", "sound", "exit", "title" };
             for (int i = 0; i < labels.Length; i++)
             {
                 int captured = i;
@@ -1417,6 +1449,11 @@ namespace Seo.UI
                         if (captured == 3)
                         {
                             ShowExitDialog();
+                            return;
+                        }
+                        if (captured == 4)
+                        {
+                            ShowLeaveDialog(true);
                             return;
                         }
 
