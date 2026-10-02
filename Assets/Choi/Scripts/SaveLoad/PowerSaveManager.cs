@@ -9,6 +9,7 @@ namespace Choi.SaveLoad
     /// 씬에 등록된 모든 IPowerSaveParticipant를 하나의 JSON 파일로 저장하고 복원합니다.
     /// UI Button에서는 Save 또는 Load를 직접 연결할 수 있습니다.
     /// </summary>
+    [DefaultExecutionOrder(1000)]
     public sealed class PowerSaveManager : MonoBehaviour
     {
         public const int CurrentSchemaVersion = 1;
@@ -18,11 +19,18 @@ namespace Choi.SaveLoad
 
         public string SavePath => Path.Combine(Application.persistentDataPath, SanitizeFileName(fileName));
         public string BackupPath => SavePath + ".bak";
+        public bool HasLoadedSave { get; private set; }
 
         public event Action BeforeSave;
         public event Action AfterSave;
         public event Action BeforeLoad;
         public event Action AfterLoad;
+
+        private void Start()
+        {
+            // 코어, 광맥, 바닥의 Start 초기화가 끝난 뒤 첫 Update 전에 복원한다.
+            if (HasSave()) Load();
+        }
 
         public void Save()
         {
@@ -117,6 +125,7 @@ namespace Choi.SaveLoad
                 }
             }
 
+            HasLoadedSave |= restoredCount > 0;
             AfterLoad?.Invoke();
             Debug.Log($"[PowerSave] Restored {restoredCount} systems from {loadedPath}");
             return true;

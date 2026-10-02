@@ -163,7 +163,16 @@ namespace Choi.Tutorial
         {
             DisableLegacyTutorial();
             if (!Discover()) return;
-            if (step == Step.Waiting) Begin();
+            if (step == Step.Waiting)
+            {
+                var saveManager = FindFirstObjectByType<PowerSaveManager>();
+                if (saveManager != null && saveManager.HasLoadedSave)
+                {
+                    SkipTutorial();
+                    return;
+                }
+                Begin();
+            }
 
             AnimateHighlights();
             EvaluateStep();
